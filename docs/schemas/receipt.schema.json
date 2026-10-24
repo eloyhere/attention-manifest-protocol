@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/receipt.schema.json",
+  "title": "AMP receipt | event",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "op", "at", "usage", "outcome"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "receipt" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "op": { "type": "string", "enum": ["attend", "act", "ask", "note", "plan", "reflect", "read"] },
+        "target": { "$ref": "common.schema.json#/$defs/ref" },
+        "at": { "$ref": "common.schema.json#/$defs/ts" },
+        "ms": { "type": "integer", "minimum": 0 },
+        "usage": { "$ref": "common.schema.json#/$defs/usage" },
+        "outcome": { "type": "string", "enum": ["success", "partial", "failure", "blocked"] },
+        "predicted_voi": { "$ref": "common.schema.json#/$defs/confidence" },
+        "realized_voi": { "$ref": "common.schema.json#/$defs/confidence" },
+        "handle": { "$ref": "common.schema.json#/$defs/handle" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "at", "actor", "type", "digest"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "event" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "at": { "$ref": "common.schema.json#/$defs/ts" },
+        "actor": { "$ref": "common.schema.json#/$defs/ref" },
+        "type": { "type": "string", "minLength": 1 },
+        "caused_by": { "$ref": "common.schema.json#/$defs/id" },
+        "refs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "payload": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

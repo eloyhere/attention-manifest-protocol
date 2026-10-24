@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/frame.schema.json",
+  "title": "AMP Attention Frame",
+  "type": "object",
+  "required": ["amp", "kind", "id", "agent", "cycle", "ts", "digest", "mode", "slots", "budget"],
+  "properties": {
+    "amp": { "const": "0.1" },
+    "kind": { "const": "frame" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "agent": { "$ref": "common.schema.json#/$defs/id" },
+    "cycle": { "type": "integer", "minimum": 0 },
+    "ts": { "$ref": "common.schema.json#/$defs/ts" },
+    "parent": { "$ref": "common.schema.json#/$defs/ref" },
+    "digest": { "$ref": "common.schema.json#/$defs/digest" },
+    "mode": { "type": "string", "enum": ["explore", "exploit", "triage", "reflect", "rest"] },
+    "goal": { "$ref": "common.schema.json#/$defs/ref" },
+    "slots": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "required": ["target", "role", "salience", "why", "state"],
+        "properties": {
+          "target": { "$ref": "common.schema.json#/$defs/ref" },
+          "role": {
+            "type": "string",
+            "enum": ["goal", "question", "evidence", "concept", "process", "tool", "memory", "self", "other", "threat", "artifact"]
+          },
+          "tier": { "$ref": "common.schema.json#/$defs/tier" },
+          "salience": { "$ref": "common.schema.json#/$defs/confidence" },
+          "voi": { "$ref": "common.schema.json#/$defs/confidence" },
+          "cost": { "$ref": "common.schema.json#/$defs/budget" },
+          "budget": { "$ref": "common.schema.json#/$defs/budget" },
+          "why": { "type": "string", "minLength": 1 },
+          "ttl_turns": { "type": "integer", "minimum": 0 },
+          "state": { "type": "string", "enum": ["active", "released", "evicted", "done"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "ignored": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "reason"],
+        "properties": {
+          "target": { "$ref": "common.schema.json#/$defs/ref" },
+          "reason": {
+            "type": "string",
+            "enum": ["low_voi", "out_of_scope", "untrusted", "budget", "blocked", "habituated", "deferred"]
+          },
+          "revisit_if": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["allocated", "spent"],
+      "properties": {
+        "allocated": { "$ref": "common.schema.json#/$defs/budget" },
+        "spent": { "$ref": "common.schema.json#/$defs/usage" }
+      },
+      "additionalProperties": false
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/ref" }
+    },
+    "impasse": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["TIE", "STUCK", "STALLED", "CONFLICT", "INFEASIBLE", "UNKNOWN", "UNVERIFIED", "DRIFT", "BUDGET"]
+        },
+        "detail": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "note": { "type": "string" }
+  },
+  "additionalProperties": false
+}

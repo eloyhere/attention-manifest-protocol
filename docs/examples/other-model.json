@@ -1,0 +1,45 @@
+{
+  "amp": "0.1",
+  "kind": "other-model",
+  "id": "om.u.li",
+  "subject": { "kind": "human", "id": "u.li", "label": "值班工程师" },
+  "beliefs": [
+    {
+      "slot": "b1",
+      "order": 1,
+      "proposition": "认为是流量问题",
+      "confidence": 0.4,
+      "source": "utterance:2026-10-24T01:05",
+      "volatility": "high",
+      "ttl": 1800
+    },
+    {
+      "slot": "b2",
+      "order": 2,
+      "proposition": "认为我认为是发布问题",
+      "confidence": 0.25,
+      "source": "record:f.101",
+      "volatility": "medium",
+      "ttl": 900
+    }
+  ],
+  "goals": [{ "goal": "尽快恢复服务", "priority": 1, "confidence": 0.9 }],
+  "knowledge": {
+    "known": [{ "kind": "concept", "id": "c.deploy_pipeline" }],
+    "unknown": [{ "kind": "unknown", "id": "u.17" }],
+    "uncertain": []
+  },
+  "preferences": [
+    { "key": "notification", "value": "只接受 P0/P1 打断", "confidence": 0.8, "source": "profile" }
+  ],
+  "attention": {
+    "state": "interruptible",
+    "load": 0.7,
+    "last_interaction": "2026-10-24T01:05:00Z"
+  },
+  "trust": { "domain": "ops", "level": 0.8, "basis": "同团队 6 个月协作" },
+  "common_ground": [{ "kind": "common-ground", "id": "cg.4" }],
+  "privacy": { "scope": "session", "retention_days": 7, "redact": ["health", "compensation"] },
+  "confidence": 0.6,
+  "updated": "2026-10-24T01:12:00Z"
+}

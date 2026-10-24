@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/plan.schema.json",
+  "title": "AMP planning objects (goal | process | plan)",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "statement", "success", "value", "priority"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "goal" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1 },
+        "success": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.schema.json#/$defs/criterion" }
+        },
+        "value": { "$ref": "common.schema.json#/$defs/confidence" },
+        "priority": { "type": "integer", "minimum": 0 },
+        "deadline": { "$ref": "common.schema.json#/$defs/ts" },
+        "horizon": { "type": "string", "enum": ["task", "session", "long"] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "label", "purpose", "actors", "stages", "invariants", "confidence", "provenance"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "process" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "label": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "actors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["kind", "id"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["human", "agent", "tool"] },
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "permissions": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": false
+          }
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "actor", "action"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "actor": { "$ref": "common.schema.json#/$defs/id" },
+              "action": { "type": "string" },
+              "consumes": { "type": "string" },
+              "produces": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "invariants": { "type": "array", "items": { "type": "string" } },
+        "observability": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["stage", "signal", "where"],
+            "properties": {
+              "stage": { "$ref": "common.schema.json#/$defs/id" },
+              "signal": { "type": "string" },
+              "where": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "failure_modes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["mode", "signal", "discriminating_test", "mitigation"],
+            "properties": {
+              "mode": { "type": "string" },
+              "signal": { "type": "string" },
+              "discriminating_test": { "type": "string" },
+              "mitigation": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "causal_edges": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "string" }
+          }
+        },
+        "unknowns": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+        "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "goal", "tasks", "edges", "commitment_window", "budget", "abandon_if", "status", "created"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "plan" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "goal": { "$ref": "common.schema.json#/$defs/ref" },
+        "process": { "$ref": "common.schema.json#/$defs/ref" },
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["id", "intent", "actor", "pre", "expect", "irreversibility", "status"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "intent": { "type": "string", "minLength": 1 },
+              "actor": { "type": "string", "enum": ["self", "tool", "other"] },
+              "ref": { "$ref": "common.schema.json#/$defs/ref" },
+              "pre": { "type": "array", "items": { "type": "string" } },
+              "expect": {
+                "type": "object",
+                "required": ["observation", "check"],
+                "properties": {
+                  "observation": { "type": "string" },
+                  "check": { "type": "string" }
+                },
+                "additionalProperties": false
+              },
+              "irreversibility": { "type": "integer", "minimum": 0, "maximum": 3 },
+              "budget": { "$ref": "common.schema.json#/$defs/budget" },
+              "status": { "type": "string", "enum": ["pending", "running", "done", "failed", "skipped"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "string" }
+          }
+        },
+        "commitment_window": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" },
+        "abandon_if": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.schema.json#/$defs/criterion" }
+        },
+        "monitor": {
+          "type": "object",
+          "properties": {
+            "triggers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["when", "action"],
+                "properties": {
+                  "when": { "type": "string" },
+                  "action": { "type": "string", "enum": ["retry", "adjust", "recompose", "replan", "abandon"] }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "rollback": { "type": "string" },
+        "warrant": { "$ref": "common.schema.json#/$defs/ref" },
+        "status": { "type": "string", "enum": ["draft", "committed", "executing", "done", "abandoned"] },
+        "created": { "$ref": "common.schema.json#/$defs/ts" }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

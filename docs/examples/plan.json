@@ -1,0 +1,50 @@
+{
+  "amp": "0.1",
+  "kind": "plan",
+  "id": "pl.3",
+  "goal": { "kind": "goal", "id": "g.7" },
+  "process": { "kind": "process", "id": "p.deploy_pipeline" },
+  "tasks": [
+    {
+      "id": "t1",
+      "intent": "对比发布前后两个窗口的错误分布",
+      "actor": "tool",
+      "ref": { "kind": "tool", "id": "logs.query" },
+      "pre": ["日志可用", "已获得时间窗口"],
+      "expect": { "observation": "两个窗口的 5xx 计数", "check": "logs.query" },
+      "irreversibility": 0,
+      "budget": { "calls": 2 },
+      "status": "pending"
+    },
+    {
+      "id": "t2",
+      "intent": "回滚到上一版本",
+      "actor": "self",
+      "pre": ["t1 支持发布为因"],
+      "expect": { "observation": "版本号回到 v41 且错误率下降", "check": "metrics.query" },
+      "irreversibility": 2,
+      "status": "pending"
+    }
+  ],
+  "edges": [["t1", "t2"]],
+  "commitment_window": 1,
+  "budget": { "calls": 8, "ms": 1800000 },
+  "abandon_if": [
+    {
+      "id": "a1",
+      "statement": "回滚 10 分钟后错误率仍高于基线 3 倍",
+      "check": "metrics.query",
+      "kind": "query"
+    }
+  ],
+  "monitor": {
+    "triggers": [
+      { "when": "expect 未满足", "action": "retry" },
+      { "when": "预算消耗 > 120%", "action": "replan" },
+      { "when": "任一 abandon_if 成立", "action": "abandon" }
+    ]
+  },
+  "rollback": "保留上一版本镜像与数据库向后兼容",
+  "status": "committed",
+  "created": "2026-10-24T01:18:00Z"
+}

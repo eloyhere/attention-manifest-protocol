@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/epistemic.schema.json",
+  "title": "AMP epistemic objects (claim | hypothesis | unknown)",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "statement", "tier", "status", "warrant", "provenance", "created"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "claim" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1 },
+        "structured": {
+          "type": "object",
+          "properties": {
+            "subject": { "$ref": "common.schema.json#/$defs/ref" },
+            "relation": { "type": "string" },
+            "value": {}
+          },
+          "additionalProperties": false
+        },
+        "claim_scope": { "type": "string", "enum": ["associational", "interventional", "counterfactual", "definitional"] },
+        "tier": { "$ref": "common.schema.json#/$defs/tier" },
+        "confidence": {
+          "description": "Derived by the Warrant Engine from tier + evidence. MUST NOT be authored by the model.",
+          "$ref": "common.schema.json#/$defs/confidence"
+        },
+        "status": { "type": "string", "enum": ["conjecture", "held", "doubted", "contested", "retracted"] },
+        "would_be_false_if": { "type": "string" },
+        "check_run_id": { "type": "string" },
+        "causal": {
+          "type": "object",
+          "required": ["assignment_mechanism"],
+          "properties": {
+            "assignment_mechanism": { "type": "string", "enum": ["observed", "assigned", "randomized", "natural_experiment"] },
+            "identification_strategy": { "type": "string" },
+            "identifying_assumption": { "type": "string" },
+            "adjustment_set": { "type": "array", "items": { "type": "string" } },
+            "dag_digest": { "$ref": "common.schema.json#/$defs/digest" }
+          },
+          "additionalProperties": false
+        },
+        "warrant": {
+          "type": "object",
+          "required": ["evidence", "inference", "strength"],
+          "properties": {
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "kind", "trust", "independence", "at"],
+                "properties": {
+                  "id": { "$ref": "common.schema.json#/$defs/id" },
+                  "kind": { "type": "string", "enum": ["observation", "test", "document", "testimony", "memory", "inference"] },
+                  "trust": { "$ref": "common.schema.json#/$defs/trust" },
+                  "independence": { "$ref": "common.schema.json#/$defs/confidence" },
+                  "relation": { "type": "string", "enum": ["supports", "undercuts", "contradicts"] },
+                  "entails": { "type": "boolean" },
+                  "origin": { "type": "string" },
+                  "ref": { "$ref": "common.schema.json#/$defs/ref" },
+                  "excerpt": { "type": "string" },
+                  "digest": { "$ref": "common.schema.json#/$defs/digest" },
+                  "at": { "$ref": "common.schema.json#/$defs/ts" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "inference": { "type": "string", "enum": ["observation", "deduction", "induction", "abduction", "testimony", "simulation"] },
+            "auxiliary_assumptions": { "type": "array", "items": { "type": "string" } },
+            "strength": { "$ref": "common.schema.json#/$defs/confidence" }
+          },
+          "additionalProperties": false
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["statement", "confidence"],
+            "properties": {
+              "statement": { "type": "string" },
+              "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+              "reason_rejected": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "disconfirming": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "base_rate": {
+          "type": "object",
+          "required": ["value"],
+          "properties": {
+            "value": { "$ref": "common.schema.json#/$defs/confidence" },
+            "source": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "looks": { "type": "integer", "minimum": 0 },
+        "scope": { "type": "string" },
+        "provenance": { "$ref": "common.schema.json#/$defs/provenance" },
+        "created": { "$ref": "common.schema.json#/$defs/ts" },
+        "expires": { "$ref": "common.schema.json#/$defs/ts" },
+        "supersedes": { "$ref": "common.schema.json#/$defs/ref" },
+        "revision": {
+          "type": "object",
+          "required": ["reason", "at"],
+          "properties": {
+            "reason": { "type": "string" },
+            "at": { "$ref": "common.schema.json#/$defs/ts" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "question", "statement", "prediction", "refutes_if", "status", "created"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "hypothesis" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "question": { "$ref": "common.schema.json#/$defs/ref" },
+        "statement": { "type": "string", "minLength": 1 },
+        "prediction": { "type": "string", "minLength": 1 },
+        "refutes_if": { "type": "string", "minLength": 1 },
+        "auxiliary_assumptions": { "type": "array", "items": { "type": "string" } },
+        "prereg": {
+          "type": "object",
+          "required": ["hash", "registered_at", "metric", "stopping"],
+          "properties": {
+            "hash": { "$ref": "common.schema.json#/$defs/digest" },
+            "registered_at": { "$ref": "common.schema.json#/$defs/ts" },
+            "metric": { "type": "string" },
+            "stopping": { "type": "string" },
+            "exclusions": { "type": "array", "items": { "type": "string" } },
+            "looks": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "test": {
+          "type": "object",
+          "required": ["method", "observation"],
+          "properties": {
+            "method": { "type": "string" },
+            "observation": { "type": "string" },
+            "cost": { "$ref": "common.schema.json#/$defs/budget" }
+          },
+          "additionalProperties": false
+        },
+        "labels": { "type": "array", "items": { "type": "string", "enum": ["confirmatory", "exploratory", "replication"] } },
+        "status": { "type": "string", "enum": ["proposed", "testing", "supported", "refuted", "inconclusive", "out_of_scope"] },
+        "evidence": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "created": { "$ref": "common.schema.json#/$defs/ts" },
+        "closed": { "$ref": "common.schema.json#/$defs/ts" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "question", "importance", "blocking", "since"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "unknown" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "question": { "type": "string", "minLength": 1 },
+        "importance": { "$ref": "common.schema.json#/$defs/confidence" },
+        "blocking": { "type": "boolean" },
+        "since": { "$ref": "common.schema.json#/$defs/ts" },
+        "resolve_cost": { "$ref": "common.schema.json#/$defs/budget" },
+        "attempts": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "status": { "type": "string", "enum": ["open", "probing", "assumed", "resolved", "abandoned"] }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

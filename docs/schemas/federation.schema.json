@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/federation.schema.json",
+  "title": "AMP federation objects (bundle | attestation)",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "manifest", "keys", "issued", "expires", "digest"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "bundle" },
+        "manifest": { "$ref": "manifest.schema.json" },
+        "keys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["kid", "alg", "publicKey"],
+            "properties": {
+              "kid": { "type": "string" },
+              "alg": { "const": "ed25519" },
+              "publicKey": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "revoked": { "type": "array", "items": { "type": "string" } },
+        "issued": { "$ref": "common.schema.json#/$defs/ts" },
+        "expires": { "$ref": "common.schema.json#/$defs/ts" },
+        "digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "attestations": { "type": "array", "items": { "$ref": "#/oneOf/1" } }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "issuer", "subject", "scope", "issued", "expires", "signatures"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "attestation" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "issuer": { "$ref": "common.schema.json#/$defs/ref" },
+        "subject": {
+          "type": "object",
+          "required": ["kind", "id", "digest"],
+          "properties": {
+            "kind": { "const": "manifest" },
+            "id": { "$ref": "common.schema.json#/$defs/id" },
+            "digest": { "$ref": "common.schema.json#/$defs/digest" }
+          },
+          "additionalProperties": false
+        },
+        "scope": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "issued": { "$ref": "common.schema.json#/$defs/ts" },
+        "expires": { "$ref": "common.schema.json#/$defs/ts" },
+        "signatures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.schema.json#/$defs/signature" }
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

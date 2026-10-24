@@ -1,0 +1,66 @@
+{
+  "amp": "0.1",
+  "kind": "claim",
+  "id": "cl.91",
+  "statement": "01:04 的发布导致错误率上升",
+  "structured": {
+    "subject": { "kind": "event", "id": "e.deploy.0104" },
+    "relation": "causes",
+    "value": "error_rate"
+  },
+  "claim_scope": "interventional",
+  "tier": "T2",
+  "confidence": 0.72,
+  "status": "held",
+  "would_be_false_if": "回滚后错误率不下降，或发布前错误率已同幅度上升",
+  "check_run_id": "run.4417",
+  "causal": {
+    "assignment_mechanism": "natural_experiment",
+    "identification_strategy": "difference_in_differences",
+    "identifying_assumption": "无发布时两组趋势平行",
+    "adjustment_set": ["service", "region", "hour_of_day"],
+    "dag_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "looks": 2,
+  "scope": "2026-10-24 01:00–01:30，prod-cn-east",
+  "warrant": {
+    "evidence": [
+      {
+        "id": "ev.1",
+        "kind": "observation",
+        "trust": "verified",
+        "independence": 0.9,
+        "origin": "logs.query@run.4417",
+        "at": "2026-10-24T01:12:41Z",
+        "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      {
+        "id": "ev.2",
+        "kind": "testimony",
+        "trust": "trusted",
+        "independence": 0.4,
+        "origin": "u.li@chat",
+        "excerpt": "发布后看起来就不对了",
+        "at": "2026-10-24T01:14:02Z"
+      }
+    ],
+    "inference": "abduction",
+    "auxiliary_assumptions": ["发布窗口内无其他配置变更", "指标采集未中断"],
+    "strength": 0.7
+  },
+  "alternatives": [
+    {
+      "statement": "流量突增导致连接池耗尽",
+      "confidence": 0.2,
+      "reason_rejected": "QPS 与昨日同期持平"
+    }
+  ],
+  "base_rate": { "value": 0.55, "source": "过去 12 个月的 47 次同类事件" },
+  "provenance": {
+    "source": "a.gamma",
+    "kind": "inference",
+    "trust": "self",
+    "at": "2026-10-24T01:15:00Z"
+  },
+  "created": "2026-10-24T01:15:00Z"
+}

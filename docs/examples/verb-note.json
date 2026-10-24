@@ -1,0 +1,11 @@
+{
+  "amp": "0.1",
+  "kind": "call",
+  "verb": "note",
+  "id": "call.31",
+  "assertion": "错误率上升由 01:04 的发布引入",
+  "as": "hypothesis",
+  "tier": "T1",
+  "evidence": [{ "kind": "evidence", "id": "ev.1" }],
+  "refutes_if": "回滚完成 10 分钟后错误率仍高于基线 3 倍"
+}

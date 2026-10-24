@@ -1,0 +1,22 @@
+{
+  "amp": "0.1",
+  "kind": "receipt",
+  "id": "rc.881",
+  "op": "act",
+  "target": { "kind": "tool", "id": "logs.query" },
+  "at": "2026-10-24T01:12:41Z",
+  "ms": 912,
+  "usage": { "tokens": 386, "calls": 1, "ms": 912 },
+  "outcome": "success",
+  "predicted_voi": 0.55,
+  "realized_voi": 0.61,
+  "handle": {
+    "id": "h.2f9",
+    "kind": "table",
+    "tokens": 12000,
+    "bytes": 204800,
+    "preview": "timestamp,status,route\n01:04:12,500,/checkout\n…",
+    "scope": "session",
+    "ttl_ms": 900000
+  }
+}

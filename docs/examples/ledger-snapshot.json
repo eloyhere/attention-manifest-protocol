@@ -1,0 +1,174 @@
+{
+  "amp": "0.1",
+  "kind": "ledger-snapshot",
+  "agent": "a.gamma",
+  "tip": "sha256:cfa3970cf80192173afcfdd262173ab9d787bbe71eae72cb9b7d1309d19c5a47",
+  "count": 6,
+  "entries": [
+    {
+      "seq": 0,
+      "kind": "unknown",
+      "payload": {
+        "amp": "0.1",
+        "kind": "unknown",
+        "id": "u.1",
+        "question": "错误率上升是发布引起还是流量引起？",
+        "importance": 0.9,
+        "blocking": true,
+        "since": "2026-10-24T01:00:01.000Z",
+        "status": "open"
+      },
+      "prev": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "sha256:8b6d8e3ad2b4938f4764f5cd012780812466c9a895e035eae0a9b66e21eb5829"
+    },
+    {
+      "seq": 1,
+      "kind": "receipt",
+      "payload": {
+        "amp": "0.1",
+        "kind": "receipt",
+        "id": "rc.2",
+        "op": "note",
+        "target": {
+          "kind": "unknown",
+          "id": "u.1"
+        },
+        "at": "2026-10-24T01:00:02.000Z",
+        "usage": {
+          "tokens": 0,
+          "calls": 0
+        },
+        "outcome": "success"
+      },
+      "prev": "sha256:8b6d8e3ad2b4938f4764f5cd012780812466c9a895e035eae0a9b66e21eb5829",
+      "hash": "sha256:28c5df49d7dc9360cc15ac6d19070aad2c9b822a27d447ff5647ed91134a54b5"
+    },
+    {
+      "seq": 2,
+      "kind": "frame",
+      "payload": {
+        "amp": "0.1",
+        "kind": "frame",
+        "id": "f.101",
+        "agent": "a.gamma",
+        "cycle": 1,
+        "ts": "2026-10-24T01:00:03.000Z",
+        "mode": "triage",
+        "slots": [
+          {
+            "target": {
+              "kind": "unknown",
+              "id": "u.1"
+            },
+            "role": "question",
+            "salience": 0.9,
+            "voi": 0.9,
+            "cost": {
+              "tokens": 200
+            },
+            "budget": {
+              "tokens": 200
+            },
+            "why": "blocking unknown",
+            "state": "active"
+          }
+        ],
+        "ignored": [],
+        "budget": {
+          "allocated": {
+            "tokens": 2000
+          },
+          "spent": {
+            "tokens": 0,
+            "calls": 0,
+            "ms": 0
+          }
+        },
+        "digest": "sha256:6614ed73285ce6dc41b7aa0a8f47f2d48ac9a19a9b0cc8a7778f2577d242d8c8"
+      },
+      "prev": "sha256:28c5df49d7dc9360cc15ac6d19070aad2c9b822a27d447ff5647ed91134a54b5",
+      "hash": "sha256:a22037e58ea86aeb4a3c1713c61b4165dcf71b6bb193b963a4db3220b9c33fb6"
+    },
+    {
+      "seq": 3,
+      "kind": "receipt",
+      "payload": {
+        "amp": "0.1",
+        "kind": "receipt",
+        "id": "rc.3",
+        "op": "attend",
+        "target": {
+          "kind": "frame",
+          "id": "f.101"
+        },
+        "at": "2026-10-24T01:00:04.000Z",
+        "usage": {
+          "tokens": 0,
+          "calls": 0
+        },
+        "outcome": "success"
+      },
+      "prev": "sha256:a22037e58ea86aeb4a3c1713c61b4165dcf71b6bb193b963a4db3220b9c33fb6",
+      "hash": "sha256:c77b7e81b5f521d7c44423c3c2fb979f1698d940eef97436f8e057e259fb6b35"
+    },
+    {
+      "seq": 4,
+      "kind": "claim",
+      "payload": {
+        "amp": "0.1",
+        "kind": "claim",
+        "id": "cl.4",
+        "statement": "发布导致错误率上升",
+        "tier": "T2",
+        "status": "held",
+        "warrant": {
+          "evidence": [
+            {
+              "id": "ev.1",
+              "kind": "observation",
+              "trust": "self",
+              "independence": 0.9,
+              "entails": true,
+              "origin": "a",
+              "at": "2026-10-24T01:00:05Z"
+            }
+          ],
+          "inference": "abduction",
+          "strength": 0.7
+        },
+        "provenance": {
+          "source": "a.gamma",
+          "kind": "inference",
+          "trust": "self",
+          "at": "2026-10-24T01:00:05.000Z"
+        },
+        "created": "2026-10-24T01:00:06.000Z",
+        "confidence": 0.882
+      },
+      "prev": "sha256:c77b7e81b5f521d7c44423c3c2fb979f1698d940eef97436f8e057e259fb6b35",
+      "hash": "sha256:06241f4e9cd00eb5f33f5914f4ccd05188b8288927913c29d4331d8d6c41d448"
+    },
+    {
+      "seq": 5,
+      "kind": "receipt",
+      "payload": {
+        "amp": "0.1",
+        "kind": "receipt",
+        "id": "rc.5",
+        "op": "note",
+        "target": {
+          "kind": "claim",
+          "id": "cl.4"
+        },
+        "at": "2026-10-24T01:00:07.000Z",
+        "usage": {
+          "tokens": 0,
+          "calls": 0
+        },
+        "outcome": "success"
+      },
+      "prev": "sha256:06241f4e9cd00eb5f33f5914f4ccd05188b8288927913c29d4331d8d6c41d448",
+      "hash": "sha256:cfa3970cf80192173afcfdd262173ab9d787bbe71eae72cb9b7d1309d19c5a47"
+    }
+  ]
+}

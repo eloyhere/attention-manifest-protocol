@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/message.schema.json",
+  "title": "AMP message envelope (A-surface)",
+  "description": "Seven performatives share one envelope. Payload fields are type-dependent; the closed error code enum lives in common.",
+  "type": "object",
+  "required": ["amp", "kind", "id", "type", "from", "to", "thread", "sent", "payload"],
+  "properties": {
+    "amp": { "const": "0.1" },
+    "kind": { "const": "message" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "type": { "type": "string", "enum": ["inform", "request", "propose", "commit", "decline", "cancel", "release"] },
+    "from": { "$ref": "common.schema.json#/$defs/ref" },
+    "to": { "$ref": "common.schema.json#/$defs/ref" },
+    "thread": { "$ref": "common.schema.json#/$defs/id" },
+    "reply_to": { "$ref": "common.schema.json#/$defs/id" },
+    "sent": { "$ref": "common.schema.json#/$defs/ts" },
+    "ttl": { "type": "integer", "minimum": 0 },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "claim": { "$ref": "common.schema.json#/$defs/ref" },
+        "warrant": { "$ref": "common.schema.json#/$defs/ref" },
+        "target": { "$ref": "common.schema.json#/$defs/ref" },
+        "class": { "type": "string", "enum": ["safety", "commitment", "opportunity", "curiosity"] },
+        "why_now": { "type": "string" },
+        "if_ignored": { "type": "string" },
+        "cost": { "$ref": "common.schema.json#/$defs/budget" },
+        "proposal": { "type": "string" },
+        "ref": { "$ref": "common.schema.json#/$defs/ref" },
+        "request": { "$ref": "common.schema.json#/$defs/id" },
+        "reason": { "type": "string" },
+        "code": { "type": "string", "enum": ["denied", "unavailable", "invalid", "expired", "conflict", "budget_exceeded", "unsupported", "internal"] },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "signature": { "$ref": "common.schema.json#/$defs/signature" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/manifest.schema.json",
+  "title": "AMP Manifest",
+  "type": "object",
+  "required": [
+    "amp", "kind", "agent", "issued", "expires", "digest",
+    "capabilities", "attention", "self", "signatures"
+  ],
+  "properties": {
+    "amp": { "const": "0.1" },
+    "kind": { "const": "manifest" },
+    "agent": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "issued": { "$ref": "common.schema.json#/$defs/ts" },
+    "expires": { "$ref": "common.schema.json#/$defs/ts" },
+    "digest": { "$ref": "common.schema.json#/$defs/digest" },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "statement"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "statement": { "type": "string" },
+              "weight": { "$ref": "common.schema.json#/$defs/confidence" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "statement"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "statement": { "type": "string" },
+              "enforcement": { "type": "string", "enum": ["hard", "soft"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "confidence", "tier"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "label": { "type": "string" },
+          "kind": { "type": "string", "enum": ["tool", "skill", "knowledge", "perception", "action"] },
+          "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+          "tier": { "$ref": "common.schema.json#/$defs/tier" },
+          "cost": { "$ref": "common.schema.json#/$defs/budget" },
+          "limits": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "concepts": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/ref" }
+    },
+    "commitments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "to", "promise", "status"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "to": { "$ref": "common.schema.json#/$defs/ref" },
+          "promise": { "type": "string" },
+          "due": { "$ref": "common.schema.json#/$defs/ts" },
+          "status": { "type": "string", "enum": ["open", "kept", "broken", "released"] },
+          "created": { "$ref": "common.schema.json#/$defs/ts" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "importance", "blocking"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "question": { "type": "string" },
+          "importance": { "$ref": "common.schema.json#/$defs/confidence" },
+          "blocking": { "type": "boolean" },
+          "since": { "$ref": "common.schema.json#/$defs/ts" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "attention": {
+      "type": "object",
+      "required": ["policy_digest", "budget"],
+      "properties": {
+        "policy_digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "frame": { "$ref": "common.schema.json#/$defs/ref" },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" }
+      },
+      "additionalProperties": false
+    },
+    "self": {
+      "type": "object",
+      "required": ["calibration"],
+      "properties": {
+        "calibration": {
+          "type": "object",
+          "required": ["ece"],
+          "properties": {
+            "ece": { "$ref": "common.schema.json#/$defs/confidence" },
+            "buckets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["lo", "hi", "predicted", "observed", "n"],
+                "properties": {
+                  "lo": { "type": "number" },
+                  "hi": { "type": "number" },
+                  "predicted": { "type": "number" },
+                  "observed": { "type": "number" },
+                  "n": { "type": "integer", "minimum": 0 }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": { "type": "array", "items": { "type": "string" } },
+        "state": {
+          "type": "object",
+          "properties": {
+            "load": { "$ref": "common.schema.json#/$defs/confidence" },
+            "mode": { "type": "string", "enum": ["explore", "exploit", "triage", "reflect", "rest"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "common.schema.json#/$defs/signature" }
+    }
+  },
+  "additionalProperties": false
+}
