@@ -20,11 +20,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `compaction.schema.json` covering checkpoints and prune plans, two worked examples
   (`checkpoint.json`, `prune-plan.json`), and `docs/compaction.md` with invariants P-1 to P-7.
 - `tools/compaction-check.ts` with 15 assertions, wired into `npm run verify`.
+- Concept economy. `pruneConcept()` bounds one concept's content: duplicate examples collapse
+  to the more typical one, examples beyond `maxExamples` go from the least typical end, and
+  the floor (`minExamples`) keeps the concept grounded. Relations are de-duplicated, dangling
+  targets are dropped when a resolver is supplied, and the extension is de-duplicated. The
+  definition, intension, counterexamples and `grounded_in` are never trimmed, and a view never
+  bumps `version`.
+- `compactConceptHistory()` keeps the head plus `keepVersions` and commits the rest into a
+  `concept-checkpoint`. It refuses a broken version lineage or a window that covers every
+  version. Invariants C-1 to C-4 are documented in `docs/compaction.md` §6.
+- `concept-compaction.schema.json`, two worked examples, and `tools/concept-check.ts`
+  (14 assertions) wired into `npm run verify`.
 
 ### Changed
 
-- Counts moved with the new layer: schemas 14 → 15, validated example objects 33 → 35,
-  verification entries 29 → 30, TypeScript scripts under `tools/` 38 → 39.
+- Counts moved with the new layer: schemas 14 → 16, validated example objects 33 → 37,
+  verification entries 29 → 31, TypeScript scripts under `tools/` 38 → 40.
 - All 38 scripts under `tools/` migrated from JavaScript to TypeScript. They run directly
   under Node's type stripping and are covered by `tsconfig.tools.json`; no `.mjs` file
   remains.

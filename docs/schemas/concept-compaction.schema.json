@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/concept-compaction.schema.json",
+  "title": "AMP concept prune plan | concept checkpoint",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "concept", "version", "dropped", "reclaimedBytes", "budget"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "concept-prune-plan" },
+        "concept": { "$ref": "common.schema.json#/$defs/id" },
+        "version": { "type": "integer", "minimum": 1 },
+        "dropped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slot", "index", "summary", "reason", "revisit_if"],
+            "properties": {
+              "slot": { "enum": ["example", "relation", "extension"] },
+              "index": { "type": "integer", "minimum": 0 },
+              "summary": { "type": "string", "minLength": 1 },
+              "reason": { "enum": ["duplicate", "over-budget", "dangling"] },
+              "revisit_if": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "reclaimedBytes": { "type": "integer", "minimum": 0 },
+        "budget": {
+          "type": "object",
+          "required": ["amp", "kind", "maxExamples", "minExamples", "maxRelations", "keepVersions"],
+          "properties": {
+            "amp": { "const": "0.1" },
+            "kind": { "const": "concept-budget" },
+            "maxExamples": { "type": "integer", "minimum": 0 },
+            "minExamples": { "type": "integer", "minimum": 0 },
+            "maxRelations": { "type": "integer", "minimum": 0 },
+            "keepVersions": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "concept", "from", "to", "count", "tip", "root", "created", "budget"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "concept-checkpoint" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "concept": { "$ref": "common.schema.json#/$defs/id" },
+        "from": { "type": "integer", "minimum": 1 },
+        "to": { "type": "integer", "minimum": 1 },
+        "count": { "type": "integer", "minimum": 1 },
+        "tip": { "$ref": "common.schema.json#/$defs/digest" },
+        "root": { "$ref": "common.schema.json#/$defs/digest" },
+        "created": { "$ref": "common.schema.json#/$defs/ts" },
+        "budget": {
+          "type": "object",
+          "required": ["keepVersions"],
+          "properties": {
+            "keepVersions": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

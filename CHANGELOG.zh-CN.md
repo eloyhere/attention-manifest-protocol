@@ -19,11 +19,20 @@
   （`checkpoint.json`、`prune-plan.json`），以及含 P-1 至 P-7 不变量的
   `docs/compaction.md`。
 - 新增 `tools/compaction-check.ts`（15 项断言），已接入 `npm run verify`。
+- 概念经济。`pruneConcept()` 为一个概念的体量设上限：重复示例折叠为更典型的那条；超过
+  `maxExamples` 的示例从最不典型的一端裁掉；`minExamples` 作为下限，保证概念仍有实例。
+  关系先去重，提供解析器时删除悬空目标，外延只折叠完全重复项。定义、内涵、反例与
+  `grounded_in` 永不裁剪；视图不提升 `version`。
+- `compactConceptHistory()` 保留 head 与 `keepVersions`，其余版本压缩为
+  `concept-checkpoint`。版本号不连续或保留窗口覆盖全部版本时拒绝压缩。不变量 C-1 至 C-4
+  记录在 `docs/compaction.md` §6。
+- 新增 `concept-compaction.schema.json`、两个可校验示例，以及 `tools/concept-check.ts`
+  （14 项断言），已接入 `npm run verify`。
 
 ### 变更
 
-- 数量随新层更新：schema 14 → 15、可校验示例对象 33 → 35、校验入口 29 → 30、
-  `tools/` 下的 TypeScript 脚本 38 → 39。
+- 数量随新层更新：schema 14 → 16、可校验示例对象 33 → 37、校验入口 29 → 31、
+  `tools/` 下的 TypeScript 脚本 38 → 40。
 - `tools/` 下的 38 个脚本全部由 JavaScript 迁移为 TypeScript。它们由 Node 直接做类型剥离后
   运行，并纳入 `tsconfig.tools.json` 的检查范围；仓库中已不存在 `.mjs` 文件。
 - `npm run verify` 现在连续执行两份类型检查——`src/` 的 `tsc --noEmit` 与 `tools/` 的

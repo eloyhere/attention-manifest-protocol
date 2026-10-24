@@ -184,6 +184,8 @@ const KIND_TO_SCHEMA = {
   'ledger-snapshot': 'ledger-snapshot.schema.json',
   checkpoint: 'compaction.schema.json',
   'prune-plan': 'compaction.schema.json',
+  'concept-prune-plan': 'concept-compaction.schema.json',
+  'concept-checkpoint': 'concept-compaction.schema.json',
   delegation: 'collaboration.schema.json',
   lease: 'collaboration.schema.json',
   'result-contract': 'collaboration.schema.json',

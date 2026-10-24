@@ -14,6 +14,8 @@
 
 两者都**不退还预算**：已经花掉的注意力不会因为丢弃而退回（A-3 的计费点唯一）。
 
+同样的两个操作也作用于单个概念：`pruneConcept` 给出有界视图，`compactConceptHistory` 压缩历史版本（见 §6）。
+
 ## 2. 剪枝
 
 ```ts
@@ -103,15 +105,57 @@ const verdict = verifyCompaction({ checkpoint, tail, removed })
 | 埋掉活引用 | 压缩后 `tail` 无法解析 | P-7 |
 | 预算回滚 | 丢弃后 `budget` 增加 | 不存在退款路径 |
 
-## 6. 示例与检验
+## 6. 概念内容的有界化
+
+概念是占据注意力槽的单位，因此它的体量在**每一次使用它的回合**上都要付费。任其生长，概念会不断累积：示例越堆越多、关系重复、旧版本留在账本里。本层对视图与存储两级都设上限。
+
+### 6.1 两级边界
+
+| 层级 | 操作 | 边界 |
+| --- | --- | --- |
+| 视图 | `pruneConcept(concept, budget)` | 单次读取时一个概念的体量 |
+| 存储 | `compactConceptHistory(versions, { keepVersions })` | 保留多少个历史版本 |
+
+### 6.2 视图规则
+
+- **示例**：先折叠重复（normalise 后相同的 `description`），保留 `typicality` 更高者；再按 typicality 从低到高裁剪到 `maxExamples`；但绝不低于 `minExamples`（默认 1）——没有示例的概念只是一个标签。
+- **关系**：先折叠重复（`type` + `target`），再删除目标已不存在的悬空关系（需要 `known()` 解析器），最后按 `maxRelations` 截断。
+- **外延**：只折叠完全重复的 `ref`；外延成员可能来自外部，因此不做悬空检查。
+- **永不裁剪**：`definition`、`intension`、`counterexamples`、`grounded_in`。反例是否证器（W-2）；定义与内涵是概念之所以为概念的部分。
+
+### 6.3 视图不是修订
+
+`pruneConcept` 不修改输入，也不提升 `version`。提升版本会伪造谱系——视图只是「看的方式」，不是一条新主张。
+
+### 6.4 历史压缩
+
+`compactConceptHistory` 保留 head 与 `keepVersions` 个版本，其余换成 `concept-checkpoint`：`root = digestOf(removed)`，`tip = digestOf(最后一个被移除版本)`。
+
+两条拒绝条件：版本号不连续（谱系无法证明，检查点等于撒谎）；保留窗口覆盖了全部版本（没有可压缩的部分）。
+
+### 6.5 不变量
+
+| 编号 | 规则 | 由谁保证 |
+| --- | --- | --- |
+| **C-1** | 身份不变：`id`、`label`、`status` 不因任何裁剪而改变 | `pruneConcept` |
+| **C-2** | 内涵不可剪：定义、intension、反例、grounded_in 永不进入 `dropped` | 视图规则 |
+| **C-3** | 有据丢弃：每次丢弃都给出 `slot`、`index`、`reason`、`revisit_if` | `ConceptDrop` |
+| **C-4** | 谱系可证：被移除版本由 `root` 承诺，head 版本号必须等于 `checkpoint.to + 1` | `verifyConceptCheckpoint` |
+
+## 7. 示例与检验
 
 | 文件 | 内容 |
 | --- | --- |
 | [`examples/prune-plan.json`](examples/prune-plan.json) | 一次真实的剪枝：被取代的主张、已关闭的假设、已解决的未知 |
 | [`examples/checkpoint.json`](examples/checkpoint.json) | 一次真实的压缩：覆盖 4 条的前缀检查点 |
-| [`schemas/compaction.schema.json`](schemas/compaction.schema.json) | 两种对象的 schema |
+| [`examples/concept-prune-plan.json`](examples/concept-prune-plan.json) | 一次真实的概念裁剪：重复示例、超出预算的示例、重复关系、重复外延 |
+| [`examples/concept-checkpoint.json`](examples/concept-checkpoint.json) | 一次真实的概念历史压缩：v1–v2 被承诺，v3 保留 |
+| [`schemas/compaction.schema.json`](schemas/compaction.schema.json) | 账本级的两种对象 |
+| [`schemas/concept-compaction.schema.json`](schemas/concept-compaction.schema.json) | 概念级的两种对象 |
 | [`../tools/compaction-check.ts`](../tools/compaction-check.ts) | 15 项断言 |
+| [`../tools/concept-check.ts`](../tools/concept-check.ts) | 14 项断言 |
 
 ```bash
 npm run compaction-check
+npm run concept-check
 ```
