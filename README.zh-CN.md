@@ -29,7 +29,7 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 
 | 层 | 能力 |
 | --- | --- |
-| 协议 | 14 个 JSON Schema、一一对应的 TS 类型、消息信封与七种言语行为 |
+| 协议 | 15 个 JSON Schema、一一对应的 TS 类型、消息信封与七种言语行为 |
 | 注意力 | 显著性契约、焦点集与忽略集、僵局分类、打断分级与债务 |
 | 凭据 | T0–T4 认知投入等级、置信度派生、最小修订、未知与停止规则 |
 | 执行 | MCP 2026-07-28 客户端（无状态与旧式回退）、预算调度、句柄整形 |
@@ -37,6 +37,7 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 | 协作 | 委派衰减、租约 fencing、任务板、结果合并与冲突裁决、统一账本 |
 | 信任 | Agent Card 发现与签名、bundle 密钥、scope 策略、A2A `message/send` |
 | 持久化 | 只追加哈希链、快照校验、恢复时拒收损坏数据 |
+| 上下文经济 | 在已验证账本上生成剪枝视图，用检查点替换冷前缀；两者都拒绝埋掉活引用 |
 
 ## 仓库结构
 
@@ -47,12 +48,13 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 | [`docs/multi-agent.md`](docs/multi-agent.md) | 多 Agent：准入规则、委派对象与 10 条不变量、团队对象、8 个失败信号 |
 | [`docs/trust-chain.md`](docs/trust-chain.md) | 信任链：发现 → 卡片签名 → bundle 密钥 → 背书 → scope 策略 |
 | [`docs/federation.md`](docs/federation.md) | 跨域 bundle 与第三方证明 |
+| [`docs/compaction.md`](docs/compaction.md) | 上下文经济：剪枝是可审计的视图，压缩是带承诺的检查点 |
 | [`docs/research/`](docs/research/) | 九份研究简报，含真实端点兼容性矩阵与引用纪律 |
-| [`docs/schemas/`](docs/schemas/) | 14 个 JSON Schema |
-| [`docs/examples/`](docs/examples/) | 33 个可校验示例：帧链、主张、计划、委派、bundle、快照 |
+| [`docs/schemas/`](docs/schemas/) | 15 个 JSON Schema |
+| [`docs/examples/`](docs/examples/) | 35 个可校验示例：帧链、主张、计划、委派、bundle、快照、检查点 |
 | [`src/types/`](src/types/) | 与 schema 一一对应的 TS 类型 |
 | [`src/runtime/`](src/runtime/) | 参考运行时（见下表） |
-| [`tools/`](tools/) | 29 个校验脚本、4 个示例生成器、5 个真实端点探针，全部为 TypeScript |
+| [`tools/`](tools/) | 30 个校验脚本、4 个示例生成器、5 个真实端点探针，全部为 TypeScript |
 
 运行时模块：
 
@@ -65,19 +67,19 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 | `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | 签名、bundle、证明、卡片验签、scope 策略 |
 | `team.ts` / `board.ts` / `merge.ts` / `metrics.ts` / `session.ts` | 委派、任务板、合并、指标、端到端会话 |
 | `channel.ts` / `http-channel.ts` / `a2a.ts` | 传输接缝、HTTP 幂等通道、A2A 绑定 |
-| `persistence.ts` / `share.ts` | 哈希链快照与三种共享粒度 |
+| `persistence.ts` / `share.ts` / `compaction.ts` | 哈希链快照、三种共享粒度、剪枝与压缩 |
 
 ## 快速开始
 
 ```bash
-npm run verify            # 29 个校验入口，外加两份类型检查（src 与 tools）
+npm run verify            # 30 个校验入口，外加两份类型检查（src 与 tools）
 npm run scenario          # 端到端事故场景：委派 → MCP → 合并 → 注意力 → 指标
 npm run demo              # 生成运行时轨迹
 npm run typecheck         # src/ 的严格类型检查
 npm run typecheck:tools   # tools/ 的类型检查，测试代码同样受检
 ```
 
-`tools/` 下没有 JavaScript 文件。38 个脚本全部是 `.ts`，由 Node 直接做类型剥离后运行，
+`tools/` 下没有 JavaScript 文件。39 个脚本全部是 `.ts`，由 Node 直接做类型剥离后运行，
 并纳入 `tsconfig.tools.json` 的检查范围，因此测试代码与运行时共享同一套类型契约。
 
 真实端点（需要网络）：
@@ -94,11 +96,12 @@ npm run oauth-probe   # Linear / Figma 的 OAuth 发现链
 2. §3 —— 两个账本、三类对象与 12 条不变量
 3. §6 —— 凭据层：T0–T4、可证伪、认知卫生
 4. §12 —— 一致性向量 V1–V15
-5. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) —— 一条真实的帧链
+5. [`docs/compaction.md`](docs/compaction.md) —— 剪枝与压缩：账本保持可负担的两种方式
+6. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) —— 一条真实的帧链
 
 ## 状态与边界
 
-`v0.1.0`。14 个 schema、33 个示例对象、29 个校验入口、166 项带计数的断言，全部通过。
+`v0.1.0`。15 个 schema、35 个示例对象、30 个校验入口、181 项带计数的断言，全部通过。
 规范文档与研究简报目前以简体中文撰写。
 
 **不承诺什么。** 不承诺「理解」，只承诺可声明、可计价、可反驳、可审计；不对意识问题表态。

@@ -7,8 +7,24 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Context economy. `planPrune()` builds an explicit view of a verified ledger: superseded
+  claims, closed hypotheses and resolved non-blocking unknowns leave it, every omission
+  carries a `reason` and a `revisit_if`, and citations are closed over so that nothing
+  dangles. `supersedes` is deliberately not treated as a dependency.
+- `compactLedger()` replaces a cold prefix with a checkpoint that commits to the digest of
+  the removed entries. `verifyCompaction()` re-derives that commitment and checks that the
+  tail continues the same chain. Compaction refuses to bury an entry the retained tail still
+  cites, and raises `CompactionRefused` with the pinned references.
+- `compaction.schema.json` covering checkpoints and prune plans, two worked examples
+  (`checkpoint.json`, `prune-plan.json`), and `docs/compaction.md` with invariants P-1 to P-7.
+- `tools/compaction-check.ts` with 15 assertions, wired into `npm run verify`.
+
 ### Changed
 
+- Counts moved with the new layer: schemas 14 → 15, validated example objects 33 → 35,
+  verification entries 29 → 30, TypeScript scripts under `tools/` 38 → 39.
 - All 38 scripts under `tools/` migrated from JavaScript to TypeScript. They run directly
   under Node's type stripping and are covered by `tsconfig.tools.json`; no `.mjs` file
   remains.

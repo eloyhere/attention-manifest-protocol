@@ -182,6 +182,8 @@ const KIND_TO_SCHEMA = {
   bundle: 'federation.schema.json',
   attestation: 'federation.schema.json',
   'ledger-snapshot': 'ledger-snapshot.schema.json',
+  checkpoint: 'compaction.schema.json',
+  'prune-plan': 'compaction.schema.json',
   delegation: 'collaboration.schema.json',
   lease: 'collaboration.schema.json',
   'result-contract': 'collaboration.schema.json',

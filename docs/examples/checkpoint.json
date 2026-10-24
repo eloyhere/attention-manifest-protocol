@@ -1,0 +1,15 @@
+{
+  "amp": "0.1",
+  "kind": "checkpoint",
+  "id": "cp.0-3",
+  "agent": "a.worker",
+  "from": 0,
+  "to": 3,
+  "count": 4,
+  "tip": "sha256:0791b9de5dd45e1236d92b7caecc7376b8bf8eac381c857ba85b8cb4e2746daa",
+  "root": "sha256:37664d397830d9d904b2e14b6821270cf665b7d014f85ec0bf73ce1407f65c35",
+  "created": "2026-10-24T01:00:00Z",
+  "policy": {
+    "keepRecent": 2
+  }
+}

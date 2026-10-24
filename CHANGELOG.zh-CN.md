@@ -7,8 +7,23 @@
 
 ## [未发布]
 
+### 新增
+
+- 上下文经济。`planPrune()` 在已验证的账本上生成显式视图：被取代的主张、已关闭的假设、
+  已解决且非阻塞的未知会离开视图；每一条丢弃都带 `reason` 与 `revisit_if`；引用闭包保证
+  不会出现悬空引用。`supersedes` 有意**不**被视为依赖。
+- `compactLedger()` 用检查点替换冷前缀，检查点承诺被移除条目的摘要；`verifyCompaction()`
+  重算该承诺，并检查 tail 是否接续同一条链。若保留的 tail 仍引用前缀条目，压缩会被拒绝，
+  并抛出带 `pinned` 列表的 `CompactionRefused`。
+- 新增 `compaction.schema.json`（检查点与剪枝计划）、两个可校验示例
+  （`checkpoint.json`、`prune-plan.json`），以及含 P-1 至 P-7 不变量的
+  `docs/compaction.md`。
+- 新增 `tools/compaction-check.ts`（15 项断言），已接入 `npm run verify`。
+
 ### 变更
 
+- 数量随新层更新：schema 14 → 15、可校验示例对象 33 → 35、校验入口 29 → 30、
+  `tools/` 下的 TypeScript 脚本 38 → 39。
 - `tools/` 下的 38 个脚本全部由 JavaScript 迁移为 TypeScript。它们由 Node 直接做类型剥离后
   运行，并纳入 `tsconfig.tools.json` 的检查范围；仓库中已不存在 `.mjs` 文件。
 - `npm run verify` 现在连续执行两份类型检查——`src/` 的 `tsc --noEmit` 与 `tools/` 的

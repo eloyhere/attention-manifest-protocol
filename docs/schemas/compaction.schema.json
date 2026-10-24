@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/compaction.schema.json",
+  "title": "AMP checkpoint | prune plan",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "amp",
+        "kind",
+        "id",
+        "agent",
+        "from",
+        "to",
+        "count",
+        "tip",
+        "root",
+        "created",
+        "policy"
+      ],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "checkpoint" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "agent": { "$ref": "common.schema.json#/$defs/id" },
+        "from": { "type": "integer", "minimum": 0 },
+        "to": { "type": "integer", "minimum": 0 },
+        "count": { "type": "integer", "minimum": 1 },
+        "tip": { "$ref": "common.schema.json#/$defs/digest" },
+        "root": { "$ref": "common.schema.json#/$defs/digest" },
+        "created": { "$ref": "common.schema.json#/$defs/ts" },
+        "policy": {
+          "type": "object",
+          "required": ["keepRecent"],
+          "properties": {
+            "keepRecent": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "amp",
+        "kind",
+        "agent",
+        "sourceTip",
+        "sourceCount",
+        "kept",
+        "dropped",
+        "reclaimedBytes",
+        "estimatedTokens",
+        "policy"
+      ],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "prune-plan" },
+        "agent": { "$ref": "common.schema.json#/$defs/id" },
+        "sourceTip": { "$ref": "common.schema.json#/$defs/digest" },
+        "sourceCount": { "type": "integer", "minimum": 0 },
+        "kept": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "dropped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["seq", "kind", "id", "reason", "revisit_if", "bytes"],
+            "properties": {
+              "seq": { "type": "integer", "minimum": 0 },
+              "kind": {
+                "enum": [
+                  "event",
+                  "frame",
+                  "receipt",
+                  "claim",
+                  "hypothesis",
+                  "unknown",
+                  "goal",
+                  "plan"
+                ]
+              },
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "reason": { "enum": ["superseded", "closed", "resolved"] },
+              "revisit_if": { "type": "string", "minLength": 1 },
+              "bytes": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "reclaimedBytes": { "type": "integer", "minimum": 0 },
+        "estimatedTokens": { "type": "integer", "minimum": 0 },
+        "policy": {
+          "type": "object",
+          "required": [
+            "amp",
+            "kind",
+            "keepRecent",
+            "dropSupersededClaims",
+            "dropClosedHypotheses",
+            "dropResolvedUnknowns"
+          ],
+          "properties": {
+            "amp": { "const": "0.1" },
+            "kind": { "const": "prune-policy" },
+            "keepRecent": { "type": "integer", "minimum": 0 },
+            "dropSupersededClaims": { "type": "boolean" },
+            "dropClosedHypotheses": { "type": "boolean" },
+            "dropResolvedUnknowns": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
