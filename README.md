@@ -68,11 +68,15 @@ AMP 是一个**元认知协议**：它不规定模型如何思考，而规定 Ag
 ## 快速开始
 
 ```bash
-npm run verify      # 29 个套件 + 类型检查，一条命令全绿才通过
-npm run scenario    # 端到端事故场景：委派 → MCP → 合并 → 注意力 → 指标
-npm run demo        # 生成运行时轨迹
-npm run typecheck
+npm run verify            # 29 个套件 + 两份类型检查（src 与 tools），全绿才通过
+npm run scenario          # 端到端事故场景：委派 → MCP → 合并 → 注意力 → 指标
+npm run demo              # 生成运行时轨迹
+npm run typecheck         # src/ 的严格类型检查
+npm run typecheck:tools   # tools/ 的类型检查（测试脚本同样受检）
 ```
+
+`tools/` 下没有 JavaScript 文件：38 个脚本全部是 `.ts`，由 Node 直接类型剥离运行，
+并纳入 `tsconfig.tools.json` 的检查范围，因此测试代码和运行时享受同一套类型契约。
 
 真实端点（需要网络）：
 

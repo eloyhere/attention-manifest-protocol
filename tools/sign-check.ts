@@ -9,6 +9,7 @@ import {
   verifyManifest,
   verifyWithRegistry,
 } from '../src/runtime/sign.ts'
+import type { Manifest } from '../src/types/index.ts'
 
 let passed = 0
 let failed = 0
@@ -24,7 +25,7 @@ async function test(name, fn) {
   }
 }
 
-function unsignedManifest() {
+function unsignedManifest(): Omit<Manifest, 'signatures' | 'digest'> {
   return {
     amp: '0.1',
     kind: 'manifest',

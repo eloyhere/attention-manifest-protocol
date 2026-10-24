@@ -7,6 +7,8 @@ import { toA2ARequest, A2AChannel } from '../src/runtime/a2a.ts'
 import { delegateOver } from '../src/runtime/channel.ts'
 import { digestOf } from '../src/runtime/canonical.ts'
 import { TeamRuntime } from '../src/runtime/team.ts'
+import { toDelegationDoc } from '../src/runtime/wire.ts'
+import { listen, portOf } from './_helpers.ts'
 
 let passed = 0
 let failed = 0
@@ -47,17 +49,18 @@ const server = createServer((req, res) => {
     }
   })
 })
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const url = `http://127.0.0.1:${server.address().port}/a2a`
+await listen(server)
+const url = `http://127.0.0.1:${portOf(server)}/a2a`
 
 await test('request is a real A2A message/send envelope', () => {
-  const request = toA2ARequest(delegation())
+  const doc = toDelegationDoc(delegation())
+  const request = toA2ARequest(doc)
   assert.equal(request.method, 'message/send')
   assert.equal(request.params.message.kind, 'message')
   assert.equal(request.params.message.role, 'user')
   assert.equal(request.params.message.parts.length, 2)
   assert.equal(request.params.message.parts[1].kind, 'data')
-  assert.equal(request.params.message.metadata['io.amp/delegation_digest'], digestOf(delegation()))
+  assert.equal(request.params.message.metadata['io.amp/delegation_digest'], digestOf(doc))
 })
 
 await test('task result means accepted, with the A2A state surfaced', async () => {

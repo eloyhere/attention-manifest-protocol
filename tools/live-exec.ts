@@ -4,7 +4,7 @@
  *
  * This is an integration probe, not part of the offline test suite: it needs
  * network and the endpoint may change its policy at any time. Run manually:
- *   node tools/live-exec.mjs
+ *   node tools/live-exec.ts
  */
 import { ExecProfile } from '../src/runtime/exec.ts'
 import { HandleStore } from '../src/runtime/handles.ts'

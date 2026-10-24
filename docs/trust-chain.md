@@ -47,7 +47,7 @@ Agent Card  →  card signature  →  bundle keys  →  attestation   →  scope
 | issuer 密钥不在本地信任表 | 拒绝，不静默忽略 |
 | 卡片被篡改 / kid 被撤销 | 拒绝 |
 
-测试：`tools/trust-flow-check.mjs`（4 项）、`tools/card-sign-check.mjs`（4 项）、`tools/card-trust-check.mjs`（4 项）、`tools/bundle-trust-check.mjs`（3 项）。
+测试：`tools/trust-flow-check.ts`（4 项）、`tools/card-sign-check.ts`（4 项）、`tools/card-trust-check.ts`（4 项）、`tools/bundle-trust-check.ts`（3 项）。
 
 ## 5. 缺口（诚实清单）
 

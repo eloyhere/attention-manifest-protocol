@@ -1,6 +1,6 @@
 # Live MCP compatibility probe (2026-10-24)
 
-Real endpoints, probed from this machine with `tools/net-probe.mjs` and exercised end-to-end with `tools/live-exec.mjs`.
+Real endpoints, probed from this machine with `tools/net-probe.ts` and exercised end-to-end with `tools/live-exec.ts`.
 
 | Endpoint | Protocol spoken | Session | `server/discover` | Notes |
 | --- | --- | --- | --- | --- |
@@ -62,8 +62,8 @@ What remains unimplemented is the interactive part: browser authorization, token
 ## Reproduce
 
 ```bash
-node tools/net-probe.mjs    # probe the matrix
-node tools/oauth-probe.mjs  # OAuth discovery chain
+node tools/net-probe.ts    # probe the matrix
+node tools/oauth-probe.ts  # OAuth discovery chain
 npm run live-test           # Exec path against context7 (2026-07-28)
 npm run live-legacy         # Exec path against mslearn + deepwiki (2025-06-18)
 ```

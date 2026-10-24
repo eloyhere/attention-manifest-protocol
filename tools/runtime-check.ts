@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Reference runtime checks (not a spec conformance suite — see tools/conformance.mjs).
+ * Reference runtime checks (not a spec conformance suite — see tools/conformance.ts).
  * These assert that the implementation actually honours the invariants it claims.
  */
 import assert from 'node:assert/strict'
@@ -17,6 +17,8 @@ import {
 } from '../src/runtime/warrant.ts'
 import { respectsMonotonicity, salience, selectFocus } from '../src/runtime/attention.ts'
 import { AmpRuntime } from '../src/runtime/runtime.ts'
+import type { Claim, EvidenceItem, Hypothesis } from '../src/types/index.ts'
+import type { Candidate } from '../src/runtime/attention.ts'
 
 let passed = 0
 let failed = 0
@@ -32,7 +34,7 @@ function test(name, fn) {
   }
 }
 
-const evidence = (over = {}) => ({
+const evidence = (over: Partial<EvidenceItem> = {}): EvidenceItem => ({
   id: 'ev.1',
   kind: 'observation',
   trust: 'self',
@@ -43,7 +45,7 @@ const evidence = (over = {}) => ({
   ...over,
 })
 
-const claim = (over = {}) => ({
+const claim = (over: Partial<Claim> = {}): Claim => ({
   amp: '0.1',
   kind: 'claim',
   id: 'cl.1',
@@ -100,7 +102,7 @@ test('tier inflation is rejected', () => {
 })
 
 test('hypothesis without refutes_if is rejected', () => {
-  const hypothesis = {
+  const hypothesis: Hypothesis = {
     amp: '0.1',
     kind: 'hypothesis',
     id: 'h.1',
@@ -121,7 +123,7 @@ test('contested claims cannot authorize effects', () => {
 })
 
 test('salience respects its monotonicity contract', () => {
-  const base = {
+  const base: Candidate = {
     target: { kind: 'tool', id: 'logs.query' },
     role: 'tool',
     voi: 0.6,

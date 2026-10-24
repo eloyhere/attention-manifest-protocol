@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 
 import { AttentionBroker } from '../src/runtime/social.ts'
+import type { AttentionRequest } from '../src/types/index.ts'
 
 let passed = 0
 let failed = 0
@@ -22,7 +23,7 @@ let minutes = 0
 const start = Date.parse('2026-10-24T10:00:00Z')
 const now = () => new Date(start + minutes * 60_000).toISOString()
 
-function request(over = {}) {
+function request(over: Partial<AttentionRequest> = {}): AttentionRequest {
   return {
     amp: '0.1',
     kind: 'attention-request',

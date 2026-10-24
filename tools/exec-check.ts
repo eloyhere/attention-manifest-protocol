@@ -11,6 +11,7 @@ import { HandleStore } from '../src/runtime/handles.ts'
 import { McpClient } from '../src/runtime/mcp/client.ts'
 import { DemoServer } from '../src/runtime/mcp/server.ts'
 import { MemoryTransport } from '../src/runtime/mcp/transport.ts'
+import type { Budget } from '../src/types/index.ts'
 
 let passed = 0
 let failed = 0
@@ -26,7 +27,7 @@ async function test(name, fn) {
   }
 }
 
-function setup(options = {}) {
+function setup(options: { budget?: Budget } = {}) {
   const server = new DemoServer()
   const transport = new MemoryTransport((request) => server.handle(request))
   const client = new McpClient(transport)
@@ -54,7 +55,7 @@ await test('server rejects requests without _meta protocolVersion (-32602)', asy
 await test('client sends version and capabilities in _meta', async () => {
   const { transport, client } = setup()
   await client.discover()
-  const meta = transport.history[0]?.params?._meta
+  const meta = (transport.history[0]?.params?._meta ?? {}) as Record<string, unknown>
   assert.equal(meta['io.modelcontextprotocol/protocolVersion'], '2026-07-28')
   assert.ok('io.modelcontextprotocol/clientCapabilities' in meta)
 })

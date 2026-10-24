@@ -7,6 +7,7 @@ import { channelFromCard } from '../src/runtime/a2a.ts'
 import { fetchAgentCard } from '../src/runtime/agent-card.ts'
 import { delegateOver } from '../src/runtime/channel.ts'
 import { TeamRuntime } from '../src/runtime/team.ts'
+import { listen, portOf } from './_helpers.ts'
 
 const calls = []
 let port = 0
@@ -28,8 +29,8 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: { kind: 'task', id: 'task-7', status: { state: 'submitted' } } }))
   })
 })
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-port = server.address().port
+await listen(server)
+port = portOf(server)
 
 const goal = 'sha256:' + 'a'.repeat(64)
 const card = await fetchAgentCard(`http://127.0.0.1:${port}`)

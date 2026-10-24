@@ -10,7 +10,7 @@
  * minLength, pattern, format (date-time), minimum, maximum,
  * oneOf, anyOf, allOf.
  *
- * Usage: node tools/validate.mjs [--quiet]
+ * Usage: node tools/validate.ts [--quiet]
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'

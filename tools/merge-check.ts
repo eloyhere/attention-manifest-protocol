@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 
 import { mergeResults, transferTier } from '../src/runtime/merge.ts'
+import type { MergeClaim } from '../src/runtime/merge.ts'
 
 let passed = 0
 let failed = 0
@@ -18,7 +19,7 @@ function test(name, fn) {
   }
 }
 
-const claim = (over = {}) => ({
+const claim = (over: Partial<MergeClaim> = {}): MergeClaim => ({
   id: 'cl.1',
   subject: 'deploy.cause',
   value: 'deploy',

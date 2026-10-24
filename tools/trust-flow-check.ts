@@ -10,6 +10,7 @@ import { attest, exportBundle } from '../src/runtime/federation.ts'
 import { generateSigningKey, KeyRegistry, signManifest } from '../src/runtime/sign.ts'
 import { fetchTrustedAgent } from '../src/runtime/trust.ts'
 import { TeamRuntime } from '../src/runtime/team.ts'
+import { listen, portOf } from './_helpers.ts'
 
 let passed = 0
 let failed = 0
@@ -44,8 +45,8 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ jsonrpc: '2.0', id: JSON.parse(body).id, result: { kind: 'task', id: 'task-1', status: { state: 'submitted' } } }))
   })
 })
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-port = server.address().port
+await listen(server)
+port = portOf(server)
 const domainB = `http://127.0.0.1:${port}`
 
 // Domain A: the worker's own organization signs a manifest and endorses it.

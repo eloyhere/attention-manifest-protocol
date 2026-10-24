@@ -15,6 +15,7 @@ import { HandleStore } from '../src/runtime/handles.ts'
 import { McpClient } from '../src/runtime/mcp/client.ts'
 import { DemoServer } from '../src/runtime/mcp/server.ts'
 import { MemoryTransport } from '../src/runtime/mcp/transport.ts'
+import type { AttentionRequest } from '../src/types/index.ts'
 
 const goal = 'sha256:' + 'a'.repeat(64)
 const lead = new AmpRuntime({ agentId: 'a.lead', start: '2026-10-24T10:00:00Z' })
@@ -83,7 +84,7 @@ assert.equal(verdict.decision, 'accept')
 assert.equal(verdict.reason, 'higher authority')
 
 // 4. Human attention: one interrupt, one deferred by class budget.
-const human = (id, kind) => ({
+const human = (id: string, kind: string): AttentionRequest => ({
   amp: '0.1', kind: 'attention-request', id,
   from: { kind: 'agent', id: 'a.lead' }, to: { kind: 'human', id: 'u.li' },
   target: { kind: 'unknown', id: 'u.1' }, class: 'commitment', urgency: 3,

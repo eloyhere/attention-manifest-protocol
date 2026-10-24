@@ -7,6 +7,7 @@ import { digestOf } from '../src/runtime/canonical.ts'
 import { delegateOver } from '../src/runtime/channel.ts'
 import { HttpTeamChannel } from '../src/runtime/http-channel.ts'
 import { TeamRuntime } from '../src/runtime/team.ts'
+import { listen, portOf } from './_helpers.ts'
 
 let passed = 0
 let failed = 0
@@ -56,8 +57,8 @@ const server = createServer((req, res) => {
   })
 })
 
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const port = server.address().port
+await listen(server)
+const port = portOf(server)
 const url = `http://127.0.0.1:${port}/delegate`
 
 await test('accepted delegation crosses HTTP with an idempotency key', async () => {
@@ -84,8 +85,8 @@ await test('HTTP error status fails closed', async () => {
     res.writeHead(503)
     res.end()
   })
-  await new Promise((resolve) => server404.listen(0, '127.0.0.1', resolve))
-  const failing = new HttpTeamChannel({ url: `http://127.0.0.1:${server404.address().port}/x` })
+  await listen(server404)
+  const failing = new HttpTeamChannel({ url: `http://127.0.0.1:${portOf(server404)}/x` })
   void channel
   await assert.rejects(() => delegateOver(failing, delegation({ tokens: 10 })), /HTTP 503/)
   await new Promise((resolve) => server404.close(resolve))

@@ -76,7 +76,7 @@ await test('empty ledger still has a valid chain', () => {
 
 await test('tampering with a payload breaks its hash', () => {
   const broken = structuredClone(snapshot)
-  broken.entries[1].payload = { ...broken.entries[1].payload, statement: 'forged' }
+  broken.entries[1].payload = { ...(broken.entries[1].payload as Record<string, unknown>), statement: 'forged' }
   const verdict = verifySnapshot(broken)
   assert.equal(verdict.ok, false)
   assert.ok(verdict.reasons.some((r) => r.includes('hash')))
@@ -104,7 +104,7 @@ await test('restore preserves frames and claims', () => {
   const restored = restoreLedger(snapshot)
   assert.equal(restored.frames.length, runtime.ledger.frames.length)
   assert.equal(restored.claims.length, runtime.ledger.claims.length)
-  assert.equal((restored.frames[0]).id, runtime.ledger.frames[0].id)
+  assert.equal((restored.frames[0] as { id: string }).id, runtime.ledger.frames[0].id)
 })
 
 await test('restore refuses a broken snapshot', () => {

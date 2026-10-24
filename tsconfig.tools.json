@@ -3,8 +3,13 @@
     "target": "es2023",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "lib": ["ES2023", "DOM"],
-    "types": ["node"],
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -17,17 +22,8 @@
     "useUnknownInCatchVariables": false
   },
   "include": [
-    "tools/_helpers.ts",
-    "tools/validate.ts",
-    "tools/wire-check.ts",
-    "tools/metrics-check.ts",
-    "tools/share-check.ts",
-    "tools/board-check.ts",
-    "tools/session-check.ts",
-    "tools/channel-check.ts",
-    "tools/retry-check.ts",
+    "tools/**/*.ts",
     "src/runtime/**/*.ts",
     "src/types/**/*.ts"
   ]
 }
-

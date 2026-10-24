@@ -4,6 +4,8 @@ import assert from 'node:assert/strict'
 
 import { adjudicate, mergeResults } from '../src/runtime/merge.ts'
 import { AttenuationError, TeamRuntime } from '../src/runtime/team.ts'
+import type { TeamManifest } from '../src/types/index.ts'
+import type { MergedClaim } from '../src/runtime/merge.ts'
 
 let passed = 0
 let failed = 0
@@ -19,7 +21,7 @@ function test(name, fn) {
   }
 }
 
-const team = {
+const team: TeamManifest = {
   amp: '0.1',
   kind: 'team-manifest',
   id: 'team.a',
@@ -84,7 +86,7 @@ test('fan-out cap is enforced', () => {
 })
 
 test('adjudication prefers the higher tier', () => {
-  const contested = [
+  const contested: MergedClaim[] = [
     { subject: 's', value: 'a', tier: 'T3', supporters: ['a.one'], origins: ['r1'], status: 'contested' },
     { subject: 's', value: 'b', tier: 'T1', supporters: ['a.two'], origins: ['r2'], status: 'contested' },
   ]
@@ -95,7 +97,7 @@ test('adjudication prefers the higher tier', () => {
 })
 
 test('adjudication falls back to authority at equal tiers', () => {
-  const contested = [
+  const contested: MergedClaim[] = [
     { subject: 's', value: 'a', tier: 'T2', supporters: ['a.one'], origins: ['r1'], status: 'contested' },
     { subject: 's', value: 'b', tier: 'T2', supporters: ['a.two'], origins: ['r2'], status: 'contested' },
   ]
@@ -103,7 +105,7 @@ test('adjudication falls back to authority at equal tiers', () => {
 })
 
 test('no dominance escalates instead of guessing', () => {
-  const contested = [
+  const contested: MergedClaim[] = [
     { subject: 's', value: 'a', tier: 'T2', supporters: ['a.one'], origins: ['r1'], status: 'contested' },
     { subject: 's', value: 'b', tier: 'T2', supporters: ['a.two'], origins: ['r2'], status: 'contested' },
   ]

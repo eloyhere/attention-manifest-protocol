@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 
 import { digestOf } from '../src/runtime/canonical.ts'
 import { InquiryLog, preregHashOf, replicationCheck } from '../src/runtime/inquiry.ts'
+import type { Hypothesis } from '../src/types/index.ts'
 
 let passed = 0
 let failed = 0
@@ -22,7 +23,7 @@ function test(name, fn) {
 let tick = 0
 const now = () => new Date(Date.parse('2026-10-24T04:00:00Z') + tick++ * 1000).toISOString()
 
-function hypothesis(overrides = {}) {
+function hypothesis(overrides: Partial<Hypothesis> = {}): Hypothesis {
   const statement = 'the deploy caused the error-rate spike'
   const metric = '5xx_rate'
   const stopping = 'fixed_n_10m'

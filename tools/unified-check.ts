@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 
 import { BudgetExceeded } from '../src/runtime/budget.ts'
 import { UnifiedLedger } from '../src/runtime/unified.ts'
+import type { AttentionRequest } from '../src/types/index.ts'
 
 let passed = 0
 let failed = 0
@@ -23,7 +24,7 @@ let minute = 0
 const now = () => new Date(Date.parse('2026-10-24T10:00:00Z') + minute++ * 60_000).toISOString()
 const ledger = () => new UnifiedLedger({ budget: { tokens: 100, calls: 2, ms: 10_000 }, now })
 
-const request = (id) => ({
+const request = (id: string): AttentionRequest => ({
   amp: '0.1',
   kind: 'attention-request',
   id,

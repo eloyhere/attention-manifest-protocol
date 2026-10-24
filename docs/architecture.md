@@ -1531,7 +1531,7 @@ list_changed：同连接时
 
 **评分看协议合规，不看文笔。** 一个用三百字解释自己为何弃权的回答，与一个直接给出答案但无凭据的回答，前者得分更高——因为可检查的行为才是可训练的行为。
 
-V1–V15 以**参考语义**实现于 [`tools/conformance.mjs`](../tools/conformance.mjs)，运行 `npm run conformance` 即可执行。它检验的是规则，不是某一个实现：任何宿主都应当表现出同样的可观察行为。
+V1–V15 以**参考语义**实现于 [`tools/conformance.ts`](../tools/conformance.ts)，运行 `npm run conformance` 即可执行。它检验的是规则，不是某一个实现：任何宿主都应当表现出同样的可观察行为。
 
 ### 12.3 反例：什么样的实现不算 AMP
 

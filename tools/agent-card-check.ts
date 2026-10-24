@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
 import { fetchAgentCard } from '../src/runtime/agent-card.ts'
+import { listen, portOf } from './_helpers.ts'
 
 let passed = 0
 let failed = 0
@@ -41,8 +42,8 @@ const server = createServer((req, res) => {
     }),
   )
 })
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const base = `http://127.0.0.1:${server.address().port}`
+await listen(server)
+const base = `http://127.0.0.1:${portOf(server)}`
 
 await test('valid card is discovered at the well-known path', async () => {
   mode = 'ok'
