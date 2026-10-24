@@ -19,7 +19,7 @@ function test(name, fn) {
 }
 
 const goal = 'sha256:' + 'a'.repeat(64)
-const lease = (id, holder) => ({ id, holder, delegation: 'dl.1', taskId: 't', fence: 1, goalDigest: goal, budget: {}, deadline: '2026-10-24T12:00:00Z', status: 'active' })
+const lease = (id, holder) => ({ id, holder, delegation: 'dl.1', taskId: 't', fence: 1, goalDigest: goal, budget: {}, deadline: '2026-10-24T12:00:00Z', status: 'active' as const })
 
 test('adding a second open task for the same goal is rejected', () => {
   const board = new TaskBoard()
@@ -68,3 +68,4 @@ test('done and cancelled tasks cannot be reclaimed', () => {
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exitCode = 1
+

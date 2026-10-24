@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": false
+  },
+  "include": [
+    "tools/_helpers.ts",
+    "tools/validate.ts",
+    "tools/wire-check.ts",
+    "tools/metrics-check.ts",
+    "tools/share-check.ts",
+    "tools/board-check.ts",
+    "src/runtime/**/*.ts",
+    "src/types/**/*.ts"
+  ]
+}

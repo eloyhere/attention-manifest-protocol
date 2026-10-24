@@ -47,9 +47,9 @@ test('cost per success divides tokens by completed tasks', () => {
 test('contested rate divides conflicts by subjects', () => {
   const merge = {
     merged: [
-      { subject: 's1', value: 'a', tier: 'T2', supporters: ['x'], origins: ['r'], status: 'contested' },
-      { subject: 's1', value: 'b', tier: 'T2', supporters: ['y'], origins: ['r2'], status: 'contested' },
-      { subject: 's2', value: 'c', tier: 'T2', supporters: ['x'], origins: ['r'], status: 'held' },
+      { subject: 's1', value: 'a', tier: 'T2' as const, supporters: ['x'], origins: ['r'], status: 'contested' as const },
+      { subject: 's1', value: 'b', tier: 'T2' as const, supporters: ['y'], origins: ['r2'], status: 'contested' as const },
+      { subject: 's2', value: 'c', tier: 'T2' as const, supporters: ['x'], origins: ['r'], status: 'held' as const },
     ],
     conflicts: ['s1'],
     warnings: [],
@@ -64,3 +64,4 @@ test('empty inputs produce zeros instead of NaN', () => {
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exitCode = 1
+

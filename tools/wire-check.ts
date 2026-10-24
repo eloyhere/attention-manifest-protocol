@@ -42,7 +42,7 @@ test('delegation serialises to the wire shape', () => {
   assert.equal(doc.kind, 'delegation')
   assert.equal(doc.goal_digest, goal)
   assert.equal(doc.may_redelegate, false)
-  assert.equal(doc.mayRedelegate, undefined)
+  assert.equal(Object.hasOwn(doc, 'mayRedelegate'), false)
 })
 
 test('delegation round-trips without loss', () => {
@@ -76,3 +76,4 @@ test('wire document carries no runtime-only fields', () => {
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exitCode = 1
+
