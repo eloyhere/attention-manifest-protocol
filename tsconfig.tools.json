@@ -23,7 +23,11 @@
     "tools/metrics-check.ts",
     "tools/share-check.ts",
     "tools/board-check.ts",
+    "tools/session-check.ts",
+    "tools/channel-check.ts",
+    "tools/retry-check.ts",
     "src/runtime/**/*.ts",
     "src/types/**/*.ts"
   ]
 }
+

@@ -2,6 +2,7 @@
 /** Retry behaviour: safe because the same idempotency key is reused. */
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import { listen } from './_helpers.ts'
 
 import { digestOf } from '../src/runtime/canonical.ts'
 import { delegateOver } from '../src/runtime/channel.ts'
@@ -45,8 +46,8 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ accepted: true }))
   })
 })
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const url = `http://127.0.0.1:${server.address().port}/delegate`
+const port = await listen(server)
+const url = `http://127.0.0.1:${port}/delegate`
 
 await test('retries 5xx then succeeds with the same key', async () => {
   const channel = new HttpTeamChannel({ url, retries: 3, backoffMs: 5 })
@@ -68,3 +69,5 @@ server.close()
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exitCode = 1
+
+
