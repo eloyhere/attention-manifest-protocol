@@ -1,104 +1,122 @@
 # Attention Manifest Protocol (AMP)
 
-> 让 Agent 以科学的方式认识宇宙，并把注意力用在需要的地方。
+**English** · [简体中文](README.zh-CN.md)
 
-AMP 是一个**元认知协议**：它不规定模型如何思考，而规定 Agent 如何**声明**自己知道什么、想要什么、正在注意什么，以及如何在有限注意力下决定下一步看哪里、问什么、做什么。
+> Let an agent come to know the universe scientifically — and spend its attention where it is needed.
 
-它用两个账本回答两个问题：
+AMP is a **metacognitive protocol**. It does not prescribe how a model thinks. It prescribes how an agent *declares* what it knows, what it wants and what it is attending to, and how it decides where to look next when attention is finite.
 
-| 账本 | 记录 | 回答 |
+It keeps two ledgers, and they answer two different questions.
+
+| Ledger | Records | Answers |
 | --- | --- | --- |
-| **Warrant Ledger**（凭据账本） | 主张、证据、假设、未知、概念、计划 | 我凭什么相信？ |
-| **Attention Ledger**（注意力账本） | 注意帧、预算、回执、打断 | 我的认知花在哪？ |
+| **Warrant Ledger** | claims, evidence, hypotheses, unknowns, concepts, plans | Why should I believe this? |
+| **Attention Ledger** | attention frames, budgets, receipts, interrupts | Where did my cognition go? |
 
-一个控制器在两者之间做交易：**用有限的注意力，换取最有价值的凭据**。
+A controller trades between them: a finite amount of attention, spent to buy the warrant that is worth most.
 
-## 三个对象
+## Three objects
 
-| 对象 | 生命周期 | 回答 |
+| Object | Lifetime | Answers |
 | --- | --- | --- |
-| `Manifest` | 持久、带 TTL、可签名 | 我是谁？能做什么？承诺了什么？还缺什么？ |
-| `Frame` | 一次注意周期，不可变 | 此刻在看什么？为什么是它？**忽略了什么**？ |
-| `Receipt` | 每次行动 | 花了多少注意力？换回了什么？ |
+| `Manifest` | durable, TTL-bounded, signable | Who am I? What can I do? What have I undertaken to do? What am I missing? |
+| `Frame` | one attention cycle, immutable | What am I looking at? Why this? **What am I ignoring?** |
+| `Receipt` | every action | How much attention did it cost? What did it return? |
 
-`Frame.ignored` 是这套设计里没有直接先例的字段：经典认知架构记录了「注意到了什么」，没有记录「刻意忽略了什么、为什么、何时重新考虑」。
+`Frame.ignored` is the field with no direct precedent. Classical cognitive architectures record what was attended to; they do not record what was deliberately excluded, on what grounds, and when it should be reconsidered.
 
-## 已实现的范围
+## What is implemented
 
-| 层 | 能力 |
+| Layer | Capability |
 | --- | --- |
-| 协议 | 14 个 JSON Schema、一一对应的 TS 类型、消息信封与七个言语行为 |
-| 注意力 | 显著性契约、焦点集与忽略集、僵局分类、打断分级与债务 |
-| 凭据 | T0–T4 认知投入、置信度派生、最小修订、未知与停止规则 |
-| 执行 | MCP 2026-07-28 客户端（无状态 + 旧式回退）、预算调度、句柄整形 |
-| 联邦 | ManifestBundle / Attestation、摘要固定、撤销、导入失败关闭 |
-| 协作 | 委派衰减、租约 fencing、任务板、结果合并与冲突裁决、统一账本 |
-| 信任 | Agent Card 发现与签名、bundle 密钥、scope 策略、A2A `message/send` |
-| 持久化 | 只追加哈希链、快照校验、恢复拒收损坏数据 |
+| Protocol | 14 JSON Schemas, TypeScript types in one-to-one correspondence, a message envelope and seven speech acts |
+| Attention | salience contract, focus and ignore sets, impasse classification, interrupt classes and debt |
+| Warrant | T0–T4 epistemic tiers, confidence derivation, minimal revision, unknowns and stopping rules |
+| Execution | MCP 2026-07-28 client (stateless and legacy fallback), budget dispatch, handle-based shaping |
+| Federation | `ManifestBundle` and `Attestation`, digest pinning, revocation, import that fails closed |
+| Collaboration | delegation decay, lease fencing, task board, result merge and conflict adjudication, unified ledger |
+| Trust | Agent Card discovery and signing, bundle keys, scope policy, A2A `message/send` |
+| Persistence | append-only hash chain, snapshot verification, restore that refuses corrupted data |
 
-## 仓库结构
+## Repository layout
 
-| 路径 | 内容 |
+| Path | Contents |
 | --- | --- |
-| [`docs/architecture.md`](docs/architecture.md) | 架构规范：模型、注意力、凭据、规划、协议、安全、一致性、落地 |
-| [`docs/rationale.md`](docs/rationale.md) | 12 条 ADR：每条决策的证据、代价与被否决方案 |
-| [`docs/multi-agent.md`](docs/multi-agent.md) | 多 Agent：准入规则、委派对象与 10 条不变量、团队对象、8 个失败信号 |
-| [`docs/trust-chain.md`](docs/trust-chain.md) | 信任链：发现 → 卡片签名 → bundle 密钥 → 背书 → scope 策略 |
-| [`docs/federation.md`](docs/federation.md) | 跨域 bundle 与第三方证明 |
-| [`docs/research/`](docs/research/) | 九份研究简报（含真实端点兼容性矩阵与引用纪律） |
-| [`docs/schemas/`](docs/schemas/) | 14 个 JSON Schema |
-| [`docs/examples/`](docs/examples/) | 33 个可校验示例：帧链、主张、计划、delegation、bundle、快照 |
-| [`src/types/`](src/types/) | TS 类型，与 schema 一一对应 |
-| [`src/runtime/`](src/runtime/) | 参考运行时（见下表） |
-| [`tools/`](tools/) | 28 个检查脚本 + 4 个示例生成器 + 真实端点探针 |
+| [`docs/architecture.md`](docs/architecture.md) | Normative architecture: model, attention, warrant, planning, protocol, security, consistency, adoption |
+| [`docs/rationale.md`](docs/rationale.md) | Twelve ADRs, each with its evidence, its cost and the options that were rejected |
+| [`docs/multi-agent.md`](docs/multi-agent.md) | Multi-agent work: admission rules, delegation objects and their ten invariants, team objects, eight failure signals |
+| [`docs/trust-chain.md`](docs/trust-chain.md) | Trust chain: discovery → card signature → bundle keys → endorsement → scope policy |
+| [`docs/federation.md`](docs/federation.md) | Cross-domain bundles and third-party attestation |
+| [`docs/research/`](docs/research/) | Nine research briefs, including a real-endpoint compatibility matrix and citation conventions |
+| [`docs/schemas/`](docs/schemas/) | 14 JSON Schemas |
+| [`docs/examples/`](docs/examples/) | 33 validatable examples: frame chains, claims, plans, delegations, bundles, snapshots |
+| [`src/types/`](src/types/) | TypeScript types, one for one with the schemas |
+| [`src/runtime/`](src/runtime/) | Reference runtime (see the table below) |
+| [`tools/`](tools/) | 29 verification scripts, 4 example generators and 5 real-endpoint probes — all TypeScript |
 
-运行时模块：
+Runtime modules:
 
-| 模块 | 职责 |
+| Module | Responsibility |
 | --- | --- |
-| `runtime.ts` / `ledger.ts` | 六个动词、帧链、回执、Manifest、自审计 |
-| `attention.ts` / `budget.ts` / `handles.ts` | 显著性、唯一计费点、句柄分页 |
-| `warrant.ts` / `inquiry.ts` | 置信度派生、等级校验、预注册与复现 |
-| `exec.ts` / `mcp/` | MCP 执行、摘要固定、审批、TTL 缓存 |
-| `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | 签名、bundle、证明、卡片验签、scope 策略 |
-| `team.ts` / `board.ts` / `merge.ts` / `metrics.ts` / `session.ts` | 委派、任务板、合并、指标、端到端会话 |
-| `channel.ts` / `http-channel.ts` / `a2a.ts` | 传输接缝、HTTP 幂等通道、A2A 绑定 |
-| `persistence.ts` / `share.ts` | 哈希链快照与三种共享粒度 |
+| `runtime.ts` / `ledger.ts` | The seven verbs, the frame chain, receipts, the Manifest, self-audit |
+| `attention.ts` / `budget.ts` / `handles.ts` | Salience, the single metering point, handle-based pagination |
+| `warrant.ts` / `inquiry.ts` | Confidence derivation, tier validation, preregistration and reproduction |
+| `exec.ts` / `mcp/` | MCP execution, digest pinning, approval, TTL caching |
+| `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | Signatures, bundles, attestation, card verification, scope policy |
+| `team.ts` / `board.ts` / `merge.ts` / `metrics.ts` / `session.ts` | Delegation, task board, merge, metrics, end-to-end session |
+| `channel.ts` / `http-channel.ts` / `a2a.ts` | Transport seams, idempotent HTTP channel, A2A binding |
+| `persistence.ts` / `share.ts` | Hash-chain snapshots and three sharing granularities |
 
-## 快速开始
+## Quick start
 
 ```bash
-npm run verify            # 29 个套件 + 两份类型检查（src 与 tools），全绿才通过
-npm run scenario          # 端到端事故场景：委派 → MCP → 合并 → 注意力 → 指标
-npm run demo              # 生成运行时轨迹
-npm run typecheck         # src/ 的严格类型检查
-npm run typecheck:tools   # tools/ 的类型检查（测试脚本同样受检）
+npm run verify            # 29 verification entries plus two type checks (src and tools)
+npm run scenario          # end-to-end incident: delegation → MCP → merge → attention → metrics
+npm run demo              # emit a runtime trace
+npm run typecheck         # strict type check for src/
+npm run typecheck:tools   # type check for tools/, so the tests are checked too
 ```
 
-`tools/` 下没有 JavaScript 文件：38 个脚本全部是 `.ts`，由 Node 直接类型剥离运行，
-并纳入 `tsconfig.tools.json` 的检查范围，因此测试代码和运行时享受同一套类型契约。
+There is no JavaScript under `tools/`. All 38 scripts are `.ts`, run directly by Node's
+type stripping, and included in `tsconfig.tools.json`, so the test code is held to the
+same type contract as the runtime.
 
-真实端点（需要网络）：
+Real endpoints (network access required):
 
 ```bash
-npm run live-test     # context7（2026-07-28）
-npm run live-legacy   # mslearn + deepwiki（旧式握手回退）
-npm run oauth-probe   # Linear / Figma 的 OAuth 发现链
+npm run live-test     # context7 (2026-07-28)
+npm run live-legacy   # mslearn + deepwiki (legacy handshake fallback)
+npm run oauth-probe   # OAuth discovery chain for Linear and Figma
 ```
 
-## 从哪读起
+## Where to start reading
 
-1. [`docs/architecture.md`](docs/architecture.md) §1 为什么需要 AMP（含证据速览）
-2. §3 两个账本、三类对象、12 条不变量
-3. §6 凭据层：T0–T4、可证伪、认知卫生
-4. §12 一致性向量 V1–V15
-5. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) 真实的帧链
+1. [`docs/architecture.md`](docs/architecture.md) §1 — why AMP is needed, with a summary of the evidence
+2. §3 — the two ledgers, the three object types and the 12 invariants
+3. §6 — the warrant layer: T0–T4, falsifiability, epistemic hygiene
+4. §12 — the consistency vectors V1–V15
+5. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) — a real frame chain
 
-## 状态与边界
+## Status and boundaries
 
-`v0.1.0`。14 个 schema、33 个示例对象、29 个检查套件、约 175 项可执行断言，全部通过。
+`v0.1.0`. Fourteen schemas, 33 example objects, 29 verification entries and 166 counted
+assertions, all passing. The normative specification and the research briefs under
+`docs/` are currently written in Simplified Chinese.
 
-**不承诺**：不承诺「理解」，只承诺可声明、可计价、可反驳、可审计；不主张任何意识结论。
+**What it does not claim.** It does not claim understanding. It claims only that beliefs
+are declarable, chargeable, refutable and auditable. It takes no position on consciousness.
 
-**未实现**：沙箱隔离、多租户、OAuth 交互授权、真实生态互通（跨域测试均在本机）。参考实现不包含生产部署所需的环境层能力。
+**What is not implemented.** Sandbox isolation, multi-tenancy, interactive OAuth
+authorisation and interoperability with real external agents; every cross-domain test runs
+locally. The reference implementation deliberately omits the environment-layer capabilities
+that a production deployment would need.
 
+## Documentation and change history
+
+- [Architecture specification](docs/architecture.md)
+- [Rationale and ADRs](docs/rationale.md)
+- [Changelog](CHANGELOG.md) · [更新日志（中文）](CHANGELOG.zh-CN.md)
+
+## Licence
+
+The package is marked `UNLICENSED`: no licence is granted for reuse until one is added.
