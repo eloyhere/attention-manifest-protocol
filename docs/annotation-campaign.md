@@ -18,6 +18,12 @@
 
 ## 3. 操作
 
+0. 检查进度：
+
+```bash
+node tools/annotation-status.ts
+```
+
 1. 复制两份：
    - `docs/annotation-campaign-A.csv`
    - `docs/annotation-campaign-B.csv`
