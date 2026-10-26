@@ -4,7 +4,7 @@
  * the per-probe JSON files; this tool does not re-run the runtime.
  */
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import { CalibrationRegistry } from "../src/bayes/calibrationRegistry.ts";
 import { auditLabels, importAnnotations } from "../src/evaluation/labels.ts";
@@ -49,6 +49,16 @@ interface RecordedProbe {
     cases: RecordedCase[];
 }
 
+interface ContextAstProbe {
+    context: { nodes: number; viewTokens: number; flatTokens: number; refs: number };
+    conditions: Array<{
+        id: string;
+        inputTokens: number;
+        summary: { layer: string | null };
+        detail: { pid: string | null; lock: string | null; toolCalls: string[] };
+    }>;
+}
+
 const replay = JSON.parse(readFileSync("docs/probes/eval-replay.json", "utf8")) as ReplayProbe;
 const recorded = JSON.parse(readFileSync("docs/probes/eval-recorded-replay.json", "utf8")) as RecordedProbe;
 const cases = JSON.parse(readFileSync("docs/eval/replay-cases.json", "utf8")) as Array<{ id: string }>;
@@ -61,6 +71,20 @@ const audit = auditLabels(
 const registry = new CalibrationRegistry();
 const points = recorded.cases.map((entry) => ({ actual: entry.actual, predicted: entry.textCorrectness }));
 const calibration = registry.register("recorded", points);
+const contextPath = "docs/probes/context-ast-deepseek.json";
+const contextProbe = existsSync(contextPath) ? (JSON.parse(readFileSync(contextPath, "utf8")) as ContextAstProbe) : null;
+const astSummary =
+    contextProbe === null
+        ? null
+        : {
+              nodes: contextProbe.context.nodes,
+              summaryTokens: contextProbe.context.viewTokens,
+              flatTokens: contextProbe.context.flatTokens,
+              flatApiTokens: contextProbe.conditions.find((entry) => entry.id === "flat")?.inputTokens ?? null,
+              astApiTokens: contextProbe.conditions.find((entry) => entry.id === "ast-summary")?.inputTokens ?? null,
+              astToolApiTokens: contextProbe.conditions.find((entry) => entry.id === "ast-tool")?.inputTokens ?? null,
+              detailRecovered: contextProbe.conditions.find((entry) => entry.id === "ast-tool")?.detail.pid === "4711",
+          };
 
 const summary = {
     generatedAt: new Date().toISOString(),
@@ -94,11 +118,13 @@ const summary = {
         kappa: audit.pairwiseKappa[0]?.kappa ?? null,
         unresolved: Object.values(audit.adjudicated).filter((label) => label === null).length,
     },
+    contextAst: astSummary,
 };
 
 assert.equal(summary.replay.cases, 12);
 assert.equal(summary.recorded.runs, 40);
 assert.equal(summary.labels.coverage, 1);
+if (astSummary !== null) assert.equal(astSummary.detailRecovered, true);
 
 const markdown = `# AMP eval summary
 
@@ -121,6 +147,17 @@ Generated: ${summary.generatedAt}
 | labels | disagreements | ${summary.labels.disagreements} |
 | labels | kappa | ${summary.labels.kappa === null ? "n/a" : summary.labels.kappa.toFixed(3)} |
 | labels | unresolved | ${summary.labels.unresolved} |
+${
+    astSummary === null
+        ? ""
+        : `| context AST | nodes | ${astSummary.nodes} |
+| context AST | summary tokens | ${astSummary.summaryTokens} |
+| context AST | flat tokens | ${astSummary.flatTokens} |
+| context AST | DeepSeek flat input | ${astSummary.flatApiTokens ?? "n/a"} |
+| context AST | DeepSeek AST input | ${astSummary.astApiTokens ?? "n/a"} |
+| context AST | DeepSeek AST+tool input | ${astSummary.astToolApiTokens ?? "n/a"} |
+| context AST | detail recovered | ${astSummary.detailRecovered ? "yes" : "no"} |`
+}
 
 Calibration map is activated only when cross-validated ECE beats raw by the registry margin. A \`raw\` status means the data did not justify a map.
 `;
@@ -129,6 +166,6 @@ writeFileSync("docs/probes/eval-summary.json", `${JSON.stringify(summary, null, 
 writeFileSync("docs/eval-summary.md", markdown, "utf8");
 
 console.log(
-    `replay=${summary.replay.cases} recorded=${summary.recorded.runs} kappa=${summary.replay.cohenKappa.toFixed(3)} calibration=${summary.recorded.status}/${summary.recorded.method}`,
+    `replay=${summary.replay.cases} recorded=${summary.recorded.runs} kappa=${summary.replay.cohenKappa.toFixed(3)} calibration=${summary.recorded.status}/${summary.recorded.method} astTokens=${astSummary?.astApiTokens ?? "n/a"}/${astSummary?.flatApiTokens ?? "n/a"}`,
 );
 console.log("wrote docs/probes/eval-summary.json and docs/eval-summary.md");

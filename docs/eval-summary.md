@@ -1,6 +1,6 @@
 # AMP eval summary
 
-Generated: 2026-10-26T20:00:11.684Z
+Generated: 2026-10-26T20:38:01.555Z
 
 > Fixture labels only; not an independent human study. Recorded n=40; replay n=12.
 
@@ -19,5 +19,12 @@ Generated: 2026-10-26T20:00:11.684Z
 | labels | disagreements | 2 |
 | labels | kappa | 0.571 |
 | labels | unresolved | 2 |
+| context AST | nodes | 148 |
+| context AST | summary tokens | 1792 |
+| context AST | flat tokens | 18076 |
+| context AST | DeepSeek flat input | 30193 |
+| context AST | DeepSeek AST input | 7521 |
+| context AST | DeepSeek AST+tool input | 7611 |
+| context AST | detail recovered | yes |
 
 Calibration map is activated only when cross-validated ECE beats raw by the registry margin. A `raw` status means the data did not justify a map.

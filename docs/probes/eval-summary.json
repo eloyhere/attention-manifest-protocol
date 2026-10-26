@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T20:00:11.684Z",
+  "generatedAt": "2026-10-26T20:38:01.555Z",
   "replay": {
     "cases": 12,
     "accuracy": 0.6666666666666666,
@@ -29,5 +29,14 @@
     "disagreements": 2,
     "kappa": 0.5714285714285715,
     "unresolved": 2
+  },
+  "contextAst": {
+    "nodes": 148,
+    "summaryTokens": 1792,
+    "flatTokens": 18076,
+    "flatApiTokens": 30193,
+    "astApiTokens": 7521,
+    "astToolApiTokens": 7611,
+    "detailRecovered": true
   }
 }
