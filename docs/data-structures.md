@@ -167,11 +167,31 @@ root.process
 - `read_detail` 一次调用即可恢复细节，额外成本很小；
 - 这是 **retrieval 架构**，不是“把上下文压短”这么简单。
 
-## 9. 下一步
+## 9. ContextIndex（已实现）
+
+`src/context/contextIndex.ts` + `src/context/contentStore.ts`：
+
+```text
+exact map  → nodeId 精确查找
+CAS        → sha256(content) 去重
+LRU        → detail 热缓存
+```
+
+本机测试：
+
+```text
+nodes=25 uniqueDetails=13 hits=1 misses=2 viewTokens=289
+```
+
+24 个节点只有 13 份唯一 detail，说明 CAS 去重生效；第二次读取命中 LRU。
+
+Bloom/Cuckoo 暂不默认接入：当前规模下 exact map 已经够，负查询成本没有 profile 证据。
+
+## 10. 下一步
 
 1. 把 `ContextAst` 接进 `AgentContext` 渲染；
 2. 把 `DiagnosticFrame` 存到 `RuntimeTurn`/`Session`；
 3. 把 `PlanTask` 接到 runtime 的 `ActionPlanner`；
-4. 用 `ObjectRepository` 替换 `FileDetailStore` 的生产路径；
+4. 用 `ObjectRepository` 替换 `FileContentStore` 的生产路径；
 5. 增加 `supports/contradicts` edge，从 evidence 自动生成；
 6. 用 Vite 页面观察 AST、token 预算、DeepSeek A/B。

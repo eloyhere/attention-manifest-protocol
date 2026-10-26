@@ -61,6 +61,27 @@ const treeRows = data.tree
     )
     .join("");
 
+const architecture = [
+    { layer: "CAS", role: "sha256 detail store", state: "active" },
+    { layer: "Exact map", role: "nodeId -> node", state: "active" },
+    { layer: "LRU", role: "resident detail cache", state: "active" },
+    { layer: "AST", role: "tree + precedence", state: "active" },
+    { layer: "Bloom", role: "negative CAS lookup", state: "deferred" },
+    { layer: "Cuckoo", role: "deletable hot set", state: "deferred" },
+    { layer: "Stack", role: "DFS / rollback", state: "planned" },
+    { layer: "Heap", role: "top-k salience", state: "planned" },
+];
+
+const architectureRows = architecture
+    .map(
+        (item) => `<div class="layer ${item.state}">
+            <span class="layer-name">${escapeHtml(item.layer)}</span>
+            <span class="layer-role">${escapeHtml(item.role)}</span>
+            <span class="layer-state">${item.state}</span>
+        </div>`,
+    )
+    .join("");
+
 app.innerHTML = `
 <header>
   <h1>AMP Context AST</h1>
@@ -73,6 +94,12 @@ app.innerHTML = `
   <div><span class="label">flat tokens</span><b>${money(data.context.flatTokens)}</b></div>
   <div><span class="label">detail refs</span><b>${data.context.refs}</b></div>
   <div><span class="label">budget</span><b>${money(data.context.budgetTokens)}</b></div>
+</section>
+
+<section class="panel">
+  <h2>Context layers</h2>
+  <p class="muted">Bloom/Cuckoo are index filters, not storage. They stay deferred until negative lookups or deletions are a measured bottleneck.</p>
+  <div class="layers">${architectureRows}</div>
 </section>
 
 <section class="panel">
