@@ -120,4 +120,9 @@ npm run oauth-probe   # Linear / Figma 的 OAuth 发现链
 
 ## 许可
 
-本包标记为 `UNLICENSED`：在补充许可证之前，不授予任何复用许可。
+Apache License 2.0，全文见 [`LICENSE`](LICENSE)。版权所有 © 2026 Eloy Kim，署名声明见
+[`NOTICE`](NOTICE)。
+
+该许可授予永久、全球范围、免版税的著作权许可，并附带明示的专利许可。再分发时须保留许可证
+与署名声明，并说明修改了哪些文件。它不是 copyleft 许可：衍生作品可以按其他条款分发，只要
+仍满足上述条件。本软件按「原样」提供，不附带任何明示或默示的担保或条件。

@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<WindowEntity> = bindCache(
         }),
 );
 
-export const windowStore = {
+export const WindowStore = {
     get(tid: number): WindowEntity | undefined {
         return cacheFor().get(tid);
     },

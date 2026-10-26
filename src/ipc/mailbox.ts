@@ -22,6 +22,20 @@ export interface MailboxOptions {
     capacity?: number;
 }
 
+/**
+ * Process row resolved from a pid.
+ */
+type ProcessRow = {
+    id: string;
+};
+
+/**
+ * Row returned by the sequence counter query.
+ */
+type CountRow = {
+    n: number;
+};
+
 export interface MailboxSendInput {
     toPid: number;
     kind: "request" | "response" | "event" | "signal";
@@ -37,7 +51,7 @@ export interface MailboxDelivery {
     receiptId: string;
 }
 
-export const mailboxCondition = (pid: number): string => `mailbox:${pid}`;
+export const mailboxCondition: (pid: number) => string = (pid: number): string => `mailbox:${pid}`;
 
 export class Mailbox {
     private readonly db: DatabaseSync;
@@ -52,16 +66,20 @@ export class Mailbox {
 
     send(subject: Subject, input: MailboxSendInput, at: string): MessageEntity {
         const fromPid: number | undefined = input.fromPid ?? subject.pid;
-        if (fromPid === undefined) throw new MailboxError("unknown_recipient", ["sender has no pid"]);
-        const recipient = this.db.prepare("SELECT id FROM processes WHERE pid = ?").get(input.toPid) as { id: string } | undefined;
-        if (recipient === undefined) throw new MailboxError("unknown_recipient", [`pid ${input.toPid}`]);
+        if (fromPid === (void 0)) {
+            throw new MailboxError("unknown_recipient", ["sender has no pid"]);
+        }
+        const recipient: ProcessRow | undefined = this.db.prepare("SELECT id FROM processes WHERE pid = ?").get(input.toPid) as ProcessRow | undefined;
+        if (recipient === (void 0)) {
+            throw new MailboxError("unknown_recipient", [`pid ${input.toPid}`]);
+        }
         requirePermission(this.db, subject, "send", { kind: "mailbox", id: `${input.toPid}`, ownerPid: input.toPid }, at);
         if (this.messages.pendingCount(input.toPid) >= this.capacity) {
             throw new MailboxError("mailbox_full", [`pid ${input.toPid} has ${this.capacity} undelivered messages`]);
         }
 
-        const send = (): MessageEntity => {
-            const seq = this.db.prepare("SELECT COUNT(*) AS n FROM messages WHERE from_pid = ?").get(fromPid) as { n: number };
+        const send: () => MessageEntity = (): MessageEntity => {
+            const seq: CountRow = this.db.prepare("SELECT COUNT(*) AS n FROM messages WHERE from_pid = ?").get(fromPid) as CountRow;
             return this.messages.send({
                 id: input.id ?? `m.${fromPid}.${seq.n + 1}`,
                 fromPid,
@@ -74,22 +92,28 @@ export class Mailbox {
             });
         };
 
-        const message: MessageEntity = input.correlationId === undefined ? send() : once(this.db, `msg:${fromPid}:${input.correlationId}`, at, send).value;
+        const message: MessageEntity = input.correlationId === (void 0) ? send() : once(this.db, `msg:${fromPid}:${input.correlationId}`, at, send).value;
         notifyCondition(this.db, mailboxCondition(input.toPid));
         return message;
     }
 
     receive(subject: Subject, at: string): MailboxDelivery | undefined {
         const pid: number | undefined = subject.pid;
-        if (pid === undefined) throw new MailboxError("unknown_recipient", ["receiver has no pid"]);
+        if (pid === (void 0)) {
+            throw new MailboxError("unknown_recipient", ["receiver has no pid"]);
+        }
         requirePermission(this.db, subject, "receive", { kind: "mailbox", id: `${pid}`, ownerPid: pid }, at);
         const pending: MessageEntity[] = this.messages.pending(pid, 1);
         const message: MessageEntity | undefined = pending[0];
-        if (message === undefined) return undefined;
+        if (message === (void 0)) {
+            return undefined;
+        }
 
-        const recipient = this.db.prepare("SELECT id FROM processes WHERE pid = ?").get(pid) as { id: string } | undefined;
-        if (recipient === undefined) throw new MailboxError("unknown_recipient", [`pid ${pid}`]);
-        const receiptId = `rc.msg.${message.msg_id}`;
+        const recipient: ProcessRow | undefined = this.db.prepare("SELECT id FROM processes WHERE pid = ?").get(pid) as ProcessRow | undefined;
+        if (recipient === (void 0)) {
+            throw new MailboxError("unknown_recipient", [`pid ${pid}`]);
+        }
+        const receiptId: string = `rc.msg.${message.msg_id}`;
         const receipt: Receipt = {
             amp: "0.1",
             kind: "receipt",

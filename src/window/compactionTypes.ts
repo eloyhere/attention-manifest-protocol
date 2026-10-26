@@ -15,7 +15,9 @@
  */
 import type { Digest, Id, Timestamp } from "../types/common.ts";
 
-/** Entry kinds the chain can hold; the same set as `persistence.EntryKind`. */
+/**
+ * Entry kinds the chain can hold; the same set as `persistence.EntryKind`.
+ */
 export type LedgerKind = "event" | "frame" | "receipt" | "claim" | "hypothesis" | "unknown" | "goal" | "plan";
 
 /**
@@ -33,18 +35,26 @@ export interface PrunePolicy {
     dropResolvedUnknowns: boolean;
 }
 
-/** Why an entry left the view. Closed set, so a reader can audit the decision. */
+/**
+ * Why an entry left the view. Closed set, so a reader can audit the decision.
+ */
 export type PruneReason = "superseded" | "closed" | "resolved";
 
-/** One entry omitted from a view, with the condition that would bring it back. */
+/**
+ * One entry omitted from a view, with the condition that would bring it back.
+ */
 export interface PruneDecision {
     seq: number;
     kind: LedgerKind;
     id: Id;
     reason: PruneReason;
-    /** What would have to change for this object to be worth loading again. */
+    /**
+     * What would have to change for this object to be worth loading again.
+     */
     revisit_if: string;
-    /** Serialised size of the omitted entry, so the saving is not hand-waved. */
+    /**
+     * Serialised size of the omitted entry, so the saving is not hand-waved.
+     */
     bytes: number;
 }
 
@@ -63,7 +73,9 @@ export interface PrunePlan {
     kept: number[];
     dropped: PruneDecision[];
     reclaimedBytes: number;
-    /** Bytes / 4. An estimate, never used for billing. */
+    /**
+     * Bytes / 4. An estimate, never used for billing.
+     */
     estimatedTokens: number;
     policy: PrunePolicy;
 }
@@ -80,15 +92,28 @@ export interface Checkpoint {
     kind: "checkpoint";
     id: Id;
     agent: string;
-    /** Sequence number of the first covered entry. */
+    /**
+     * Sequence number of the first covered entry.
+     */
     from: number;
-    /** Sequence number of the last covered entry. */
+    /**
+     * Sequence number of the last covered entry.
+     */
     to: number;
     count: number;
-    /** Hash of the last covered entry; the continuation point for the tail. */
+    /**
+     * Hash of the last covered entry; the continuation point for the tail.
+     */
     tip: Digest;
-    /** Digest over the covered entries, in order. */
+    /**
+     * Digest over the covered entries, in order.
+     */
     root: Digest;
     created: Timestamp;
-    policy: { keepRecent: number };
+    /**
+     * Retention policy the compaction was run with.
+     */
+    policy: {
+        keepRecent: number;
+    };
 }

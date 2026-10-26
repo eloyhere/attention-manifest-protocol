@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Emits a schema-valid ledger snapshot for docs/examples. */
+/**
+ * Emits a schema-valid ledger snapshot for docs/examples.
+ */
 import { exportLedger } from "../src/ledger/persistence.ts";
 import { Ledger } from "../src/ledger/ledger.ts";
 import { digestOf } from "../src/semantic/canonical.ts";

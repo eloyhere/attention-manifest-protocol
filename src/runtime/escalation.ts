@@ -16,7 +16,7 @@ export interface EscalationSink {
     escalate(event: Omit<EscalationEvent, "id">): string;
 }
 
-export const CRISIS_RESOURCES = [
+export const CrisisResources = [
     "Local emergency services (e.g. 120/911) if there is immediate danger.",
     "A trusted person who can stay with the user.",
     "A local crisis line; in the US, 988.",

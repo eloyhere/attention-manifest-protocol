@@ -24,14 +24,20 @@ const GoalEdges: Record<GoalState, readonly GoalState[]> = {
     abandoned: [],
 };
 
-export const createGoalLifecycle = (goal: Goal): GoalLifecycle => ({ goal, state: "proposed" });
+export const createGoalLifecycle: (goal: Goal) => GoalLifecycle = (goal: Goal): GoalLifecycle => ({ goal, state: "proposed" });
 
-export const transitionGoal = (lifecycle: GoalLifecycle, to: GoalState, at: string): GoalLifecycle => {
+type TransitionGoal = (lifecycle: GoalLifecycle, to: GoalState, at: string) => GoalLifecycle;
+
+export const transitionGoal: TransitionGoal = (lifecycle: GoalLifecycle, to: GoalState, at: string): GoalLifecycle => {
     if (!GoalEdges[lifecycle.state].includes(to)) {
         throw new Error(`goal ${lifecycle.goal.id}: ${lifecycle.state} -> ${to} is not an edge`);
     }
     const next: GoalLifecycle = { ...lifecycle, state: to };
-    if (to === "active" && next.startedAt === undefined) next.startedAt = at;
-    if (to === "achieved") next.achievedAt = at;
+    if (to === "active" && next.startedAt === (void 0)) {
+        next.startedAt = at;
+    }
+    if (to === "achieved") {
+        next.achievedAt = at;
+    }
     return next;
 };

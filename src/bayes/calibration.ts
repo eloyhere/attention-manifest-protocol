@@ -11,44 +11,115 @@ export interface CalibrationPoint {
 }
 
 export interface IsotonicModel {
-    /** Upper predicted bound of each block. */
+    /**
+     * Upper predicted bound of each block.
+     */
     thresholds: number[];
-    /** Observed frequency of each block. */
+    /**
+     * Observed frequency of each block.
+     */
     values: number[];
 }
 
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+/**
+ * Calibration statistics for one set of predictions.
+ */
+type CalibrationReport = {
+    ece: number;
+    brier: number;
+    rawEce: number;
+    rawBrier: number;
+};
 
-export const brier = (points: readonly CalibrationPoint[]): number => {
-    if (points.length === 0) return 0;
+/**
+ * One isotonic block: summed outcomes, sample count and upper bound.
+ */
+type Block = {
+    sum: number;
+    n: number;
+    max: number;
+};
+
+/**
+ * One reliability bin.
+ */
+type Bucket = {
+    n: number;
+    confidence: number;
+    accuracy: number;
+};
+
+/**
+ * Expected calibration error over optionally binned predictions.
+ */
+type EceScore = (points: readonly CalibrationPoint[], bins?: number) => number;
+
+/**
+ * Fit an isotonic map to the given points.
+ */
+type FitIsotonic = (points: readonly CalibrationPoint[]) => IsotonicModel;
+
+/**
+ * Fit a temperature scalar to the given points.
+ */
+type FitTemperature = (points: readonly CalibrationPoint[], grid?: readonly number[]) => TemperatureModel;
+
+/**
+ * Apply a temperature scalar to one prediction.
+ */
+type ApplyTemperature = (model: TemperatureModel, predicted: number) => number;
+
+/**
+ * Cross-validated calibration report.
+ */
+type CrossValidate = (points: readonly CalibrationPoint[], folds?: number) => CalibrationReport;
+
+const DefaultGrid: readonly number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
+
+const clamp01: (value: number) => number = (value: number): number => Math.max(0, Math.min(1, value));
+
+export const brier: (points: readonly CalibrationPoint[]) => number = (points: readonly CalibrationPoint[]): number => {
+    if (points.length === 0) {
+        return 0;
+    }
     return points.reduce((sum, point) => sum + (point.predicted - (point.actual ? 1 : 0)) ** 2, 0) / points.length;
 };
 
-export const ece = (points: readonly CalibrationPoint[], bins = 10): number => {
-    if (points.length === 0) return 0;
-    const buckets = Array.from({ length: bins }, () => ({ n: 0, confidence: 0, accuracy: 0 }));
-    for (const point of points) {
-        const index = Math.min(bins - 1, Math.max(0, Math.floor(clamp01(point.predicted) * bins)));
+export const ece: EceScore = (points: readonly CalibrationPoint[], bins: number = 10): number => {
+    if (points.length === 0) {
+        return 0;
+    }
+    const buckets: Bucket[] = Array.from({ length: bins }, () => ({ n: 0, confidence: 0, accuracy: 0 }));
+    for (let i: number = 0; i < points.length; i += 1) {
+        const point: CalibrationPoint = points[i];
+        const index: number = Math.min(bins - 1, Math.max(0, Math.floor(clamp01(point.predicted) * bins)));
         buckets[index].n += 1;
         buckets[index].confidence += point.predicted;
         buckets[index].accuracy += point.actual ? 1 : 0;
     }
     return buckets.reduce((sum, bucket) => {
-        if (bucket.n === 0) return sum;
+        if (bucket.n === 0) {
+            return sum;
+        }
         return sum + (bucket.n / points.length) * Math.abs(bucket.accuracy / bucket.n - bucket.confidence / bucket.n);
     }, 0);
 };
 
-/** Pool-adjacent-violators isotonic regression. */
-export const fitIsotonic = (points: readonly CalibrationPoint[]): IsotonicModel => {
-    const sorted = [...points].sort((left, right) => left.predicted - right.predicted);
-    const blocks: Array<{ sum: number; n: number; max: number }> = [];
-    for (const point of sorted) {
+/**
+ * Pool-adjacent-violators isotonic regression.
+ */
+export const fitIsotonic: FitIsotonic = (points: readonly CalibrationPoint[]): IsotonicModel => {
+    const sorted: CalibrationPoint[] = [...points].sort((left, right) => left.predicted - right.predicted);
+    const blocks: Block[] = [];
+    for (let i: number = 0; i < sorted.length; i += 1) {
+        const point: CalibrationPoint = sorted[i];
         blocks.push({ sum: point.actual ? 1 : 0, n: 1, max: point.predicted });
         while (blocks.length >= 2) {
-            const current = blocks[blocks.length - 1];
-            const previous = blocks[blocks.length - 2];
-            if (previous.sum / previous.n <= current.sum / current.n) break;
+            const current: Block = blocks[blocks.length - 1];
+            const previous: Block = blocks[blocks.length - 2];
+            if (previous.sum / previous.n <= current.sum / current.n) {
+                break;
+            }
             blocks.splice(blocks.length - 2, 2, {
                 sum: previous.sum + current.sum,
                 n: previous.n + current.n,
@@ -62,9 +133,11 @@ export const fitIsotonic = (points: readonly CalibrationPoint[]): IsotonicModel 
     };
 };
 
-export const applyIsotonic = (model: IsotonicModel, predicted: number): number => {
-    if (model.thresholds.length === 0) return clamp01(predicted);
-    const index = model.thresholds.findIndex((threshold) => predicted <= threshold);
+export const applyIsotonic: (model: IsotonicModel, predicted: number) => number = (model: IsotonicModel, predicted: number): number => {
+    if (model.thresholds.length === 0) {
+        return clamp01(predicted);
+    }
+    const index: number = model.thresholds.findIndex((threshold) => predicted <= threshold);
     return model.values[index === -1 ? model.values.length - 1 : index];
 };
 
@@ -72,25 +145,27 @@ export interface TemperatureModel {
     temperature: number;
 }
 
-const logit = (value: number): number => {
-    const bounded = Math.max(1e-6, Math.min(1 - 1e-6, value));
+const logit: (value: number) => number = (value: number): number => {
+    const bounded: number = Math.max(1e-6, Math.min(1 - 1e-6, value));
     return Math.log(bounded / (1 - bounded));
 };
 
-const sigmoid = (value: number): number => 1 / (1 + Math.exp(-value));
+const sigmoid: (value: number) => number = (value: number): number => 1 / (1 + Math.exp(-value));
 
-/** Grid-fit temperature by NLL; T<1 sharpens, T>1 softens. */
-export const fitTemperature = (
-    points: readonly CalibrationPoint[],
-    grid: readonly number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5],
-): TemperatureModel => {
-    if (points.length === 0) return { temperature: 1 };
-    let best = 1;
-    let bestLoss = Number.POSITIVE_INFINITY;
-    for (const temperature of grid) {
-        const loss = points.reduce((sum, point) => {
-            const calibrated = sigmoid(logit(point.predicted) / temperature);
-            const target = point.actual ? 1 : 0;
+/**
+ * Grid-fit temperature by NLL; T<1 sharpens, T>1 softens.
+ */
+export const fitTemperature: FitTemperature = (points: readonly CalibrationPoint[], grid: readonly number[] = DefaultGrid): TemperatureModel => {
+    if (points.length === 0) {
+        return { temperature: 1 };
+    }
+    let best: number = 1;
+    let bestLoss: number = Number.POSITIVE_INFINITY;
+    for (let i: number = 0; i < grid.length; i += 1) {
+        const temperature: number = grid[i];
+        const loss: number = points.reduce((sum, point) => {
+            const calibrated: number = sigmoid(logit(point.predicted) / temperature);
+            const target: number = point.actual ? 1 : 0;
             return sum - (target * Math.log(Math.max(1e-9, calibrated)) + (1 - target) * Math.log(Math.max(1e-9, 1 - calibrated)));
         }, 0);
         if (loss < bestLoss) {
@@ -101,17 +176,24 @@ export const fitTemperature = (
     return { temperature: best };
 };
 
-export const applyTemperature = (model: TemperatureModel, predicted: number): number => sigmoid(logit(predicted) / model.temperature);
+export const applyTemperature: ApplyTemperature = (model: TemperatureModel, predicted: number): number => sigmoid(logit(predicted) / model.temperature);
 
-export const crossValidateCalibration = (points: readonly CalibrationPoint[], folds = 5): { ece: number; brier: number; rawEce: number; rawBrier: number } => {
-    if (points.length === 0) return { ece: 0, brier: 0, rawEce: 0, rawBrier: 0 };
+export const crossValidateCalibration: CrossValidate = (points: readonly CalibrationPoint[], folds: number = 5): CalibrationReport => {
+    if (points.length === 0) {
+        return { ece: 0, brier: 0, rawEce: 0, rawBrier: 0 };
+    }
     const predictions: CalibrationPoint[] = [];
-    for (let fold = 0; fold < folds; fold += 1) {
-        const train = points.filter((_, index) => index % folds !== fold);
-        const test = points.filter((_, index) => index % folds === fold);
-        if (train.length === 0 || test.length === 0) continue;
-        const model = fitIsotonic(train);
-        for (const point of test) predictions.push({ predicted: applyIsotonic(model, point.predicted), actual: point.actual });
+    for (let fold: number = 0; fold < folds; fold += 1) {
+        const train: CalibrationPoint[] = points.filter((item, index) => index % folds !== fold);
+        const test: CalibrationPoint[] = points.filter((item, index) => index % folds === fold);
+        if (train.length === 0 || test.length === 0) {
+            continue;
+        }
+        const model: IsotonicModel = fitIsotonic(train);
+        for (let i: number = 0; i < test.length; i += 1) {
+            const point: CalibrationPoint = test[i];
+            predictions.push({ predicted: applyIsotonic(model, point.predicted), actual: point.actual });
+        }
     }
     return {
         ece: ece(predictions),

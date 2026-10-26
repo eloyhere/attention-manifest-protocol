@@ -124,7 +124,9 @@ const summary = {
 assert.equal(summary.replay.cases, 12);
 assert.equal(summary.recorded.runs, 40);
 assert.equal(summary.labels.coverage, 1);
-if (astSummary !== null) assert.equal(astSummary.detailRecovered, true);
+if (astSummary !== null) {
+    assert.equal(astSummary.detailRecovered, true);
+}
 
 const markdown = `# AMP eval summary
 

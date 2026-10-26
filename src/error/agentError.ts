@@ -1,6 +1,8 @@
 import type { AgentErrorCode } from "../process/agent.ts";
 
-/** Domain error for the agent facets; never a database error. */
+/**
+ * Domain error for the agent facets; never a database error.
+ */
 export class AgentError extends Error {
     readonly code: AgentErrorCode;
     readonly details: readonly string[];

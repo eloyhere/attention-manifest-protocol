@@ -11,7 +11,7 @@ export interface LayerCheck {
  * USE-style checklist. Utilization, saturation and errors are asked per layer;
  * latency is decomposed because "slow" is not a layer.
  */
-export const LAYER_CHECKS: Record<DiagnosticLayer, LayerCheck> = {
+export const LayerChecks: Record<DiagnosticLayer, LayerCheck> = {
     thread_pool: {
         layer: "thread_pool",
         question: "Are worker threads exhausted, blocked, or idle?",
@@ -56,8 +56,8 @@ export const LAYER_CHECKS: Record<DiagnosticLayer, LayerCheck> = {
     },
 };
 
-export const stepFor = (layer: DiagnosticLayer): DiagnosticStep => {
-    const check = LAYER_CHECKS[layer];
+export const stepFor: (layer: DiagnosticLayer) => DiagnosticStep = (layer: DiagnosticLayer): DiagnosticStep => {
+    const check: LayerCheck = LayerChecks[layer];
     return {
         id: `probe.${layer}`,
         layer,
@@ -69,4 +69,6 @@ export const stepFor = (layer: DiagnosticLayer): DiagnosticStep => {
     };
 };
 
-export const stepsFor = (layers: readonly DiagnosticLayer[]): DiagnosticStep[] => layers.map((layer) => stepFor(layer));
+type StepSelector = (layers: readonly DiagnosticLayer[]) => DiagnosticStep[];
+
+export const stepsFor: StepSelector = (layers: readonly DiagnosticLayer[]): DiagnosticStep[] => layers.map((layer) => stepFor(layer));

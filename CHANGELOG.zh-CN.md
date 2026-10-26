@@ -35,6 +35,10 @@
   记录在 `docs/compaction.md` §6。
 - 新增 `concept-compaction.schema.json`、两个可校验示例，以及 `tools/concept-check.ts`
   （14 项断言），已接入 `npm run verify`。
+- `src/structure/priority.ts`：基于比较堆的稳定 `PriorityQueue`；可按 key 以 O(log n)
+  重新定级与删除的 `IndexedPriorityQueue`；按整数优先级分桶、桶内 FIFO 的 `BucketQueue`；
+  以及有界选取的 `TopK`。`tools/priority-check.ts` 含 27 个用例（包括与稳定排序模型对拍的
+  随机差分检查），以 `npm run priority-check` 运行，并接入 `npm run verify`。
 
 ### 变更
 
@@ -49,6 +53,11 @@
   不再把字面量拓宽成 `string`。
 - HTTP 套件改用共享的 `listen()` 与 `portOf()`，不再无类型地调用 `server.address()`。
 - 随改名同步更新了文档、`package.json` 中的脚本路径与 README。
+- 许可证由 `UNLICENSED` 改为 Apache-2.0：仓库根目录新增许可证原文，`package.json` 与
+  `package-lock.json` 声明为 `Apache-2.0`，中英文 README 说明了授权内容与再分发须满足的
+  条件。
+- 署名：新增 `NOTICE` 记录版权所有者（Eloy Kim，2026），再分发须保留该文件；
+  `package.json` 补充 author 字段；中英文 README 均链接许可证与署名声明。
 
 ### 修复
 

@@ -1,5 +1,9 @@
-/** Pure thread lifecycle predicate; no DB or domain implementation imports. */
+/**
+ * Pure thread lifecycle predicate; no DB or domain implementation imports.
+ */
 import type { ThreadState } from "./thread.ts";
+
+type ThreadTransition = (from: ThreadState, to: ThreadState) => boolean;
 
 export const ThreadEdges: Record<ThreadState, readonly ThreadState[]> = {
     ready: ["running", "failed", "abandoned"],
@@ -10,4 +14,4 @@ export const ThreadEdges: Record<ThreadState, readonly ThreadState[]> = {
     abandoned: [],
 };
 
-export const canThreadTransition = (from: ThreadState, to: ThreadState): boolean => ThreadEdges[from].includes(to);
+export const canThreadTransition: ThreadTransition = (from: ThreadState, to: ThreadState): boolean => ThreadEdges[from].includes(to);

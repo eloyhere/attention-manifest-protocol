@@ -28,7 +28,7 @@ test("maps request and usage through the LlmClient port", async () => {
     let capturedUrl = "";
     let capturedInit: RequestInit | undefined;
     const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        capturedUrl = String(input);
+        capturedUrl = `${input}`;
         capturedInit = init;
         return new Response(
             JSON.stringify({
@@ -45,12 +45,12 @@ test("maps request and usage through the LlmClient port", async () => {
     assert.equal(response.usage.outputTokens, 3);
     assert.equal(response.usage.cacheHitTokens, 5);
     assert.equal(response.usage.cacheMissTokens, 16);
-    assert.equal(response.usage.costUsd !== undefined, true);
-    assert.equal(response.usage.costUsd !== undefined && response.usage.costUsd > 0, true);
+    assert.equal(response.usage.costUsd !== (void 0), true);
+    assert.equal(response.usage.costUsd !== (void 0) && response.usage.costUsd > 0, true);
     assert.equal(response.finishReason, "stop");
     assert.equal(capturedUrl, "https://example.test/chat/completions");
     assert.equal((capturedInit?.headers as Record<string, string>).Authorization, "Bearer test-key");
-    const body = JSON.parse(String(capturedInit?.body)) as {
+    const body = JSON.parse(`${capturedInit?.body}`) as {
         model: string;
         thinking: { type: string };
         max_tokens: number;
@@ -94,7 +94,7 @@ test("does not retry a 401 and does not leak the key", async () => {
 test("maps tool definitions and tool calls", async () => {
     let body: Record<string, unknown> | undefined;
     const fakeFetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
-        body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        body = JSON.parse(`${init?.body}`) as Record<string, unknown>;
         return new Response(
             JSON.stringify({
                 choices: [
@@ -142,4 +142,6 @@ for (const [name, fn] of tests) {
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

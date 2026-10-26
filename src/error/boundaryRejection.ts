@@ -8,13 +8,10 @@
  */
 import { AmpError } from "./ampError.ts";
 
-/** Stable machine-readable reasons; callers may switch on these. */
-export type BoundaryCode =
-    | "invalid_frame"
-    | "invalid_tool_args"
-    | "unresolvable_ref"
-    | "duplicate_ref"
-    | "invalid_id";
+/**
+ * Stable machine-readable reasons; callers may switch on these.
+ */
+export type BoundaryCode = "invalid_frame" | "invalid_tool_args" | "unresolvable_ref" | "duplicate_ref" | "invalid_id";
 
 export class BoundaryRejection extends AmpError<BoundaryCode> {
     constructor(code: BoundaryCode, problems: readonly string[]) {

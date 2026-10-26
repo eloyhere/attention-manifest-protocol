@@ -15,7 +15,7 @@
  * key is not structural and does not invalidate iterators.
  */
 
-import { HASH_MASK, hashKey, sameKey } from "./hash.ts";
+import { HashMask, hashKey, sameKey } from "./hash.ts";
 import type { Hash, KeyStrategy } from "./hash.ts";
 
 /**
@@ -31,11 +31,17 @@ interface OrderedNode<K, V> {
 }
 
 /**
+ * A node found in a bucket chain, together with the node before it.
+ */
+interface SearchHit<K, V> {
+    node: OrderedNode<K, V>;
+    bucketPrevious: OrderedNode<K, V> | null;
+}
+
+/**
  * A clear, uniform error for the fail-fast iteration contract.
  */
-function concurrentModification(label: string): Error {
-    return new Error(`${label}: collection was mutated during iteration`);
-}
+const concurrentModification: (label: string) => Error = (label: string): Error => new Error(`${label}: collection was mutated during iteration`);
 
 /**
  * Shared bucket + intrusive-list machinery behind both public classes.
@@ -61,13 +67,13 @@ class OrderedTable<K, V> {
     }
 
     private hashOf(key: K): Hash {
-        return this.hashFn(key) & HASH_MASK;
+        return this.hashFn(key) & HashMask;
     }
 
     /**
      * Find a node and the node before it in its bucket chain.
      */
-    private find(key: K, hash: Hash): { node: OrderedNode<K, V>; bucketPrevious: OrderedNode<K, V> | null } | null {
+    private find(key: K, hash: Hash): SearchHit<K, V> | null {
         let bucketPrevious: OrderedNode<K, V> | null = null;
         let node: OrderedNode<K, V> | null = this.buckets.get(hash) ?? null;
         while (node !== null) {
@@ -85,7 +91,7 @@ class OrderedTable<K, V> {
     }
 
     get(key: K): V | undefined {
-        const hit = this.find(key, this.hashOf(key));
+        const hit: SearchHit<K, V> | null = this.find(key, this.hashOf(key));
         return hit === null ? undefined : hit.node.value;
     }
 
@@ -93,7 +99,7 @@ class OrderedTable<K, V> {
      * Add a key that must not exist yet; returns whether a node was created.
      */
     add(key: K, value: V): boolean {
-        const hash = this.hashOf(key);
+        const hash: Hash = this.hashOf(key);
         if (this.find(key, hash) !== null) {
             return false;
         }
@@ -105,8 +111,8 @@ class OrderedTable<K, V> {
      * Insert or update; returns whether a node was created.
      */
     set(key: K, value: V): boolean {
-        const hash = this.hashOf(key);
-        const hit = this.find(key, hash);
+        const hash: Hash = this.hashOf(key);
+        const hit: SearchHit<K, V> | null = this.find(key, hash);
         if (hit !== null) {
             hit.node.value = value;
             return false;
@@ -136,12 +142,12 @@ class OrderedTable<K, V> {
     }
 
     delete(key: K): boolean {
-        const hash = this.hashOf(key);
-        const hit = this.find(key, hash);
+        const hash: Hash = this.hashOf(key);
+        const hit: SearchHit<K, V> | null = this.find(key, hash);
         if (hit === null) {
             return false;
         }
-        const { node, bucketPrevious } = hit;
+        const { node, bucketPrevious }: SearchHit<K, V> = hit;
 
         if (bucketPrevious === null) {
             if (node.bucketNext === null) {
@@ -188,12 +194,12 @@ class OrderedTable<K, V> {
      * the iterator is requested, not on the first `next()` call.
      */
     private *iterate<T>(expectedVersion: number, select: (node: OrderedNode<K, V>) => T): Generator<T> {
-        let node = this.head;
+        let node: OrderedNode<K, V> | null = this.head;
         while (node !== null) {
             if (expectedVersion !== this.version) {
                 throw concurrentModification(this.label);
             }
-            const value = select(node);
+            const value: T = select(node);
             yield value;
             if (expectedVersion !== this.version) {
                 throw concurrentModification(this.label);
@@ -240,11 +246,12 @@ export class OrderedSet<T> implements Iterable<T> {
 
     constructor(values?: Iterable<T>, options?: KeyStrategy<T>) {
         this.table = new OrderedTable("OrderedSet", options);
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
-        for (const value of values) {
-            this.table.add(value, undefined);
+        const items: T[] = [...values];
+        for (let index: number = 0; index < items.length; index += 1) {
+            this.table.add(items[index], undefined);
         }
     }
 
@@ -296,8 +303,11 @@ export class OrderedSet<T> implements Iterable<T> {
      * @param thisArg - Value used as `this` when invoking `callback`.
      */
     forEach(callback: (value: T, value2: T, set: this) => void, thisArg?: unknown): void {
-        for (const value of this.table.keys()) {
-            callback.call(thisArg, value, value, this);
+        const iterator: Iterator<T> = this.table.keys();
+        let step: IteratorResult<T, undefined> = iterator.next();
+        while (step.done !== true) {
+            callback.call(thisArg, step.value, step.value, this);
+            step = iterator.next();
         }
     }
 }
@@ -321,11 +331,12 @@ export class OrderedMap<K, V> implements Iterable<[K, V]> {
 
     constructor(entries?: Iterable<readonly [K, V]>, options?: KeyStrategy<K>) {
         this.table = new OrderedTable("OrderedMap", options);
-        if (entries === undefined) {
+        if (entries === (void 0)) {
             return;
         }
-        for (const [key, value] of entries) {
-            this.table.set(key, value);
+        const items: (readonly [K, V])[] = [...entries];
+        for (let index: number = 0; index < items.length; index += 1) {
+            this.table.set(items[index][0], items[index][1]);
         }
     }
 
@@ -377,8 +388,12 @@ export class OrderedMap<K, V> implements Iterable<[K, V]> {
      * @param thisArg - Value used as `this` when invoking `callback`.
      */
     forEach(callback: (value: V, key: K, map: this) => void, thisArg?: unknown): void {
-        for (const [key, value] of this.table.entries()) {
+        const iterator: Iterator<[K, V]> = this.table.entries();
+        let step: IteratorResult<[K, V], undefined> = iterator.next();
+        while (step.done !== true) {
+            const [key, value]: [K, V] = step.value;
             callback.call(thisArg, value, key, this);
+            step = iterator.next();
         }
     }
 }

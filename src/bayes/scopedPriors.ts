@@ -5,18 +5,22 @@
  * simple hierarchical model: task/scenario-level feedback can move the posterior
  * without discarding the global prior, and unseen scopes fall back to global.
  */
-import { BayesianEngine, DEFAULT_PRIORS } from "./engine.ts";
+import { BayesianEngine, DefaultPriors } from "./engine.ts";
 import type { BetaBelief, Dimension, Evidence } from "./engine.ts";
 
 export interface ScopedPriorsOptions {
     global?: Partial<Record<Dimension, BetaBelief>>;
-    /** 0 = no pooling into global; 1 = every local observation also updates global. */
+    /**
+     * 0 = no pooling into global; 1 = every local observation also updates global.
+     */
     globalWeight?: number;
 }
 
 const empty = (): Record<Dimension, BetaBelief> => {
     const result = {} as Record<Dimension, BetaBelief>;
-    for (const dimension of Object.keys(DEFAULT_PRIORS) as Dimension[]) result[dimension] = { alpha: 0, beta: 0 };
+    for (const dimension of Object.keys(DefaultPriors) as Dimension[]) {
+        result[dimension] = { alpha: 0, beta: 0 };
+    }
     return result;
 };
 
@@ -26,7 +30,7 @@ export class ScopedPriors {
     private readonly globalWeight: number;
 
     constructor(options: ScopedPriorsOptions = {}) {
-        const source = { ...DEFAULT_PRIORS, ...options.global };
+        const source = { ...DefaultPriors, ...options.global };
         this.global = Object.fromEntries(Object.entries(source).map(([dimension, belief]) => [dimension, { ...belief }])) as Record<Dimension, BetaBelief>;
         this.globalWeight = Math.max(0, Math.min(1, options.globalWeight ?? 0));
     }
@@ -48,7 +52,7 @@ export class ScopedPriors {
     priorsFor(scope: string): Record<Dimension, BetaBelief> {
         const local = this.scopes.get(scope);
         const result = {} as Record<Dimension, BetaBelief>;
-        for (const dimension of Object.keys(DEFAULT_PRIORS) as Dimension[]) {
+        for (const dimension of Object.keys(DefaultPriors) as Dimension[]) {
             result[dimension] = {
                 alpha: this.global[dimension].alpha + (local?.[dimension].alpha ?? 0),
                 beta: this.global[dimension].beta + (local?.[dimension].beta ?? 0),
@@ -73,7 +77,9 @@ export class ScopedPriors {
     }
 
     load(snapshot: { global?: Record<Dimension, BetaBelief>; scopes?: Record<string, Record<Dimension, BetaBelief>> }): void {
-        if (snapshot.global !== undefined) Object.assign(this.global, snapshot.global);
+        if (snapshot.global !== (void 0)) {
+            Object.assign(this.global, snapshot.global);
+        }
         this.scopes.clear();
         for (const [scope, beliefs] of Object.entries(snapshot.scopes ?? {})) {
             this.scopes.set(scope, JSON.parse(JSON.stringify(beliefs)) as Record<Dimension, BetaBelief>);

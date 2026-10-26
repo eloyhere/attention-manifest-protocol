@@ -58,7 +58,7 @@ A controller trades between them: a finite amount of attention, spent to buy the
 | [`docs/schemas/`](docs/schemas/) | 16 JSON Schemas |
 | [`docs/examples/`](docs/examples/) | 37 validatable examples: frame chains, claims, plans, delegations, bundles, snapshots, checkpoints |
 | [`src/types/`](src/types/) | Shared primitives and the public type barrel; each domain owns its schema-mirroring types |
-| [`src/structure/`](src/structure/) | Dependency-free structures: hash/ordered/unordered containers, stack, queue, deque, binary heap, binary tree, BST, AVL, red-black tree, segment tree, AST, Bloom filter, cuckoo filter and LRU containers |
+| [`src/structure/`](src/structure/) | Dependency-free structures: hash/ordered/unordered containers, stack, queue, deque, binary heap, stable/keyed/bucket priority queues, bounded top-k selection, binary tree, BST, AVL, red-black tree, segment tree, AST, Bloom filter, cuckoo filter and LRU containers |
 | [`src/`](src/) | Domain runtime: `attention`, `frame`, `ledger`, `warrant`, `manifest`, `policy`, `perform`, `protocol`, `cooperation`, `cycle`, `semantic`, `module`, `storage`, `structure`, `boundary` |
 | [`tools/`](tools/) | 31 verification scripts, 4 example generators and 5 real-endpoint probes — all TypeScript |
 
@@ -130,4 +130,11 @@ that a production deployment would need.
 
 ## Licence
 
-The package is marked `UNLICENSED`: no licence is granted for reuse until one is added.
+Apache License 2.0: the full text is in [`LICENSE`](LICENSE). Copyright 2026 Eloy Kim; the
+attribution notices are in [`NOTICE`](NOTICE).
+
+The licence grants a perpetual, worldwide, royalty-free copyright licence and an express
+patent grant. A redistribution must keep the licence and attribution notices and state
+which files were changed. It is not copyleft — a derivative work may be distributed under
+other terms, provided those conditions are met. The software is provided "as is", without
+warranties or conditions of any kind.

@@ -23,7 +23,7 @@ export interface Sandbox {
 }
 
 export class DeniedSandbox implements Sandbox {
-    async run(_command: SandboxCommand): Promise<SandboxResult> {
+    async run(): Promise<SandboxResult> {
         throw new Error("sandbox_unavailable: no secure sandbox is configured");
     }
 }

@@ -1,10 +1,14 @@
-/** Minimal MCP 2026-07-28 surface used by the Exec profile. */
+/**
+ * Minimal MCP 2026-07-28 surface used by the Exec profile.
+ */
 
-export const PROTOCOL_VERSION = "2026-07-28";
+export const ProtocolVersion = "2026-07-28";
 
 export interface JsonRpcRequest {
     jsonrpc: "2.0";
-    /** Absent for notifications (e.g. notifications/initialized). */
+    /**
+     * Absent for notifications (e.g. notifications/initialized).
+     */
     id?: number;
     method: string;
     params?: Record<string, unknown>;

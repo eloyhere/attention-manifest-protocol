@@ -18,8 +18,10 @@ export class SqliteSessionStore implements SessionStore {
     }
 
     archive(pid: number, at: string): boolean {
-        const snapshot = this.repository.load(pid);
-        if (snapshot === undefined) return false;
+        const snapshot: SessionSnapshot | undefined = this.repository.load(pid);
+        if (snapshot === (void 0)) {
+            return false;
+        }
         this.repository.save(pid, { ...snapshot, archivedAt: at }, at);
         return true;
     }

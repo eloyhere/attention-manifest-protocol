@@ -1,5 +1,5 @@
 import type { CallToolResult, DiscoveryResult, JsonRpcRequest, JsonRpcResponse, ListToolsResult } from "./protocol.ts";
-import { McpProtocolError, PROTOCOL_VERSION } from "./protocol.ts";
+import { McpProtocolError, ProtocolVersion } from "./protocol.ts";
 import type { Transport } from "./transport.ts";
 
 /**
@@ -8,12 +8,20 @@ import type { Transport } from "./transport.ts";
  * No initialize handshake, no session id: version and capabilities travel in
  * `_meta` on every request, exactly as the revision requires.
  */
-export const LEGACY_VERSION = "2025-06-18";
+export const LegacyVersion: string = "2025-06-18";
+
+type ProtocolVersionCarrier = {
+    protocolVersion?: string;
+};
+
+type InitializeResult = {
+    protocolVersion: string;
+};
 
 export class McpClient {
     readonly transport: Transport;
     readonly clientName: string;
-    protocolVersion: string = PROTOCOL_VERSION;
+    protocolVersion: string = ProtocolVersion;
     legacy: boolean = false;
     private seq = 0;
 
@@ -32,7 +40,7 @@ export class McpClient {
 
     private async request<T>(method: string, params: Record<string, unknown> = {}, withMeta = true): Promise<T> {
         this.seq += 1;
-        const extraMeta = params._meta as Record<string, unknown> | undefined;
+        const extraMeta: Record<string, unknown> | undefined = params._meta as Record<string, unknown> | undefined;
         const request: JsonRpcRequest = {
             jsonrpc: "2.0",
             id: this.seq,
@@ -46,16 +54,20 @@ export class McpClient {
         return response.result as T;
     }
 
-    /** Legacy 2025-06-18 handshake. Only used when server/discover is unavailable. */
+    /**
+     * Legacy 2025-06-18 handshake. Only used when server/discover is unavailable.
+     */
     async initializeLegacy(): Promise<void> {
-        this.protocolVersion = LEGACY_VERSION;
-        const transport = this.transport as { protocolVersion?: string };
-        if (typeof(transport.protocolVersion) === "string") transport.protocolVersion = LEGACY_VERSION;
+        this.protocolVersion = LegacyVersion;
+        const transport: ProtocolVersionCarrier = this.transport as ProtocolVersionCarrier;
+        if (typeof(transport.protocolVersion) === "string") {
+            transport.protocolVersion = LegacyVersion;
+        }
 
-        await this.request<{ protocolVersion: string }>(
+        await this.request<InitializeResult>(
             "initialize",
             {
-                protocolVersion: LEGACY_VERSION,
+                protocolVersion: LegacyVersion,
                 capabilities: {},
                 clientInfo: { name: this.clientName, version: "0.1.0" },
             },
@@ -65,14 +77,20 @@ export class McpClient {
         this.legacy = true;
     }
 
-    /** Stateless first; fall back to the legacy handshake only on protocol errors. */
-    async negotiate(): Promise<{ mode: "stateless" | "legacy" }> {
+    /**
+     * Stateless first; fall back to the legacy handshake only on protocol errors.
+     */
+    async negotiate(): Promise<{
+        mode: "stateless" | "legacy";
+    }> {
         try {
-            const discovery = await this.discover();
-            this.protocolVersion = discovery.supportedVersions[0] ?? PROTOCOL_VERSION;
+            const discovery: DiscoveryResult = await this.discover();
+            this.protocolVersion = discovery.supportedVersions[0] ?? ProtocolVersion;
             return { mode: "stateless" };
         } catch (error) {
-            if (!(error instanceof McpProtocolError)) throw error;
+            if (!(error instanceof McpProtocolError)) {
+                throw error;
+            }
             await this.initializeLegacy();
             return { mode: "legacy" };
         }

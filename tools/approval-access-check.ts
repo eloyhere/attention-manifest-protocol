@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Approval audit access control + field redaction. */
+/**
+ * Approval audit access control + field redaction.
+ */
 import assert from "node:assert/strict";
 
 import { openStore } from "../src/database/store/database.ts";

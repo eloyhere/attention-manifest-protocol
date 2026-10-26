@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<ThreadEntity> = bindCache(
         }),
 );
 
-export const threadStore = {
+export const ThreadStore = {
     get(tid: number): ThreadEntity | undefined {
         return cacheFor().get(tid);
     },

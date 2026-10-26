@@ -27,11 +27,17 @@ const test = (name: string, fn: () => void): void => {
     }
 };
 
-const rejects = (code: string, fragment?: string) => (error: unknown): boolean => {
-    if (!(error instanceof BoundaryRejection) || error.code !== code) return false;
-    if (fragment === (void 0)) return true;
-    return error.problems.some((problem) => problem.includes(fragment));
-};
+const rejects =
+    (code: string, fragment?: string) =>
+    (error: unknown): boolean => {
+        if (!(error instanceof BoundaryRejection) || error.code !== code) {
+            return false;
+        }
+        if (fragment === (void 0)) {
+            return true;
+        }
+        return error.problems.some((problem) => problem.includes(fragment));
+    };
 
 const table = RefTable.forScope("run", "a.test")
     .add("capability", "logs.query", { kind: "capability", id: "logs.query" })
@@ -76,7 +82,7 @@ test("valid frame is accepted and digest is computed by the boundary", () => {
 
 test("frame omitting ignored keeps the field absent", () => {
     const result = frameFrom(draft({ ignored: [] }), table);
-    assert.equal(result.frame.ignored, void 0);
+    assert.equal(result.frame.ignored, (void 0));
     assert.equal(result.deferred.length, 0);
 });
 
@@ -133,7 +139,12 @@ test("extra tool argument is rejected when additionalProperties is false", () =>
 test("valid tool arguments are accepted with a stable digest", () => {
     const tool = {
         name: "logs.query",
-        inputSchema: { type: "object", properties: { window: { type: "string" }, limit: { type: "integer", minimum: 1 } }, required: ["window"], additionalProperties: false },
+        inputSchema: {
+            type: "object",
+            properties: { window: { type: "string" }, limit: { type: "integer", minimum: 1 } },
+            required: ["window"],
+            additionalProperties: false,
+        },
     };
     const first = parseToolCall(tool, { window: "post", limit: 10 });
     const second = parseToolCall(tool, { limit: 10, window: "post" });
@@ -183,4 +194,6 @@ test("identifier outside the AMP grammar is rejected", () => {
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

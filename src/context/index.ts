@@ -10,3 +10,5 @@ export { ContextIndex } from "./contextIndex.ts";
 export type { ContextIndexOptions, ContextIndexStats } from "./contextIndex.ts";
 export { agentContextToAst, windowToAst } from "./projections.ts";
 export type { AgentContextProjection } from "./projections.ts";
+export { Context } from "./lifecycle.ts";
+export type { ContextOptions, ContextPhase, ContextSnapshot, ContextView } from "./lifecycle.ts";

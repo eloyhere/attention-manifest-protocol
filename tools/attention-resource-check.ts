@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 
 import type { CognitiveState } from "../src/attention/cognition.ts";
 import {
-    DEFAULT_ATTENTION_POLICY,
+    DefaultAttentionPolicy,
     applyRest,
     attentionHealth,
     planAttention,
@@ -156,7 +156,7 @@ test("quality-adjusted throughput punishes busy-but-wrong agents", () => {
 });
 
 test("a policy can be tuned without changing the model", () => {
-    const conservative = { ...DEFAULT_ATTENTION_POLICY, maxForegroundUtil: 0.5, reserveRatio: 0.5 };
+    const conservative = { ...DefaultAttentionPolicy, maxForegroundUtil: 0.5, reserveRatio: 0.5 };
     const process = processAttention(1, state(), conservative);
     assert.equal(process.foregroundCap, 2);
     assert.equal(process.reserveSlots, 2);
@@ -164,4 +164,6 @@ test("a policy can be tuned without changing the model", () => {
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

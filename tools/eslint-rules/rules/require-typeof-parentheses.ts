@@ -1,18 +1,8 @@
-import {
-    ESLintUtils,
-    type TSESLint,
-    type TSESTree,
-} from "@typescript-eslint/utils";
+import { ESLintUtils, type TSESLint, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(
-    (name) =>
-        `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`,
-);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
 
-const isParenthesized = (
-    sourceCode: Readonly<TSESLint.SourceCode>,
-    node: TSESTree.Node,
-): boolean => {
+const isParenthesized = (sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node): boolean => {
     const tokenBefore = sourceCode.getTokenBefore(node);
     const tokenAfter = sourceCode.getTokenAfter(node);
 
@@ -29,8 +19,7 @@ export const requireTypeofParentheses = createRule({
         },
         schema: [],
         messages: {
-            parenthesize:
-                "typeof 的操作数必须加括号；请写成 typeof(variable)。",
+            parenthesize: "typeof 的操作数必须加括号；请写成 typeof(variable)。",
         },
     },
     defaultOptions: [],
@@ -51,10 +40,7 @@ export const requireTypeofParentheses = createRule({
                     node,
                     messageId: "parenthesize",
                     fix(fixer) {
-                        return [
-                            fixer.insertTextBefore(node.argument, "("),
-                            fixer.insertTextAfter(node.argument, ")"),
-                        ];
+                        return [fixer.insertTextBefore(node.argument, "("), fixer.insertTextAfter(node.argument, ")")];
                     },
                 });
             },

@@ -11,12 +11,14 @@
  * The goal is not to label a task; it is to spend less context on tasks that
  * do not need it, while keeping the relevant facets for mixed tasks.
  */
-import { DEFAULT_ATTENTION_POLICY } from "../attention/resource.ts";
+import { DefaultAttentionPolicy } from "../attention/resource.ts";
 import type { AttentionResourcePolicy } from "../attention/resource.ts";
 import type { MemoryKind } from "../process/agent.ts";
 
-export const SCENARIO_KINDS = ["chat", "writing", "office", "collaboration", "investigation", "research", "engineering", "iteration"] as const;
-export type ScenarioKind = (typeof SCENARIO_KINDS)[number];
+type ScenarioKindList = readonly ["chat", "writing", "office", "collaboration", "investigation", "research", "engineering", "iteration"];
+
+export const ScenarioKinds: ScenarioKindList = ["chat", "writing", "office", "collaboration", "investigation", "research", "engineering", "iteration"];
+export type ScenarioKind = ScenarioKindList[number];
 
 export type ScenarioMix = Partial<Record<ScenarioKind, number>>;
 
@@ -46,7 +48,9 @@ export interface ScenarioProfile {
 }
 
 export interface ScenarioPlan {
-    /** Normalized weights; always sums to 1. */
+    /**
+     * Normalized weights; always sums to 1.
+     */
     weights: Record<ScenarioKind, number>;
     active: ScenarioKind[];
     contextWeights: Record<ScenarioContextKey, number>;
@@ -59,7 +63,11 @@ export interface ScenarioPlan {
     rationale: string;
 }
 
-const profiles: Record<ScenarioKind, ScenarioProfile> = {
+type ScenarioWeights = Record<ScenarioKind, number>;
+
+type ContextWeights = Record<ScenarioContextKey, number>;
+
+const Profiles: Record<ScenarioKind, ScenarioProfile> = {
     chat: {
         context: { self: 0.15, role: 0.05, affect: 0.3, memory: 0.35, relationship: 0.25, membership: 0, background: 0.05 },
         memory: { episodic: 0.3, semantic: 0.1, procedural: 0.05, social: 0.5, affective: 0.3 },
@@ -126,65 +134,91 @@ const profiles: Record<ScenarioKind, ScenarioProfile> = {
     },
 };
 
-const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+type Clamp = (value: number, min: number, max: number) => number;
 
-const clamp01 = (value: number): number => clamp(value, 0, 1);
+const clamp: Clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
-const normalizeContext = (weights: Record<ScenarioContextKey, number>): Record<ScenarioContextKey, number> => {
-    const total = Object.values(weights).reduce((sum, weight) => sum + Math.max(0, weight), 0);
-    if (total <= 0) return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
-    const result = {} as Record<ScenarioContextKey, number>;
-    for (const key of Object.keys(weights) as ScenarioContextKey[]) result[key] = Math.max(0, weights[key]) / total;
-    return result;
-};
+const clamp01: (value: number) => number = (value: number): number => clamp(value, 0, 1);
 
-const weighted = <K extends string>(
-    weights: Record<ScenarioKind, number>,
-    read: (profile: ScenarioProfile) => Record<K, number>,
-    keys: readonly K[],
-): Record<K, number> => {
-    const result = {} as Record<K, number>;
-    for (const key of keys) {
-        result[key] = SCENARIO_KINDS.reduce<number>((sum, kind) => sum + weights[kind] * read(profiles[kind])[key], 0);
+const normalizeContext: (weights: ContextWeights) => ContextWeights = (weights: ContextWeights): ContextWeights => {
+    const total: number = Object.values(weights).reduce((sum, weight) => sum + Math.max(0, weight), 0);
+    if (total <= 0) {
+        return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
+    }
+    const result: ContextWeights = {} as ContextWeights;
+    const keys: ScenarioContextKey[] = Object.keys(weights) as ScenarioContextKey[];
+    for (let index: number = 0; index < keys.length; index += 1) {
+        const key: ScenarioContextKey = keys[index];
+        result[key] = Math.max(0, weights[key]) / total;
     }
     return result;
 };
 
-const vote = <K extends string>(weights: Record<ScenarioKind, number>, read: (profile: ScenarioProfile) => K): K => {
-    const scores = new Map<K, number>();
-    for (const kind of SCENARIO_KINDS) {
-        const key = read(profiles[kind]);
+type WeightedReader<K extends string> = (profile: ScenarioProfile) => Record<K, number>;
+
+type WeightedFunction = <K extends string>(weights: ScenarioWeights, read: WeightedReader<K>, keys: readonly K[]) => Record<K, number>;
+
+const weighted: WeightedFunction = <K extends string>(weights: ScenarioWeights, read: WeightedReader<K>, keys: readonly K[]): Record<K, number> => {
+    const result: Record<K, number> = {} as Record<K, number>;
+    for (let index: number = 0; index < keys.length; index += 1) {
+        const key: K = keys[index];
+        result[key] = ScenarioKinds.reduce<number>((sum, kind) => sum + weights[kind] * read(Profiles[kind])[key], 0);
+    }
+    return result;
+};
+
+type VoteReader<K extends string> = (profile: ScenarioProfile) => K;
+
+type VoteFunction = <K extends string>(weights: ScenarioWeights, read: VoteReader<K>) => K;
+
+const vote: VoteFunction = <K extends string>(weights: ScenarioWeights, read: VoteReader<K>): K => {
+    const scores: Map<K, number> = new Map<K, number>();
+    for (let kindIndex: number = 0; kindIndex < ScenarioKinds.length; kindIndex += 1) {
+        const kind: ScenarioKind = ScenarioKinds[kindIndex];
+        const key: K = read(Profiles[kind]);
         scores.set(key, (scores.get(key) ?? 0) + weights[kind]);
     }
     let best: K | undefined;
-    let bestScore = -1;
-    for (const [key, score] of scores) {
-        if (score > bestScore) {
-            best = key;
-            bestScore = score;
+    let bestScore: number = -1;
+    const entries: Array<[K, number]> = [...scores];
+    for (let index: number = 0; index < entries.length; index += 1) {
+        const entry: [K, number] = entries[index];
+        if (entry[1] > bestScore) {
+            best = entry[0];
+            bestScore = entry[1];
         }
     }
     return best as K;
 };
 
-/** Normalize a mix; zeros are allowed, negatives and empty mixes are rejected. */
-export const normalizeScenarioMix = (mix: ScenarioMix): Record<ScenarioKind, number> => {
-    const result = {} as Record<ScenarioKind, number>;
-    let total = 0;
-    for (const kind of SCENARIO_KINDS) {
-        const raw = mix[kind] ?? 0;
-        if (!Number.isFinite(raw) || raw < 0) throw new RangeError(`scenario weight ${kind} must be a finite non-negative number`);
+/**
+ * Normalize a mix; zeros are allowed, negatives and empty mixes are rejected.
+ */
+export const normalizeScenarioMix: (mix: ScenarioMix) => ScenarioWeights = (mix: ScenarioMix): ScenarioWeights => {
+    const result: ScenarioWeights = {} as ScenarioWeights;
+    let total: number = 0;
+    for (let index: number = 0; index < ScenarioKinds.length; index += 1) {
+        const kind: ScenarioKind = ScenarioKinds[index];
+        const raw: number = mix[kind] ?? 0;
+        if (!Number.isFinite(raw) || raw < 0) {
+            throw new RangeError(`scenario weight ${kind} must be a finite non-negative number`);
+        }
         result[kind] = raw;
         total += raw;
     }
-    if (total <= 0) throw new RangeError("scenario mix must contain at least one positive weight");
-    for (const kind of SCENARIO_KINDS) result[kind] /= total;
+    if (total <= 0) {
+        throw new RangeError("scenario mix must contain at least one positive weight");
+    }
+    for (let index: number = 0; index < ScenarioKinds.length; index += 1) {
+        const kind: ScenarioKind = ScenarioKinds[index];
+        result[kind] /= total;
+    }
     return result;
 };
 
-export const resolveScenario = (mix: ScenarioMix): ScenarioPlan => {
-    const weights = normalizeScenarioMix(mix);
-    const contextRaw = weighted(weights, (profile) => profile.context, [
+export const resolveScenario: (mix: ScenarioMix) => ScenarioPlan = (mix: ScenarioMix): ScenarioPlan => {
+    const weights: ScenarioWeights = normalizeScenarioMix(mix);
+    const contextRaw: ContextWeights = weighted(weights, (profile) => profile.context, [
         "self",
         "role",
         "affect",
@@ -193,34 +227,40 @@ export const resolveScenario = (mix: ScenarioMix): ScenarioPlan => {
         "membership",
         "background",
     ] as const);
-    const memoryKindWeights = weighted(weights, (profile) => profile.memory, ["episodic", "semantic", "procedural", "social", "affective"] as const);
-    const tokenBudgetFactor = clamp(
-        SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].tokenFactor, 0),
+    const memoryKindWeights: Record<MemoryKind, number> = weighted(weights, (profile) => profile.memory, [
+        "episodic",
+        "semantic",
+        "procedural",
+        "social",
+        "affective",
+    ] as const);
+    const tokenBudgetFactor: number = clamp(
+        ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].tokenFactor, 0),
         0.3,
         1.5,
     );
-    const contextDepth = clamp01(SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].contextDepth, 0));
+    const contextDepth: number = clamp01(ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].contextDepth, 0));
     const attention: ScenarioAttention = {
         maxForegroundUtil: clamp(
-            SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.maxForegroundUtil, 0),
+            ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].attention.maxForegroundUtil, 0),
             0.4,
             0.9,
         ),
         reserveRatio: clamp(
-            SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.reserveRatio, 0),
+            ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].attention.reserveRatio, 0),
             0.15,
             0.4,
         ),
-        minSliceSlots: Math.max(1, Math.round(SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.minSliceSlots, 0))),
-        restAfterCycles: Math.max(3, Math.round(SCENARIO_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.restAfterCycles, 0))),
+        minSliceSlots: Math.max(1, Math.round(ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].attention.minSliceSlots, 0))),
+        restAfterCycles: Math.max(3, Math.round(ScenarioKinds.reduce((sum, kind) => sum + weights[kind] * Profiles[kind].attention.restAfterCycles, 0))),
     };
-    const active = SCENARIO_KINDS.filter((kind) => weights[kind] >= 0.1);
+    const active: ScenarioKind[] = ScenarioKinds.filter((kind) => weights[kind] >= 0.1);
     const mode: ScenarioMode = contextDepth < 0.35 ? "bare" : contextDepth < 0.7 ? "compact" : "full";
     const style: ScenarioStyle = {
         verbosity: vote(weights, (profile) => profile.style.verbosity),
         toolBias: vote(weights, (profile) => profile.style.toolBias),
     };
-    const rationale =
+    const rationale: string =
         `${active.length === 0 ? "no active scenario" : active.map((kind) => `${kind} ${weights[kind].toFixed(2)}`).join(" + ")}` +
         ` -> ${mode}; token x${tokenBudgetFactor.toFixed(2)}; context depth ${contextDepth.toFixed(2)}`;
     return {
@@ -237,12 +277,16 @@ export const resolveScenario = (mix: ScenarioMix): ScenarioPlan => {
     };
 };
 
-export const contextBudgetTokens = (plan: ScenarioPlan, baseTokens: number): number => {
-    if (!Number.isFinite(baseTokens) || baseTokens < 0) throw new RangeError("baseTokens must be a non-negative finite number");
+export const contextBudgetTokens: (plan: ScenarioPlan, baseTokens: number) => number = (plan: ScenarioPlan, baseTokens: number): number => {
+    if (!Number.isFinite(baseTokens) || baseTokens < 0) {
+        throw new RangeError("baseTokens must be a non-negative finite number");
+    }
     return Math.max(32, Math.round(baseTokens * plan.tokenBudgetFactor));
 };
 
-export const scenarioAttentionPolicy = (plan: ScenarioPlan, base: AttentionResourcePolicy = DEFAULT_ATTENTION_POLICY): AttentionResourcePolicy => {
+type PolicyFn = (plan: ScenarioPlan, base?: AttentionResourcePolicy) => AttentionResourcePolicy;
+
+export const scenarioAttentionPolicy: PolicyFn = (plan: ScenarioPlan, base: AttentionResourcePolicy = DefaultAttentionPolicy): AttentionResourcePolicy => {
     return {
         ...base,
         maxForegroundUtil: plan.attention.maxForegroundUtil,
@@ -252,4 +296,4 @@ export const scenarioAttentionPolicy = (plan: ScenarioPlan, base: AttentionResou
     };
 };
 
-export const shouldUseBareContext = (plan: ScenarioPlan): boolean => plan.mode === "bare";
+export const shouldUseBareContext: (plan: ScenarioPlan) => boolean = (plan: ScenarioPlan): boolean => plan.mode === "bare";

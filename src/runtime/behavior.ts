@@ -24,14 +24,18 @@ export interface BehaviorPolicy {
     forbidOperations?: string[];
     requireApproval?: boolean;
     maxActionsPerTurn?: number;
-    /** Hard guardrails cannot be outvoted; only their action preference competes. */
+    /**
+     * Hard guardrails cannot be outvoted; only their action preference competes.
+     */
     hardGuardrail?: boolean;
 }
 
 export interface Behavior {
     id: BehaviorId;
     name: string;
-    /** Higher wins when two soft/hard behaviors prefer different actions. */
+    /**
+     * Higher wins when two soft/hard behaviors prefer different actions.
+     */
     priority: number;
     trigger: BehaviorTrigger;
     policy: BehaviorPolicy;
@@ -100,8 +104,10 @@ const builtin = (
     match,
 });
 
-/** Six conservative defaults; they are trace-only until an ActionPlanner uses them. */
-export const DEFAULT_BEHAVIORS: readonly BehaviorRule[] = [
+/**
+ * Six conservative defaults; they are trace-only until an ActionPlanner uses them.
+ */
+export const DefaultBehaviors: readonly BehaviorRule[] = [
     builtin(
         "clarify_when_uncertain",
         "Clarify when uncertain",
@@ -189,14 +195,18 @@ export const DEFAULT_BEHAVIORS: readonly BehaviorRule[] = [
 export class BehaviorRegistry {
     private readonly rules: BehaviorRule[] = [];
     private tuningVersion = 0;
-    private readonly tuningSnapshots: Array<{ version: number; priorities: Record<string, number> }> = [];
+    private readonly tuningSnapshots: Array<{ version: number; priorities: Record<string, number>; }> = [];
 
-    constructor(rules: readonly BehaviorRule[] = DEFAULT_BEHAVIORS) {
-        for (const rule of rules) this.register(rule);
+    constructor(rules: readonly BehaviorRule[] = DefaultBehaviors) {
+        for (const rule of rules) {
+            this.register(rule);
+        }
     }
 
     register(rule: BehaviorRule): this {
-        if (this.rules.some((entry) => entry.behavior.id === rule.behavior.id)) throw new Error(`duplicate behavior ${rule.behavior.id}`);
+        if (this.rules.some((entry) => entry.behavior.id === rule.behavior.id)) {
+            throw new Error(`duplicate behavior ${rule.behavior.id}`);
+        }
         this.rules.push(rule);
         return this;
     }
@@ -205,34 +215,52 @@ export class BehaviorRegistry {
         return this.rules.map((rule) => rule.behavior);
     }
 
-    /** Apply reviewed priority changes; hard guardrails are never lowered. */
-    applyPriorities(changes: Readonly<Record<string, number>>): { version: number; applied: Array<{ id: string; from: number; to: number }> } {
+    /**
+     * Apply reviewed priority changes; hard guardrails are never lowered.
+     */
+    applyPriorities(changes: Readonly<Record<string, number>>): { version: number; applied: Array<{ id: string; from: number; to: number; }>; } {
         const priorities: Record<string, number> = {};
-        for (const rule of this.rules) priorities[rule.behavior.id] = rule.behavior.priority;
+        for (const rule of this.rules) {
+            priorities[rule.behavior.id] = rule.behavior.priority;
+        }
         this.tuningSnapshots.push({ version: this.tuningVersion, priorities });
-        const applied: Array<{ id: string; from: number; to: number }> = [];
+        const applied: Array<{ id: string; from: number; to: number; }> = [];
         for (let index = 0; index < this.rules.length; index += 1) {
             const rule = this.rules[index];
             const requested = changes[rule.behavior.id];
-            if (requested === undefined) continue;
+            if (requested === (void 0)) {
+                continue;
+            }
             const next = Math.max(0, Math.min(100, requested));
-            if (rule.behavior.policy.hardGuardrail === true && next < rule.behavior.priority) continue;
-            if (next === rule.behavior.priority) continue;
+            if (rule.behavior.policy.hardGuardrail === true && next < rule.behavior.priority) {
+                continue;
+            }
+            if (next === rule.behavior.priority) {
+                continue;
+            }
             applied.push({ id: rule.behavior.id, from: rule.behavior.priority, to: next });
             this.rules[index] = { ...rule, behavior: { ...rule.behavior, priority: next, version: rule.behavior.version + 1 } };
         }
-        if (applied.length > 0) this.tuningVersion += 1;
+        if (applied.length > 0) {
+            this.tuningVersion += 1;
+        }
         return { version: this.tuningVersion, applied };
     }
 
-    /** Roll back to the snapshot before `version`; returns false if unknown. */
+    /**
+     * Roll back to the snapshot before `version`; returns false if unknown.
+     */
     rollbackPriorities(version: number): boolean {
         const snapshot = [...this.tuningSnapshots].reverse().find((entry) => entry.version === version - 1);
-        if (snapshot === undefined) return false;
+        if (snapshot === (void 0)) {
+            return false;
+        }
         for (let index = 0; index < this.rules.length; index += 1) {
             const rule = this.rules[index];
             const priority = snapshot.priorities[rule.behavior.id];
-            if (priority === undefined || priority === rule.behavior.priority) continue;
+            if (priority === (void 0) || priority === rule.behavior.priority) {
+                continue;
+            }
             this.rules[index] = { ...rule, behavior: { ...rule.behavior, priority, version: rule.behavior.version + 1 } };
         }
         this.tuningVersion += 1;
@@ -247,10 +275,12 @@ export class BehaviorRegistry {
         const activations: BehaviorActivation[] = [];
         const guardrails = new Set<string>();
         let maxActionsPerTurn = 3;
-        const contenders: Array<{ activation: BehaviorActivation; rule: BehaviorRule }> = [];
+        const contenders: Array<{ activation: BehaviorActivation; rule: BehaviorRule; }> = [];
         for (const rule of this.rules) {
             const result = rule.match(context);
-            if (!result.matched) continue;
+            if (!result.matched) {
+                continue;
+            }
             const activation: BehaviorActivation = {
                 behaviorId: rule.behavior.id,
                 turnId: context.turnId,
@@ -259,20 +289,26 @@ export class BehaviorRegistry {
                 priority: rule.behavior.priority,
             };
             activations.push(activation);
-            for (const guardrail of rule.behavior.guardrails) guardrails.add(guardrail);
-            if (rule.behavior.policy.maxActionsPerTurn !== undefined) {
+            for (const guardrail of rule.behavior.guardrails) {
+                guardrails.add(guardrail);
+            }
+            if (rule.behavior.policy.maxActionsPerTurn !== (void 0)) {
                 maxActionsPerTurn = Math.min(maxActionsPerTurn, rule.behavior.policy.maxActionsPerTurn);
             }
-            if ((rule.behavior.policy.preferActions ?? []).length > 0) contenders.push({ activation, rule });
+            if ((rule.behavior.policy.preferActions ?? []).length > 0) {
+                contenders.push({ activation, rule });
+            }
         }
         contenders.sort((left, right) => right.activation.priority - left.activation.priority || right.activation.confidence - left.activation.confidence);
         const winner = contenders[0];
-        const preferredActions = winner === undefined ? [] : [...(winner.rule.behavior.policy.preferActions ?? [])];
+        const preferredActions = winner === (void 0) ? [] : [...(winner.rule.behavior.policy.preferActions ?? [])];
         const conflicts: BehaviorConflict[] = [];
-        if (winner !== undefined) {
+        if (winner !== (void 0)) {
             for (const loser of contenders.slice(1)) {
                 const loserActions = loser.rule.behavior.policy.preferActions ?? [];
-                if (JSON.stringify(loserActions) === JSON.stringify(preferredActions)) continue;
+                if (JSON.stringify(loserActions) === JSON.stringify(preferredActions)) {
+                    continue;
+                }
                 conflicts.push({
                     winner: winner.activation.behaviorId,
                     loser: loser.activation.behaviorId,
@@ -287,7 +323,7 @@ export class BehaviorRegistry {
             guardrails: [...guardrails],
             maxActionsPerTurn: Math.max(1, maxActionsPerTurn),
             preferredActions,
-            ...(winner === undefined ? {} : { winner: winner.activation.behaviorId }),
+            ...(winner === (void 0) ? {} : { winner: winner.activation.behaviorId }),
             conflicts,
         };
     }

@@ -13,7 +13,14 @@ import { BaseRepository } from "./base.ts";
 import { InstitutionTable, MembershipTable, RelationshipTable } from "../entity/agent.ts";
 import type { InstitutionRow, MembershipRow, RelationshipRow } from "../entity/agent.ts";
 
-const parseJson = <T>(text: string, fallback: T): T => {
+/**
+ * Row returned when asking SQLite for the next relationship id.
+ */
+type NextRelationshipIdRow = {
+    n: number;
+};
+
+const parseJson: <T>(text: string, fallback: T) => T = <T>(text: string, fallback: T): T => {
     try {
         return JSON.parse(text) as T;
     } catch {
@@ -21,13 +28,13 @@ const parseJson = <T>(text: string, fallback: T): T => {
     }
 };
 
-const toInstitution = (row: InstitutionRow): Institution => ({
+const toInstitution: (row: InstitutionRow) => Institution = (row: InstitutionRow): Institution => ({
     id: row.id,
     name: row.name,
     norms: parseJson<string[]>(row.norms_json, []),
 });
 
-const toRelationship = (row: RelationshipRow): Relationship => {
+const toRelationship: (row: RelationshipRow) => Relationship = (row: RelationshipRow): Relationship => {
     const relationship: Relationship = {
         id: row.id,
         fromPid: row.from_pid,
@@ -38,7 +45,9 @@ const toRelationship = (row: RelationshipRow): Relationship => {
         obligations: parseJson<string[]>(row.obligations_json, []),
         since: row.since,
     };
-    if (row.last_contact !== null) relationship.lastContact = row.last_contact;
+    if (row.last_contact !== null) {
+        relationship.lastContact = row.last_contact;
+    }
     return relationship;
 };
 
@@ -57,11 +66,14 @@ export class SocialRepository extends BaseRepository<InstitutionRow, number> imp
     }
 
     memberships(pid: Pid): Membership[] {
-        const rows = this.membershipsSql.select({ where: "pid = ?", params: [pid] });
+        const rows: MembershipRow[] = this.membershipsSql.select({ where: "pid = ?", params: [pid] });
         const result: Membership[] = [];
-        for (const row of rows) {
-            const institution = this.findById(row.iid);
-            if (institution === undefined) continue;
+        for (let index: number = 0; index < rows.length; index += 1) {
+            const row: MembershipRow = rows[index];
+            const institution: InstitutionRow | undefined = this.findById(row.iid);
+            if (institution === (void 0)) {
+                continue;
+            }
             result.push({
                 institution: toInstitution(institution),
                 role: row.role,
@@ -73,18 +85,18 @@ export class SocialRepository extends BaseRepository<InstitutionRow, number> imp
     }
 
     institution(id: string): Institution | undefined {
-        const row = this.queries.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        return row === undefined ? undefined : toInstitution(row);
+        const row: InstitutionRow | undefined = this.queries.select({ where: "id = ?", params: [id], limit: 1 })[0];
+        return row === (void 0) ? undefined : toInstitution(row);
     }
 
     upsertRelationship(input: Parameters<SocialStore["upsertRelationship"]>[0]): Relationship {
-        const existing = this.relationshipsSql.select({
+        const existing: RelationshipRow | undefined = this.relationshipsSql.select({
             where: "from_pid = ? AND to_pid = ? AND kind = ?",
             params: [input.fromPid, input.toPid, input.kind],
             limit: 1,
         })[0];
-        if (existing === undefined) {
-            const next = this.relationshipsSql.queryOne<{ n: number }>("SELECT COALESCE(MAX(rel_id), 0) + 1 AS n FROM relationships")?.n ?? 1;
+        if (existing === (void 0)) {
+            const next: number = this.relationshipsSql.queryOne<NextRelationshipIdRow>("SELECT COALESCE(MAX(rel_id), 0) + 1 AS n FROM relationships")?.n ?? 1;
             this.relationshipsSql.insert({
                 id: `rel.${next}`,
                 from_pid: input.fromPid,
@@ -108,30 +120,40 @@ export class SocialRepository extends BaseRepository<InstitutionRow, number> imp
                 existing.rel_id,
             );
         }
-        const row = this.relationshipsSql.select({
+        const row: RelationshipRow | undefined = this.relationshipsSql.select({
             where: "from_pid = ? AND to_pid = ? AND kind = ?",
             params: [input.fromPid, input.toPid, input.kind],
             limit: 1,
         })[0];
-        if (row === undefined) throw new AgentError("relationship_not_found", [`${input.fromPid}->${input.toPid}`]);
+        if (row === (void 0)) {
+            throw new AgentError("relationship_not_found", [`${input.fromPid}->${input.toPid}`]);
+        }
         return toRelationship(row);
     }
 
     createInstitution(input: Parameters<SocialStore["createInstitution"]>[0]): Institution {
-        if (this.institution(input.id) !== undefined) throw new AgentError("institution_not_found", [`institution ${input.id} already exists`]);
+        if (this.institution(input.id) !== (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${input.id} already exists`]);
+        }
         this.queries.insert({ id: input.id, name: input.name, norms_json: JSON.stringify(input.norms ?? []) });
-        const row = this.queries.select({ where: "id = ?", params: [input.id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("institution_not_found", [`institution ${input.id}`]);
+        const row: InstitutionRow | undefined = this.queries.select({ where: "id = ?", params: [input.id], limit: 1 })[0];
+        if (row === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${input.id}`]);
+        }
         return toInstitution(row);
     }
 
     joinInstitution(input: Parameters<SocialStore["joinInstitution"]>[0]): Membership {
-        const institution = this.institution(input.institutionId);
-        if (institution === undefined) throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
-        const row = this.queries.select({ where: "id = ?", params: [input.institutionId], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
-        const existing = this.membershipsSql.select({ where: "pid = ? AND iid = ?", params: [input.pid, row.iid], limit: 1 })[0];
-        if (existing === undefined) {
+        const institution: Institution | undefined = this.institution(input.institutionId);
+        if (institution === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
+        }
+        const row: InstitutionRow | undefined = this.queries.select({ where: "id = ?", params: [input.institutionId], limit: 1 })[0];
+        if (row === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
+        }
+        const existing: MembershipRow | undefined = this.membershipsSql.select({ where: "pid = ? AND iid = ?", params: [input.pid, row.iid], limit: 1 })[0];
+        if (existing === (void 0)) {
             this.membershipsSql.insert({ pid: input.pid, iid: row.iid, role: input.role, status: "active", since: input.since });
         } else {
             this.membershipsSql.updateWhere("pid = ? AND iid = ?", { role: input.role, status: "active", since: input.since }, input.pid, row.iid);
@@ -145,13 +167,19 @@ export class SocialRepository extends BaseRepository<InstitutionRow, number> imp
     }
 
     leaveInstitution(pid: Pid, institutionId: string, at: string): Membership {
-        const institution = this.institution(institutionId);
-        if (institution === undefined) throw new AgentError("institution_not_found", [`institution ${institutionId}`]);
-        const row = this.queries.select({ where: "id = ?", params: [institutionId], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("institution_not_found", [`institution ${institutionId}`]);
-        const changed = this.membershipsSql.updateWhere("pid = ? AND iid = ?", { status: "left", since: at }, pid, row.iid);
-        if (changed === 0) throw new AgentError("institution_not_found", [`membership ${pid}/${institutionId}`]);
-        const membership = this.membershipsSql.select({ where: "pid = ? AND iid = ?", params: [pid, row.iid], limit: 1 })[0];
+        const institution: Institution | undefined = this.institution(institutionId);
+        if (institution === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${institutionId}`]);
+        }
+        const row: InstitutionRow | undefined = this.queries.select({ where: "id = ?", params: [institutionId], limit: 1 })[0];
+        if (row === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${institutionId}`]);
+        }
+        const changed: number = this.membershipsSql.updateWhere("pid = ? AND iid = ?", { status: "left", since: at }, pid, row.iid);
+        if (changed === 0) {
+            throw new AgentError("institution_not_found", [`membership ${pid}/${institutionId}`]);
+        }
+        const membership: MembershipRow | undefined = this.membershipsSql.select({ where: "pid = ? AND iid = ?", params: [pid, row.iid], limit: 1 })[0];
         return { institution, role: membership?.role ?? "", status: "left", since: membership?.since ?? at };
     }
 }

@@ -1,7 +1,8 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync, StatementResultingChanges, StatementSync } from "node:sqlite";
 
 import type { OutboxEntity } from "../entity/outbox.ts";
 import { OutboxTable } from "../entity/outbox.ts";
+import type { MutationResult } from "../sql/sql.ts";
 import { BaseRepository } from "./base.ts";
 
 export class OutboxRepository extends BaseRepository<OutboxEntity, number> {
@@ -10,7 +11,7 @@ export class OutboxRepository extends BaseRepository<OutboxEntity, number> {
     }
 
     write(topic: string, payload: unknown, at: string): number {
-        const result = this.queries.insert({
+        const result: MutationResult = this.queries.insert({
             topic,
             payload: JSON.stringify(payload),
             created_at: at,
@@ -40,18 +41,21 @@ export class OutboxRepository extends BaseRepository<OutboxEntity, number> {
         return this.queries.count("dispatched_at IS NULL");
     }
 
-    /** Delete dispatched rows older than the cutoff; topic is optional. */
+    /**
+     * Delete dispatched rows older than the cutoff; topic is optional.
+     */
     pruneDispatched(before: string, topic?: string): number {
-        const clause =
-            topic === undefined ? "dispatched_at IS NOT NULL AND dispatched_at < ?" : "dispatched_at IS NOT NULL AND dispatched_at < ? AND topic = ?";
-        const statement = this.connection.prepare(`DELETE FROM outbox WHERE ${clause}`);
-        const result = topic === undefined ? statement.run(before) : statement.run(before, topic);
+        const clause: string =
+            topic === (void 0) ? "dispatched_at IS NOT NULL AND dispatched_at < ?" : "dispatched_at IS NOT NULL AND dispatched_at < ? AND topic = ?";
+        const statement: StatementSync = this.connection.prepare(`DELETE FROM outbox WHERE ${clause}`);
+        const result: StatementResultingChanges = topic === (void 0) ? statement.run(before) : statement.run(before, topic);
         return Number(result.changes);
     }
 
     markDispatched(ids: readonly number[], at: string): number {
-        let changed = 0;
-        for (const id of ids) {
+        let changed: number = 0;
+        for (let index: number = 0; index < ids.length; index += 1) {
+            const id: number = ids[index];
             changed += this.queries.update(id, { dispatched_at: at });
         }
         return changed;

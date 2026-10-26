@@ -165,4 +165,6 @@ test("the kernel restores a thread's window across steps", () => {
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

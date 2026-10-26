@@ -52,38 +52,59 @@ export class EntityCache<T> {
         this.keyOf = options.keyOf;
         this.now = options.now ?? (() => Date.now());
         this.proxy = new Proxy({} as Record<string, T>, {
-            get: (_target, property) => {
-                if (typeof(property) !== "string") return undefined;
-                if (property === "toJSON") return undefined;
+            get: (target, property) => {
+                void target;
+                if (typeof(property) !== "string") {
+                    return undefined;
+                }
+                if (property === "toJSON") {
+                    return undefined;
+                }
                 return this.get(property);
             },
-            set: (_target, property, value: T) => {
-                if (typeof(property) !== "string") return false;
+            set: (target, property, value: T) => {
+                void target;
+                if (typeof(property) !== "string") {
+                    return false;
+                }
                 this.evictIfNeeded();
                 this.lru.set(property, value);
                 this.loadedAt.set(property, this.now());
                 return true;
             },
-            deleteProperty: (_target, property) => {
-                if (typeof(property) === "string") this.invalidate(property);
+            deleteProperty: (target, property) => {
+                void target;
+                if (typeof(property) === "string") {
+                    this.invalidate(property);
+                }
                 return true;
             },
-            has: (_target, property) => typeof(property) === "string" && this.lru.has(property),
+            has: (target, property) => {
+                void target;
+                return typeof(property) === "string" && this.lru.has(property);
+            },
             ownKeys: () => [...this.lru.keys()],
-            getOwnPropertyDescriptor: (_target, property) => {
-                if (typeof(property) !== "string") return undefined;
+            getOwnPropertyDescriptor: (target, property) => {
+                void target;
+                if (typeof(property) !== "string") {
+                    return undefined;
+                }
                 const value: T | undefined = this.peek(property);
-                if (value === undefined) return undefined;
+                if (value === (void 0)) {
+                    return undefined;
+                }
                 return { enumerable: true, configurable: true, value };
             },
         });
     }
 
-    /** Read through the cache; a miss calls the service loader. */
+    /**
+     * Read through the cache; a miss calls the service loader.
+     */
     get(id: string | number): T | undefined {
         const key: string = `${id}`;
         const cached: T | undefined = this.lru.get(key);
-        if (cached !== undefined) {
+        if (cached !== (void 0)) {
             const at: number = this.loadedAt.get(key) ?? 0;
             if (this.now() - at <= this.ttlMs) {
                 this.hits += 1;
@@ -95,7 +116,9 @@ export class EntityCache<T> {
 
         const loaded: T | undefined = this.load(key);
         this.misses += 1;
-        if (loaded === undefined) return undefined;
+        if (loaded === (void 0)) {
+            return undefined;
+        }
         this.evictIfNeeded();
         this.lru.set(key, loaded);
         this.loadedAt.set(key, this.now());
@@ -103,7 +126,9 @@ export class EntityCache<T> {
         return loaded;
     }
 
-    /** Look at a cached value without loading or extending its TTL. */
+    /**
+     * Look at a cached value without loading or extending its TTL.
+     */
     peek(id: string | number): T | undefined {
         return this.lru.get(`${id}`);
     }
@@ -116,7 +141,7 @@ export class EntityCache<T> {
     }
 
     invalidate(id?: string | number): void {
-        if (id === undefined) {
+        if (id === (void 0)) {
             this.lru.clear();
             this.loadedAt.clear();
             return;
@@ -145,7 +170,9 @@ export class EntityCache<T> {
         };
     }
 
-    /** The Proxy view: `cache.entities["42"]` reads through to the service. */
+    /**
+     * The Proxy view: `cache.entities["42"]` reads through to the service.
+     */
     get entities(): Record<string, T> {
         return this.proxy;
     }
@@ -153,7 +180,9 @@ export class EntityCache<T> {
     private evictIfNeeded(): void {
         while (this.lru.size >= this.capacity) {
             const victim: [string, T] | undefined = this.lru.leastRecentlyUsed();
-            if (victim === undefined) return;
+            if (victim === (void 0)) {
+                return;
+            }
             this.lru.delete(victim[0]);
             this.loadedAt.delete(victim[0]);
             this.evictions += 1;

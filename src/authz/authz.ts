@@ -35,7 +35,9 @@ export type ResourceKind = "object" | "process" | "thread" | "mailbox" | "budget
 export interface Resource {
     kind: ResourceKind;
     id: Id;
-    /** The process that owns the resource; omitted for kernel/global objects. */
+    /**
+     * The process that owns the resource; omitted for kernel/global objects.
+     */
     ownerPid?: number;
 }
 
@@ -84,9 +86,13 @@ const AllActions: readonly Action[] = ["read", "write", "append", "grant", "revo
 
 const toCapability = (row: HandleRow): CapabilityRecord => {
     const subject: Subject = { kind: row.subject_kind, id: row.subject_id };
-    if (row.subject_pid !== null) subject.pid = row.subject_pid;
+    if (row.subject_pid !== null) {
+        subject.pid = row.subject_pid;
+    }
     const resource: Resource = { kind: row.resource_kind, id: row.resource_id };
-    if (row.owner_pid !== null) resource.ownerPid = row.owner_pid;
+    if (row.owner_pid !== null) {
+        resource.ownerPid = row.owner_pid;
+    }
     const capability: CapabilityRecord = {
         hid: row.hid,
         id: row.id,
@@ -96,10 +102,18 @@ const toCapability = (row: HandleRow): CapabilityRecord => {
         scope: row.scope,
         createdAt: row.created_at,
     };
-    if (row.parent_hid !== null) capability.parentHid = row.parent_hid;
-    if (row.expires_at !== null) capability.expiresAt = row.expires_at;
-    if (row.revoked_at !== null) capability.revokedAt = row.revoked_at;
-    if (row.granted_by !== null) capability.grantedBy = row.granted_by;
+    if (row.parent_hid !== null) {
+        capability.parentHid = row.parent_hid;
+    }
+    if (row.expires_at !== null) {
+        capability.expiresAt = row.expires_at;
+    }
+    if (row.revoked_at !== null) {
+        capability.revokedAt = row.revoked_at;
+    }
+    if (row.granted_by !== null) {
+        capability.grantedBy = row.granted_by;
+    }
     return capability;
 };
 
@@ -108,7 +122,7 @@ const live = (row: HandleRow, at: string): boolean => row.revoked_at === null &&
 const rowsFor = (db: DatabaseSync, subject: Subject, resource: Resource, at: string): HandleRow[] => {
     const subjects: Subject[] = [subject];
     // A thread also acts with the capabilities of its process (fds are shared).
-    if (subject.kind === "thread" && subject.pid !== undefined) {
+    if (subject.kind === "thread" && subject.pid !== (void 0)) {
         subjects.push({ kind: "process", id: `p.${subject.pid}`, pid: subject.pid });
     }
     const rows: HandleRow[] = [];
@@ -123,7 +137,7 @@ const rowsFor = (db: DatabaseSync, subject: Subject, resource: Resource, at: str
             .all(candidate.kind, candidate.id, resource.kind, resource.id) as unknown as HandleRow[];
         rows.push(...found.filter((row) => live(row, at)));
     }
-    if (subject.kind === "thread" && subject.pid !== undefined) {
+    if (subject.kind === "thread" && subject.pid !== (void 0)) {
         const inherited = db
             .prepare(
                 `SELECT * FROM handles
@@ -137,14 +151,20 @@ const rowsFor = (db: DatabaseSync, subject: Subject, resource: Resource, at: str
     return rows;
 };
 
-const isOwner = (subject: Subject, resource: Resource): boolean => resource.ownerPid !== undefined && subject.pid === resource.ownerPid;
+const isOwner = (subject: Subject, resource: Resource): boolean => resource.ownerPid !== (void 0) && subject.pid === resource.ownerPid;
 
-/** Rights the subject actually holds on the resource, including ownership. */
+/**
+ * Rights the subject actually holds on the resource, including ownership.
+ */
 export const effectiveRights = (db: DatabaseSync, subject: Subject, resource: Resource, at: string): Action[] => {
-    if (subject.kind === "host" || isOwner(subject, resource)) return [...AllActions];
+    if (subject.kind === "host" || isOwner(subject, resource)) {
+        return [...AllActions];
+    }
     const rights = new Set<Action>();
     for (const row of rowsFor(db, subject, resource, at)) {
-        for (const right of JSON.parse(row.rights) as Action[]) rights.add(right);
+        for (const right of JSON.parse(row.rights) as Action[]) {
+            rights.add(right);
+        }
     }
     return [...rights];
 };
@@ -153,9 +173,13 @@ export const can = (db: DatabaseSync, subject: Subject, action: Action, resource
     return effectiveRights(db, subject, resource, at).includes(action);
 };
 
-/** Throws unless the subject holds `action` on `resource`. */
+/**
+ * Throws unless the subject holds `action` on `resource`.
+ */
 export const requirePermission = (db: DatabaseSync, subject: Subject, action: Action, resource: Resource, at: string): void => {
-    if (can(db, subject, action, resource, at)) return;
+    if (can(db, subject, action, resource, at)) {
+        return;
+    }
     throw new AuthzError("permission_denied", [`${subject.kind}:${subject.id} may not ${action} ${resource.kind}:${resource.id}`]);
 };
 
@@ -173,8 +197,12 @@ export const listCapabilities = (db: DatabaseSync, subject: Subject): Capability
  * right may appear, and the new expiry may not outlive the grantor's own.
  */
 export const grant = (db: DatabaseSync, input: GrantInput, at: string): CapabilityRecord => {
-    if (input.rights.length === 0) throw new AuthzError("invalid_grant", ["rights must not be empty"]);
-    if (input.grantee.kind === "host") throw new AuthzError("invalid_grant", ["cannot grant to host"]);
+    if (input.rights.length === 0) {
+        throw new AuthzError("invalid_grant", ["rights must not be empty"]);
+    }
+    if (input.grantee.kind === "host") {
+        throw new AuthzError("invalid_grant", ["cannot grant to host"]);
+    }
     requirePermission(db, input.grantor, "grant", input.resource, at);
 
     const available: Action[] = effectiveRights(db, input.grantor, input.resource, at);
@@ -185,7 +213,7 @@ export const grant = (db: DatabaseSync, input: GrantInput, at: string): Capabili
 
     const source = rowsFor(db, input.grantor, input.resource, at).find((row) => (JSON.parse(row.rights) as Action[]).includes("grant"));
     const sourceExpiry: string | undefined = source?.expires_at ?? undefined;
-    if (sourceExpiry !== undefined && (input.expiresAt === undefined || input.expiresAt > sourceExpiry)) {
+    if (sourceExpiry !== (void 0) && (input.expiresAt === (void 0) || input.expiresAt > sourceExpiry)) {
         throw new AuthzError("expiry_amplification", [`grant expires after the grantor's capability (${sourceExpiry})`]);
     }
 
@@ -233,10 +261,14 @@ export const grant = (db: DatabaseSync, input: GrantInput, at: string): Capabili
     return toCapability(row);
 };
 
-/** Revoke a capability and every grant derived from it. */
+/**
+ * Revoke a capability and every grant derived from it.
+ */
 export const revoke = (db: DatabaseSync, subject: Subject, hid: number, at: string): number => {
     const row = db.prepare("SELECT * FROM handles WHERE hid = ?").get(hid) as unknown as HandleRow | undefined;
-    if (row === undefined) throw new AuthzError("unknown_capability", [`hid ${hid}`]);
+    if (row === (void 0)) {
+        throw new AuthzError("unknown_capability", [`hid ${hid}`]);
+    }
     const capability = toCapability(row);
     requirePermission(db, subject, "revoke", capability.resource, at);
     const result = db
@@ -251,7 +283,9 @@ export const revoke = (db: DatabaseSync, subject: Subject, hid: number, at: stri
         )
         .run(hid, at);
     const count: number = Number(result.changes);
-    if (count === 0) return 0;
+    if (count === 0) {
+        return 0;
+    }
     putObject(
         db,
         "event",

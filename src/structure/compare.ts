@@ -57,16 +57,16 @@ export function compareDates(a: Date, b: Date): number {
  * `NaN` is rejected.
  */
 export function compareNatural<T>(a: T, b: T): number {
-    if (typeof a === "number" && typeof b === "number") {
+    if (typeof(a) === "number" && typeof(b) === "number") {
         return compareNumbers(a, b);
     }
-    if (typeof a === "bigint" && typeof b === "bigint") {
+    if (typeof(a) === "bigint" && typeof(b) === "bigint") {
         return compareBigInts(a, b);
     }
-    if (typeof a === "string" && typeof b === "string") {
+    if (typeof(a) === "string" && typeof(b) === "string") {
         return compareStrings(a, b);
     }
-    if (typeof a === "boolean" && typeof b === "boolean") {
+    if (typeof(a) === "boolean" && typeof(b) === "boolean") {
         return a === b ? 0 : a ? 1 : -1;
     }
     if (a instanceof Date && b instanceof Date) {
@@ -75,7 +75,7 @@ export function compareNatural<T>(a: T, b: T): number {
     if (Object.is(a, b)) {
         return 0;
     }
-    throw new TypeError(`no natural ordering for ${typeof a}; supply a Comparator<T>`);
+    throw new TypeError(`no natural ordering for ${typeof(a)}; supply a Comparator<T>`);
 }
 
 /**

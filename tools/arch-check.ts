@@ -10,42 +10,47 @@ import { join } from "node:path";
 assert.equal(existsSync("src/cycle"), false, "legacy cycle directory must stay deleted");
 assert.equal(existsSync("tools/support/ampRuntime.ts"), false, "legacy AmpRuntime fixture must stay deleted");
 
-const walk = (dir: string): string[] => {
+const walk: (dir: string) => string[] = (dir: string): string[] => {
     const files: string[] = [];
-    for (const name of readdirSync(dir)) {
-        const path = join(dir, name);
-        if (statSync(path).isDirectory()) files.push(...walk(path));
-        else if (path.endsWith(".ts")) files.push(path);
+    const names: string[] = readdirSync(dir);
+    for (let index: number = 0; index < names.length; index += 1) {
+        const name: string = names[index];
+        const path: string = join(dir, name);
+        if (statSync(path).isDirectory()) {
+            files.push(...walk(path));
+        } else if (path.endsWith(".ts")) {
+            files.push(path);
+        }
     }
     return files;
 };
 
-const runtimeFiles = walk("src/runtime");
-const runtimeText = runtimeFiles.map((file) => readFileSync(file, "utf8")).join("\n");
-assert.equal(/from\s+["'][^"']*database/.test(runtimeText), false, "runtime must not import database");
-assert.equal(/node:sqlite/.test(runtimeText), false, "runtime must not import node:sqlite");
+const RuntimeFiles: string[] = walk("src/runtime");
+const RuntimeText: string = RuntimeFiles.map((file) => readFileSync(file, "utf8")).join("\n");
+assert.equal(/from\s+["'][^"']*database/.test(RuntimeText), false, "runtime must not import database");
+assert.equal(/node:sqlite/.test(RuntimeText), false, "runtime must not import node:sqlite");
 
-const kernel = readFileSync("src/kernel/scheduler.ts", "utf8");
-assert.equal(/\bdb\.prepare\(/.test(kernel), false, "kernel must use the execution port, not raw SQL");
+const Kernel: string = readFileSync("src/kernel/scheduler.ts", "utf8");
+assert.equal(/\bdb\.prepare\(/.test(Kernel), false, "kernel must use the execution port, not raw SQL");
 
-const processSqlBaseline = 0;
-const processSql =
+const ProcessSqlBaseline: number = 0;
+const ProcessSql: number =
     ["src/process/process.ts", "src/thread/thread.ts"]
         .map((file) => readFileSync(file, "utf8"))
         .join("\n")
         .match(/\.prepare\(/g)?.length ?? 0;
-assert.ok(processSql <= processSqlBaseline, `process/thread raw SQL grew to ${processSql} (baseline ${processSqlBaseline})`);
+assert.ok(ProcessSql <= ProcessSqlBaseline, `process/thread raw SQL grew to ${ProcessSql} (baseline ${ProcessSqlBaseline})`);
 
-const runtimeIndex = readFileSync("src/runtime/index.ts", "utf8");
-assert.equal(runtimeIndex.includes("database"), false, "runtime index must not re-export database");
+const RuntimeIndex: string = readFileSync("src/runtime/index.ts", "utf8");
+assert.equal(RuntimeIndex.includes("database"), false, "runtime index must not re-export database");
 
-const legacyUsers = readdirSync("tools")
+const LegacyUsers: string[] = readdirSync("tools")
     .filter((name) => name.endsWith(".ts") && name !== "arch-check.ts")
     .filter((name) => readFileSync(join("tools", name), "utf8").includes("support/ampRuntime"))
     .sort();
-assert.deepEqual(legacyUsers, [], `legacy AmpRuntime references must be gone, found: ${legacyUsers.join(", ")}`);
+assert.deepEqual(LegacyUsers, [], `legacy AmpRuntime references must be gone, found: ${LegacyUsers.join(", ")}`);
 
 console.log(
-    `\x1b[32m✓\x1b[0m architecture fitness: runtime database-free, kernel SQL-free, process/thread SQL=${processSql}<=${processSqlBaseline}, legacy runtime deleted`,
+    `\x1b[32m✓\x1b[0m architecture fitness: runtime database-free, kernel SQL-free, process/thread SQL=${ProcessSql}<=${ProcessSqlBaseline}, legacy runtime deleted`,
 );
 console.log("\n1 passed, 0 failed");

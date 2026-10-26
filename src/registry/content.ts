@@ -23,13 +23,17 @@ const walk = async (root: string, current: string, out: ContentEntry[]): Promise
     const entries = await readdir(current, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
-        if (Skip.has(entry.name)) continue;
+        if (Skip.has(entry.name)) {
+            continue;
+        }
         const full: string = path.join(current, entry.name);
         if (entry.isDirectory()) {
             await walk(root, full, out);
             continue;
         }
-        if (!entry.isFile()) continue;
+        if (!entry.isFile()) {
+            continue;
+        }
         const text: string = await readFile(full, "utf8");
         out.push({ path: path.relative(root, full).split(path.sep).join("/"), digest: sha256Hex(text) });
     }
@@ -41,7 +45,9 @@ export const collectDirectory = async (root: string): Promise<ContentEntry[]> =>
     return entries;
 };
 
-/** Deterministic digest of a directory's current content. */
+/**
+ * Deterministic digest of a directory's current content.
+ */
 export const digestDirectory = async (root: string): Promise<string> => {
     return digestOf(await collectDirectory(root));
 };
@@ -51,9 +57,13 @@ export const diffDirectory = async (root: string, expected: readonly ContentEntr
     const expectedMap = new Map(expected.map((entry) => [entry.path, entry.digest]));
     const changed: ContentEntry[] = [];
     for (const entry of actual) {
-        if (expectedMap.get(entry.path) !== entry.digest) changed.push(entry);
+        if (expectedMap.get(entry.path) !== entry.digest) {
+            changed.push(entry);
+        }
         expectedMap.delete(entry.path);
     }
-    for (const [missingPath, digest] of expectedMap) changed.push({ path: missingPath, digest });
+    for (const [missingPath, digest] of expectedMap) {
+        changed.push({ path: missingPath, digest });
+    }
     return changed;
 };

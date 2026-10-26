@@ -13,9 +13,15 @@ export interface OnceResult<T> {
     replayed: boolean;
 }
 
-export const once = <T>(db: DatabaseSync, key: string, at: string, fn: () => T): OnceResult<T> => {
-    const existing = db.prepare("SELECT result FROM idempotency WHERE key = ?").get(key) as { result: string } | undefined;
-    if (existing !== undefined) {
+type IdempotencyRow = {
+    result: string;
+};
+
+type Once = <T>(db: DatabaseSync, key: string, at: string, fn: () => T) => OnceResult<T>;
+
+export const once: Once = <T>(db: DatabaseSync, key: string, at: string, fn: () => T): OnceResult<T> => {
+    const existing: IdempotencyRow | undefined = db.prepare("SELECT result FROM idempotency WHERE key = ?").get(key) as IdempotencyRow | undefined;
+    if (existing !== (void 0)) {
         return { value: JSON.parse(existing.result) as T, replayed: true };
     }
     const value: T = fn();
@@ -23,9 +29,13 @@ export const once = <T>(db: DatabaseSync, key: string, at: string, fn: () => T):
         db.prepare("INSERT INTO idempotency (key, result, created_at) VALUES (?, ?, ?)").run(key, JSON.stringify(value), at);
         return { value, replayed: false };
     } catch {
-        // Another worker won the insert between our SELECT and INSERT.
-        const row = db.prepare("SELECT result FROM idempotency WHERE key = ?").get(key) as { result: string } | undefined;
-        if (row === undefined) throw new Error(`idempotency key ${key} was not stored`);
+        /**
+         * Another worker won the insert between our SELECT and INSERT.
+         */
+        const row: IdempotencyRow | undefined = db.prepare("SELECT result FROM idempotency WHERE key = ?").get(key) as IdempotencyRow | undefined;
+        if (row === (void 0)) {
+            throw new Error(`idempotency key ${key} was not stored`);
+        }
         return { value: JSON.parse(row.result) as T, replayed: true };
     }
 };

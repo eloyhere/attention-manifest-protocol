@@ -4,9 +4,16 @@
  * This is a separate aggregate from the execution state machine, so it gets its
  * own repository instead of bloating ExecutionRepository.
  */
-import type { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync, StatementResultingChanges } from "node:sqlite";
 
 import type { AddressMode, AddressRole, ProcessObjectRecord } from "../../process/process.ts";
+
+/**
+ * Shape of the row returned by the object existence probe.
+ */
+type SeqRow = {
+    seq: number;
+};
 
 export class AddressSpaceRepository {
     private readonly db: DatabaseSync;
@@ -16,8 +23,8 @@ export class AddressSpaceRepository {
     }
 
     hasObject(seq: number): boolean {
-        const row = this.db.prepare("SELECT seq FROM objects WHERE seq = ?").get(seq) as { seq: number } | undefined;
-        return row !== undefined;
+        const row: SeqRow | undefined = this.db.prepare("SELECT seq FROM objects WHERE seq = ?").get(seq) as SeqRow | undefined;
+        return row !== (void 0);
     }
 
     attach(pid: number, seq: number, role: AddressRole, mode: AddressMode, at: string): void {
@@ -54,7 +61,7 @@ export class AddressSpaceRepository {
     }
 
     join(parentPid: number, childPid: number, at: string): number {
-        const result = this.db
+        const result: StatementResultingChanges = this.db
             .prepare(
                 `INSERT OR REPLACE INTO process_objects (pid, seq, role, mode, attached_at)
                  SELECT ?, seq, 'joined', 'read', ? FROM process_objects WHERE pid = ? AND role = 'own'`,

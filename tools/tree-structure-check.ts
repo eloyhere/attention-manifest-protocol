@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { AVLTree } from "../src/structure/avlTree.ts";
 import { BinarySearchTree } from "../src/structure/binarySearchTree.ts";
 import { BinaryTree, BinaryTreeNode } from "../src/structure/binaryTree.ts";
+import type { Comparator } from "../src/structure/compare.ts";
 import { byKey, reverseComparator } from "../src/structure/compare.ts";
 import { RedBlackTree } from "../src/structure/redBlackTree.ts";
 
@@ -33,44 +34,46 @@ interface OrderedTreeLike<T> {
     max(): T | undefined;
 }
 
-let passed = 0;
-let failed = 0;
+type PlainRow = {
+    id: number;
+};
 
-function test(name: string, body: () => void): void {
+let Passed: number = 0;
+let Failed: number = 0;
+
+const test: (name: string, body: () => void) => void = (name: string, body: () => void): void => {
     try {
         body();
-        passed += 1;
+        Passed += 1;
         console.log(`\x1b[32m✓\x1b[0m ${name}`);
     } catch (error) {
-        failed += 1;
-        const message = error instanceof Error ? error.message : String(error);
+        Failed += 1;
+        const message: string = error instanceof Error ? error.message : `${error}`;
         console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${message}`);
     }
-}
+};
 
 /**
  * Deterministic 32-bit linear congruential generator.
  */
-function createRandom(seed: number): () => number {
-    let state = seed >>> 0;
+const createRandom: (seed: number) => () => number = (seed: number): (() => number) => {
+    let state: number = seed >>> 0;
     return (): number => {
         state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
         return state / 0x1_0000_0000;
     };
-}
+};
 
-function randomInt(random: () => number, bound: number): number {
-    return Math.floor(random() * bound);
-}
+const randomInt: (random: () => number, bound: number) => number = (random: () => number, bound: number): number => Math.floor(random() * bound);
 
 /**
  * First index whose value is >= `value`.
  */
-function lowerBound(values: number[], value: number): number {
-    let low = 0;
-    let high = values.length;
+const lowerBound: (values: number[], value: number) => number = (values: number[], value: number): number => {
+    let low: number = 0;
+    let high: number = values.length;
     while (low < high) {
-        const middle = (low + high) >>> 1;
+        const middle: number = (low + high) >>> 1;
         if (values[middle] < value) {
             low = middle + 1;
         } else {
@@ -78,38 +81,38 @@ function lowerBound(values: number[], value: number): number {
         }
     }
     return low;
-}
+};
 
-function insertSorted(values: number[], value: number): void {
-    const index = lowerBound(values, value);
+const insertSorted: (values: number[], value: number) => void = (values: number[], value: number): void => {
+    const index: number = lowerBound(values, value);
     if (values[index] === value) {
         return;
     }
     values.splice(index, 0, value);
-}
+};
 
-function removeSorted(values: number[], value: number): void {
-    const index = lowerBound(values, value);
+const removeSorted: (values: number[], value: number) => void = (values: number[], value: number): void => {
+    const index: number = lowerBound(values, value);
     if (values[index] === value) {
         values.splice(index, 1);
     }
-}
+};
 
-function expectedFloor(values: number[], value: number): number | undefined {
-    const index = lowerBound(values, value);
+const expectedFloor: (values: number[], value: number) => number | undefined = (values: number[], value: number): number | undefined => {
+    const index: number = lowerBound(values, value);
     if (values[index] === value) {
         return value;
     }
     return index === 0 ? undefined : values[index - 1];
-}
+};
 
-function expectedCeil(values: number[], value: number): number | undefined {
-    const index = lowerBound(values, value);
+const expectedCeil: (values: number[], value: number) => number | undefined = (values: number[], value: number): number | undefined => {
+    const index: number = lowerBound(values, value);
     return index === values.length ? undefined : values[index];
-}
+};
 
 test("BinaryTree: empty-tree operations", () => {
-    const tree = new BinaryTree<number>();
+    const tree: BinaryTree<number> = new BinaryTree<number>();
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
     assert.equal(tree.isEmpty, true);
@@ -121,7 +124,7 @@ test("BinaryTree: empty-tree operations", () => {
     assert.equal(tree.isComplete(), true);
     assert.equal(tree.isFull(), true);
 
-    const copy = tree.clone();
+    const copy: BinaryTree<number> = tree.clone();
     assert.equal(copy.size, 0);
     assert.equal(copy.root, null);
     assert.equal(tree.invert(), tree);
@@ -133,7 +136,7 @@ test("BinaryTree: empty-tree operations", () => {
 });
 
 test("BinaryTree: level-order construction", () => {
-    const tree = BinaryTree.fromLevelOrder([1, 2, 3, null, 4, null, 5]);
+    const tree: BinaryTree<number> = BinaryTree.fromLevelOrder([1, 2, 3, null, 4, null, 5]);
     assert.equal(tree.size, 5);
     assert.equal(tree.height, 3);
     assert.deepEqual(tree.toArray(), [1, 2, 3, 4, 5]);
@@ -143,27 +146,27 @@ test("BinaryTree: level-order construction", () => {
     assert.equal(tree.isComplete(), false);
     assert.equal(tree.isFull(), false);
 
-    const trailing = BinaryTree.fromLevelOrder([1, 2, 3, null, null, null]);
+    const trailing: BinaryTree<number> = BinaryTree.fromLevelOrder([1, 2, 3, null, null, null]);
     assert.equal(trailing.size, 3);
     assert.equal(trailing.height, 2);
     assert.deepEqual(trailing.toArray(), [1, 2, 3]);
     assert.equal(trailing.isComplete(), true);
     assert.equal(trailing.isFull(), true);
 
-    const complete = BinaryTree.fromArray([1, 2, 3, 4, 5]);
+    const complete: BinaryTree<number> = BinaryTree.fromArray([1, 2, 3, 4, 5]);
     assert.equal(complete.size, 5);
     assert.equal(complete.height, 3);
     assert.deepEqual(complete.toArray(), [1, 2, 3, 4, 5]);
     assert.equal(complete.isComplete(), true);
     assert.equal(complete.isFull(), true);
 
-    const almost = BinaryTree.fromArray([1, 2, 3, 4]);
+    const almost: BinaryTree<number> = BinaryTree.fromArray([1, 2, 3, 4]);
     assert.equal(almost.isComplete(), true);
     assert.equal(almost.isFull(), false);
 });
 
 test("BinaryTree: every traversal order", () => {
-    const tree = BinaryTree.fromArray([1, 2, 3, 4, 5, 6, 7]);
+    const tree: BinaryTree<number> = BinaryTree.fromArray([1, 2, 3, 4, 5, 6, 7]);
     assert.deepEqual(tree.toArray(), [1, 2, 3, 4, 5, 6, 7]);
     assert.deepEqual(tree.toArray("preorder"), [1, 2, 4, 5, 3, 6, 7]);
     assert.deepEqual(tree.toArray("inorder"), [4, 2, 5, 1, 6, 3, 7]);
@@ -177,11 +180,11 @@ test("BinaryTree: every traversal order", () => {
 });
 
 test("BinaryTree: insert fills the first missing level-order slot", () => {
-    const tree = new BinaryTree<number>();
-    const root = tree.insert(1);
+    const tree: BinaryTree<number> = new BinaryTree<number>();
+    const root: BinaryTreeNode<number> = tree.insert(1);
     assert.equal(tree.root, root);
     tree.insert(2);
-    const third = tree.insert(3);
+    const third: BinaryTreeNode<number> = tree.insert(3);
     tree.insert(4);
     tree.insert(5);
     assert.equal(tree.size, 5);
@@ -190,7 +193,7 @@ test("BinaryTree: insert fills the first missing level-order slot", () => {
     assert.equal(tree.isComplete(), true);
     assert.equal(tree.isFull(), true);
 
-    const sixth = tree.insert(6);
+    const sixth: BinaryTreeNode<number> = tree.insert(6);
     assert.equal(third.left, sixth);
     assert.deepEqual(tree.toArray(), [1, 2, 3, 4, 5, 6]);
     assert.equal(tree.isComplete(), true);
@@ -201,20 +204,20 @@ test("BinaryTree: insert fills the first missing level-order slot", () => {
     assert.equal(tree.isComplete(), true);
     assert.equal(tree.isFull(), true);
 
-    const manualRoot = new BinaryTreeNode(1);
+    const manualRoot: BinaryTreeNode<number> = new BinaryTreeNode(1);
     manualRoot.left = new BinaryTreeNode(2);
-    const manual = new BinaryTree(manualRoot);
+    const manual: BinaryTree<number> = new BinaryTree(manualRoot);
     assert.equal(manual.size, 2);
-    const manualThird = manual.insert(3);
+    const manualThird: BinaryTreeNode<number> = manual.insert(3);
     assert.equal(manualRoot.right, manualThird);
-    const manualFourth = manual.insert(4);
+    const manualFourth: BinaryTreeNode<number> = manual.insert(4);
     assert.equal(manualRoot.left.left, manualFourth);
     assert.equal(manual.size, 4);
     assert.deepEqual(manual.toArray(), [1, 2, 3, 4]);
 });
 
 test("BinaryTree: invert mirrors the shape in place", () => {
-    const tree = BinaryTree.fromArray([1, 2, 3, 4, 5]);
+    const tree: BinaryTree<number> = BinaryTree.fromArray([1, 2, 3, 4, 5]);
     assert.equal(tree.invert(), tree);
     assert.deepEqual(tree.toArray(), [1, 3, 2, 5, 4]);
     assert.deepEqual(tree.toArray("preorder"), [1, 3, 2, 5, 4]);
@@ -230,15 +233,15 @@ test("BinaryTree: invert mirrors the shape in place", () => {
 });
 
 test("BinaryTree: clone is a deep, independent copy", () => {
-    const original = BinaryTree.fromLevelOrder([1, 2, null, 3]);
-    const copy = original.clone();
+    const original: BinaryTree<number> = BinaryTree.fromLevelOrder([1, 2, null, 3]);
+    const copy: BinaryTree<number> = original.clone();
     assert.notEqual(copy.root, original.root);
     assert.notEqual(copy.root?.left, original.root?.left);
     assert.deepEqual(copy.toArray(), original.toArray());
     assert.equal(copy.size, 3);
 
-    const copyRoot = copy.root;
-    const originalRoot = original.root;
+    const copyRoot: BinaryTreeNode<number> | null = copy.root;
+    const originalRoot: BinaryTreeNode<number> | null = original.root;
     assert.ok(copyRoot !== null && originalRoot !== null);
     copyRoot.value = 99;
     if (copyRoot.left !== null) {
@@ -254,8 +257,8 @@ test("BinaryTree: clone is a deep, independent copy", () => {
 });
 
 test("BinaryTree: constructor counts manual nodes and clear resets", () => {
-    const root = new BinaryTreeNode(1, new BinaryTreeNode(2), new BinaryTreeNode(3));
-    const tree = new BinaryTree(root);
+    const root: BinaryTreeNode<number> = new BinaryTreeNode(1, new BinaryTreeNode(2), new BinaryTreeNode(3));
+    const tree: BinaryTree<number> = new BinaryTree(root);
     assert.equal(tree.size, 3);
     assert.equal(tree.height, 2);
     assert.deepEqual(tree.toArray(), [1, 2, 3]);
@@ -267,7 +270,7 @@ test("BinaryTree: constructor counts manual nodes and clear resets", () => {
     assert.equal(tree.height, 0);
     assert.equal(tree.root, null);
 
-    const leaf = new BinaryTree(new BinaryTreeNode("only"));
+    const leaf: BinaryTree<string> = new BinaryTree(new BinaryTreeNode("only"));
     assert.equal(leaf.size, 1);
     assert.equal(leaf.height, 1);
     assert.equal(leaf.isComplete(), true);
@@ -275,9 +278,10 @@ test("BinaryTree: constructor counts manual nodes and clear resets", () => {
 });
 
 test("BinarySearchTree: ordering, duplicates, bounds and iteration", () => {
-    const tree = new BinarySearchTree<number>();
-    const values = [50, 30, 70, 20, 40, 60, 80, 35, 45, 65];
-    for (const value of values) {
+    const tree: BinarySearchTree<number> = new BinarySearchTree<number>();
+    const values: number[] = [50, 30, 70, 20, 40, 60, 80, 35, 45, 65];
+    for (let index: number = 0; index < values.length; index += 1) {
+        const value: number = values[index];
         assert.equal(tree.insert(value), true);
     }
 
@@ -307,9 +311,10 @@ test("BinarySearchTree: ordering, duplicates, bounds and iteration", () => {
 });
 
 test("BinarySearchTree: delete handles zero, one and two children", () => {
-    const leafTree = new BinarySearchTree<number>();
-    for (const value of [50, 30, 70, 20]) {
-        leafTree.insert(value);
+    const leafTree: BinarySearchTree<number> = new BinarySearchTree<number>();
+    const leafValues: number[] = [50, 30, 70, 20];
+    for (let index: number = 0; index < leafValues.length; index += 1) {
+        leafTree.insert(leafValues[index]);
     }
     assert.equal(leafTree.delete(20), true);
     assert.equal(leafTree.delete(20), false);
@@ -317,17 +322,19 @@ test("BinarySearchTree: delete handles zero, one and two children", () => {
     assert.deepEqual(leafTree.toArray(), [30, 50, 70]);
     assert.deepEqual(leafTree.validate(), []);
 
-    const oneChildTree = new BinarySearchTree<number>();
-    for (const value of [50, 30, 70, 20]) {
-        oneChildTree.insert(value);
+    const oneChildTree: BinarySearchTree<number> = new BinarySearchTree<number>();
+    const oneChildValues: number[] = [50, 30, 70, 20];
+    for (let index: number = 0; index < oneChildValues.length; index += 1) {
+        oneChildTree.insert(oneChildValues[index]);
     }
     assert.equal(oneChildTree.delete(30), true);
     assert.deepEqual(oneChildTree.toArray(), [20, 50, 70]);
     assert.deepEqual(oneChildTree.validate(), []);
 
-    const twoChildTree = new BinarySearchTree<number>();
-    for (const value of [50, 30, 70, 20, 40, 60, 80, 35, 45, 65]) {
-        twoChildTree.insert(value);
+    const twoChildTree: BinarySearchTree<number> = new BinarySearchTree<number>();
+    const twoChildValues: number[] = [50, 30, 70, 20, 40, 60, 80, 35, 45, 65];
+    for (let index: number = 0; index < twoChildValues.length; index += 1) {
+        twoChildTree.insert(twoChildValues[index]);
     }
     assert.equal(twoChildTree.delete(50), true);
     assert.equal(twoChildTree.delete(999), false);
@@ -337,7 +344,7 @@ test("BinarySearchTree: delete handles zero, one and two children", () => {
 });
 
 test("BinarySearchTree: empty tree and invalid values", () => {
-    const tree = new BinarySearchTree<number>();
+    const tree: BinarySearchTree<number> = new BinarySearchTree<number>();
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
     assert.equal(tree.isEmpty, true);
@@ -358,30 +365,30 @@ test("BinarySearchTree: empty tree and invalid values", () => {
     assert.equal(tree.delete(5), true);
     assert.equal(tree.isEmpty, true);
 
-    const invalid = new BinarySearchTree<number>();
+    const invalid: BinarySearchTree<number> = new BinarySearchTree<number>();
     invalid.insert(1);
     assert.throws(() => invalid.insert(Number.NaN), /NaN/);
     assert.throws(() => invalid.has(Number.NaN), /NaN/);
     assert.equal(invalid.size, 1);
 
-    const objectTree = new BinarySearchTree<{ id: number }>();
+    const objectTree: BinarySearchTree<PlainRow> = new BinarySearchTree<PlainRow>();
     objectTree.insert({ id: 1 });
     assert.throws(() => objectTree.insert({ id: 2 }), /no natural ordering/);
 });
 
 test("BinarySearchTree: randomized operations against Set", () => {
-    const random = createRandom(0x5157);
-    const tree = new BinarySearchTree<number>();
-    const expected = new Set<number>();
+    const random: () => number = createRandom(0x5157);
+    const tree: BinarySearchTree<number> = new BinarySearchTree<number>();
+    const expected: Set<number> = new Set<number>();
 
-    for (let step = 0; step < 3000; step += 1) {
-        const value = randomInt(random, 200);
+    for (let step: number = 0; step < 3000; step += 1) {
+        const value: number = randomInt(random, 200);
         if (random() < 0.55) {
-            const inserted = !expected.has(value);
+            const inserted: boolean = !expected.has(value);
             assert.equal(tree.insert(value), inserted);
             expected.add(value);
         } else {
-            const removed = expected.delete(value);
+            const removed: boolean = expected.delete(value);
             assert.equal(tree.delete(value), removed);
         }
         assert.equal(tree.size, expected.size);
@@ -398,7 +405,7 @@ test("BinarySearchTree: randomized operations against Set", () => {
 });
 
 test("AVLTree: empty tree and invalid values", () => {
-    const tree = new AVLTree<number>();
+    const tree: AVLTree<number> = new AVLTree<number>();
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
     assert.equal(tree.isEmpty, true);
@@ -418,16 +425,17 @@ test("AVLTree: empty tree and invalid values", () => {
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
 
-    const invalid = new AVLTree<number>();
+    const invalid: AVLTree<number> = new AVLTree<number>();
     invalid.insert(1);
     assert.throws(() => invalid.insert(Number.NaN), /NaN/);
     assert.throws(() => invalid.has(Number.NaN), /NaN/);
 });
 
 test("AVLTree: basic operations and rebalancing delete", () => {
-    const tree = new AVLTree<number>();
-    for (const value of [10, 20, 30, 40, 50, 25]) {
-        tree.insert(value);
+    const tree: AVLTree<number> = new AVLTree<number>();
+    const insertValues: number[] = [10, 20, 30, 40, 50, 25];
+    for (let index: number = 0; index < insertValues.length; index += 1) {
+        tree.insert(insertValues[index]);
     }
     assert.equal(tree.size, 6);
     assert.equal(tree.height, 3);
@@ -452,21 +460,21 @@ test("AVLTree: basic operations and rebalancing delete", () => {
 });
 
 test("AVLTree: sorted insertion stays logarithmic", () => {
-    const count = 4095;
-    const tree = new AVLTree<number>();
-    for (let value = 0; value < count; value += 1) {
+    const count: number = 4095;
+    const tree: AVLTree<number> = new AVLTree<number>();
+    for (let value: number = 0; value < count; value += 1) {
         tree.insert(value);
     }
 
     assert.equal(tree.size, count);
     assert.deepEqual(tree.validate(), []);
-    const limit = 2 * Math.log2(count + 1);
+    const limit: number = 2 * Math.log2(count + 1);
     assert.ok(tree.height <= limit, `sorted AVL height ${tree.height} exceeds logarithmic limit ${limit}`);
     assert.equal(tree.min(), 0);
     assert.equal(tree.max(), count - 1);
     assert.equal(tree.toArray().length, count);
 
-    for (let value = 0; value < count; value += 2) {
+    for (let value: number = 0; value < count; value += 2) {
         assert.equal(tree.delete(value), true);
         if (value % 500 === 0) {
             assert.deepEqual(tree.validate(), [], `validate failed after deleting ${value}`);
@@ -477,22 +485,22 @@ test("AVLTree: sorted insertion stays logarithmic", () => {
 });
 
 test("AVLTree: 10000 randomized operations against Set and sorted array", () => {
-    const random = createRandom(0xa711);
-    const tree = new AVLTree<number>();
-    const expected = new Set<number>();
+    const random: () => number = createRandom(0xa711);
+    const tree: AVLTree<number> = new AVLTree<number>();
+    const expected: Set<number> = new Set<number>();
     const sorted: number[] = [];
 
-    for (let step = 0; step < 10000; step += 1) {
-        const value = randomInt(random, 2000);
+    for (let step: number = 0; step < 10000; step += 1) {
+        const value: number = randomInt(random, 2000);
         if (random() < 0.55) {
-            const inserted = !expected.has(value);
+            const inserted: boolean = !expected.has(value);
             assert.equal(tree.insert(value), inserted);
             if (inserted) {
                 expected.add(value);
                 insertSorted(sorted, value);
             }
         } else {
-            const removed = expected.delete(value);
+            const removed: boolean = expected.delete(value);
             assert.equal(tree.delete(value), removed);
             if (removed) {
                 removeSorted(sorted, value);
@@ -504,7 +512,7 @@ test("AVLTree: 10000 randomized operations against Set and sorted array", () => 
             assert.deepEqual(tree.validate(), [], `validate failed at step ${step}`);
             assert.deepEqual(tree.toArray(), sorted);
             assert.equal(tree.has(value), expected.has(value));
-            const probe = randomInt(random, 2100);
+            const probe: number = randomInt(random, 2100);
             assert.equal(tree.floor(probe), expectedFloor(sorted, probe));
             assert.equal(tree.ceil(probe), expectedCeil(sorted, probe));
             if (sorted.length > 0) {
@@ -521,8 +529,8 @@ test("AVLTree: 10000 randomized operations against Set and sorted array", () => 
         [...expected].sort((left, right) => left - right),
     );
 
-    const remaining = [...expected];
-    for (let index = 0; index < remaining.length; index += 1) {
+    const remaining: number[] = [...expected];
+    for (let index: number = 0; index < remaining.length; index += 1) {
         assert.equal(tree.delete(remaining[index]), true);
         if (index % 250 === 0) {
             assert.deepEqual(tree.validate(), [], `validate failed while draining index ${index}`);
@@ -535,7 +543,7 @@ test("AVLTree: 10000 randomized operations against Set and sorted array", () => 
 });
 
 test("RedBlackTree: empty tree and invalid values", () => {
-    const tree = new RedBlackTree<number>();
+    const tree: RedBlackTree<number> = new RedBlackTree<number>();
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
     assert.equal(tree.isEmpty, true);
@@ -555,16 +563,17 @@ test("RedBlackTree: empty tree and invalid values", () => {
     assert.equal(tree.size, 0);
     assert.equal(tree.height, 0);
 
-    const invalid = new RedBlackTree<number>();
+    const invalid: RedBlackTree<number> = new RedBlackTree<number>();
     invalid.insert(1);
     assert.throws(() => invalid.insert(Number.NaN), /NaN/);
     assert.throws(() => invalid.has(Number.NaN), /NaN/);
 });
 
 test("RedBlackTree: delete root, leaf and one-child nodes", () => {
-    const tree = new RedBlackTree<number>();
-    for (const value of [20, 10, 30, 5, 15, 25, 35]) {
-        tree.insert(value);
+    const tree: RedBlackTree<number> = new RedBlackTree<number>();
+    const insertValues: number[] = [20, 10, 30, 5, 15, 25, 35];
+    for (let index: number = 0; index < insertValues.length; index += 1) {
+        tree.insert(insertValues[index]);
     }
     assert.equal(tree.size, 7);
     assert.equal(tree.height, 3);
@@ -594,15 +603,16 @@ test("RedBlackTree: delete root, leaf and one-child nodes", () => {
     assert.equal(tree.size, 5);
     assert.deepEqual(tree.validate(), []);
 
-    const oneChild = new RedBlackTree<number>();
-    for (const value of [20, 10, 30, 5]) {
-        oneChild.insert(value);
+    const oneChild: RedBlackTree<number> = new RedBlackTree<number>();
+    const oneChildValues: number[] = [20, 10, 30, 5];
+    for (let index: number = 0; index < oneChildValues.length; index += 1) {
+        oneChild.insert(oneChildValues[index]);
     }
     assert.equal(oneChild.delete(10), true);
     assert.deepEqual(oneChild.toArray(), [5, 20, 30]);
     assert.deepEqual(oneChild.validate(), []);
 
-    const single = new RedBlackTree<number>();
+    const single: RedBlackTree<number> = new RedBlackTree<number>();
     single.insert(42);
     assert.equal(single.delete(42), true);
     assert.equal(single.size, 0);
@@ -613,16 +623,17 @@ test("RedBlackTree: delete root, leaf and one-child nodes", () => {
 });
 
 test("RedBlackTree: insertion rotation shapes", () => {
-    const sequences = [
+    const sequences: number[][] = [
         [30, 20, 10],
         [30, 10, 20],
         [10, 20, 30],
         [10, 30, 20],
     ];
-    for (const sequence of sequences) {
-        const tree = new RedBlackTree<number>();
-        for (const value of sequence) {
-            assert.equal(tree.insert(value), true);
+    for (let index: number = 0; index < sequences.length; index += 1) {
+        const sequence: number[] = sequences[index];
+        const tree: RedBlackTree<number> = new RedBlackTree<number>();
+        for (let position: number = 0; position < sequence.length; position += 1) {
+            assert.equal(tree.insert(sequence[position]), true);
         }
         assert.deepEqual(tree.toArray(), [10, 20, 30]);
         assert.equal(tree.height, 2);
@@ -631,19 +642,19 @@ test("RedBlackTree: insertion rotation shapes", () => {
 });
 
 test("RedBlackTree: sorted insertion and deletion stay balanced", () => {
-    const count = 4095;
-    const tree = new RedBlackTree<number>();
-    for (let value = 0; value < count; value += 1) {
+    const count: number = 4095;
+    const tree: RedBlackTree<number> = new RedBlackTree<number>();
+    for (let value: number = 0; value < count; value += 1) {
         tree.insert(value);
     }
 
     assert.equal(tree.size, count);
     assert.deepEqual(tree.validate(), []);
-    const limit = 2 * Math.log2(count + 1);
+    const limit: number = 2 * Math.log2(count + 1);
     assert.ok(tree.height <= limit, `sorted red-black height ${tree.height} exceeds logarithmic limit ${limit}`);
 
-    let deleted = 0;
-    for (let value = 0; value < count; value += 3) {
+    let deleted: number = 0;
+    for (let value: number = 0; value < count; value += 3) {
         assert.equal(tree.delete(value), true);
         deleted += 1;
         if (deleted % 250 === 0) {
@@ -654,7 +665,7 @@ test("RedBlackTree: sorted insertion and deletion stay balanced", () => {
     assert.deepEqual(tree.validate(), []);
 
     const surviving: number[] = [];
-    for (let value = 0; value < count; value += 1) {
+    for (let value: number = 0; value < count; value += 1) {
         if (value % 3 !== 0) {
             surviving.push(value);
         }
@@ -663,22 +674,22 @@ test("RedBlackTree: sorted insertion and deletion stay balanced", () => {
 });
 
 test("RedBlackTree: 12000 randomized operations against Set", () => {
-    const random = createRandom(0x5b17);
-    const tree = new RedBlackTree<number>();
-    const expected = new Set<number>();
+    const random: () => number = createRandom(0x5b17);
+    const tree: RedBlackTree<number> = new RedBlackTree<number>();
+    const expected: Set<number> = new Set<number>();
     const sorted: number[] = [];
 
-    for (let step = 0; step < 12000; step += 1) {
-        const value = randomInt(random, 1500);
+    for (let step: number = 0; step < 12000; step += 1) {
+        const value: number = randomInt(random, 1500);
         if (random() < 0.55) {
-            const inserted = !expected.has(value);
+            const inserted: boolean = !expected.has(value);
             assert.equal(tree.insert(value), inserted);
             if (inserted) {
                 expected.add(value);
                 insertSorted(sorted, value);
             }
         } else {
-            const removed = expected.delete(value);
+            const removed: boolean = expected.delete(value);
             assert.equal(tree.delete(value), removed);
             if (removed) {
                 removeSorted(sorted, value);
@@ -704,8 +715,8 @@ test("RedBlackTree: 12000 randomized operations against Set", () => {
         assert.ok(tree.height <= 2 * Math.log2(tree.size + 1));
     }
 
-    const remaining = [...expected];
-    for (let index = 0; index < remaining.length; index += 1) {
+    const remaining: number[] = [...expected];
+    for (let index: number = 0; index < remaining.length; index += 1) {
         assert.equal(tree.delete(remaining[index]), true);
         if (index % 250 === 0) {
             assert.deepEqual(tree.validate(), [], `validate failed while draining index ${index}`);
@@ -718,15 +729,17 @@ test("RedBlackTree: 12000 randomized operations against Set", () => {
 });
 
 test("search trees honor reverse and object-key comparators", () => {
-    const reverse = reverseComparator((left: number, right: number): number => left - right);
+    const reverse: Comparator<number> = reverseComparator((left: number, right: number): number => left - right);
     const reverseTrees: OrderedTreeLike<number>[] = [
         new BinarySearchTree<number>({ compare: reverse }),
         new AVLTree<number>({ compare: reverse }),
         new RedBlackTree<number>({ compare: reverse }),
     ];
-    for (const tree of reverseTrees) {
-        for (const value of [1, 2, 3, 4]) {
-            assert.equal(tree.insert(value), true);
+    for (let index: number = 0; index < reverseTrees.length; index += 1) {
+        const tree: OrderedTreeLike<number> = reverseTrees[index];
+        const values: number[] = [1, 2, 3, 4];
+        for (let position: number = 0; position < values.length; position += 1) {
+            assert.equal(tree.insert(values[position]), true);
         }
         assert.deepEqual(tree.toArray(), [4, 3, 2, 1]);
         assert.equal(tree.min(), 4);
@@ -738,13 +751,14 @@ test("search trees honor reverse and object-key comparators", () => {
         assert.deepEqual(tree.validate(), []);
     }
 
-    const compareTasks = byKey((task: Task): number => task.id);
+    const compareTasks: Comparator<Task> = byKey((task: Task): number => task.id);
     const taskTrees: OrderedTreeLike<Task>[] = [
         new BinarySearchTree<Task>({ compare: compareTasks }),
         new AVLTree<Task>({ compare: compareTasks }),
         new RedBlackTree<Task>({ compare: compareTasks }),
     ];
-    for (const tree of taskTrees) {
+    for (let index: number = 0; index < taskTrees.length; index += 1) {
+        const tree: OrderedTreeLike<Task> = taskTrees[index];
         const one: Task = { id: 1, title: "one" };
         const two: Task = { id: 2, title: "two" };
         const three: Task = { id: 3, title: "three" };
@@ -766,7 +780,7 @@ test("search trees honor reverse and object-key comparators", () => {
     }
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) {
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
     process.exitCode = 1;
 }

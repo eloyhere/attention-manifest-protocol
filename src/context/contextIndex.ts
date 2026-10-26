@@ -38,11 +38,15 @@ export class ContextIndex {
         this.cache = new LRUUnorderedMap<string, string>(options.cacheEntries ?? 64);
     }
 
-    /** Add a node and, when given, store its detail behind a content ref. */
+    /**
+     * Add a node and, when given, store its detail behind a content ref.
+     */
     add(node: ContextAstNode, detail?: string): ContextAstNode {
-        if (this.exact.has(node.id)) throw new Error(`duplicate indexed node ${node.id}`);
-        const detailRef = detail === undefined ? node.detailRef : this.store.put(detail);
-        const indexed: ContextAstNode = { ...node, ...(detailRef === undefined ? {} : { detailRef }) };
+        if (this.exact.has(node.id)) {
+            throw new Error(`duplicate indexed node ${node.id}`);
+        }
+        const detailRef = detail === (void 0) ? node.detailRef : this.store.put(detail);
+        const indexed: ContextAstNode = { ...node, ...(detailRef === (void 0) ? {} : { detailRef }) };
         this.ast.add(indexed);
         this.exact.set(indexed.id, indexed);
         return indexed;
@@ -52,18 +56,24 @@ export class ContextIndex {
         return this.exact.get(id);
     }
 
-    /** LRU -> CAS retrieval; a miss is explicit. */
+    /**
+     * LRU -> CAS retrieval; a miss is explicit.
+     */
     getDetail(nodeId: string): string | undefined {
         const node = this.exact.get(nodeId);
-        if (node?.detailRef === undefined) return undefined;
+        if (node?.detailRef === (void 0)) {
+            return undefined;
+        }
         const cached = this.cache.get(node.detailRef);
-        if (cached !== undefined) {
+        if (cached !== (void 0)) {
             this.hits += 1;
             return cached;
         }
         this.misses += 1;
         const detail = this.store.get(node.detailRef);
-        if (detail !== undefined) this.cache.set(node.detailRef, detail);
+        if (detail !== (void 0)) {
+            this.cache.set(node.detailRef, detail);
+        }
         return detail;
     }
 

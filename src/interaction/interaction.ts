@@ -11,8 +11,8 @@
  */
 import type { MemoryKind } from "../process/agent.ts";
 
-export const INTERACTION_KINDS = ["affect", "think", "inspire", "converge", "orchestrate"] as const;
-export type InteractionKind = (typeof INTERACTION_KINDS)[number];
+export const InteractionKinds = ["affect", "think", "inspire", "converge", "orchestrate"] as const;
+export type InteractionKind = (typeof InteractionKinds)[number];
 
 export type InteractionMix = Partial<Record<InteractionKind, number>>;
 
@@ -55,11 +55,17 @@ export interface InteractionResponse {
 }
 
 export interface InteractionAttention {
-    /** Divergent breadth, [0,1]. */
+    /**
+     * Divergent breadth, [0,1].
+     */
     breadth: number;
-    /** Convergent depth, [0,1]. */
+    /**
+     * Convergent depth, [0,1].
+     */
     depth: number;
-    /** Tolerance for mode switching, [0,1]. */
+    /**
+     * Tolerance for mode switching, [0,1].
+     */
     switchTolerance: number;
 }
 
@@ -85,7 +91,9 @@ export interface InteractionPlan {
     active: InteractionKind[];
     primary: InteractionKind;
     secondary?: InteractionKind;
-    /** Ordered phases: affect -> inspire -> think -> converge -> orchestrate. */
+    /**
+     * Ordered phases: affect -> inspire -> think -> converge -> orchestrate.
+     */
     sequence: InteractionKind[];
     moves: InteractionMove[];
     contextWeights: Record<InteractionContextKey, number>;
@@ -144,9 +152,13 @@ const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
 const normalizeContext = (weights: Record<InteractionContextKey, number>): Record<InteractionContextKey, number> => {
     const total = Object.values(weights).reduce((sum, weight) => sum + Math.max(0, weight), 0);
-    if (total <= 0) return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
+    if (total <= 0) {
+        return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
+    }
     const result = {} as Record<InteractionContextKey, number>;
-    for (const key of Object.keys(weights) as InteractionContextKey[]) result[key] = Math.max(0, weights[key]) / total;
+    for (const key of Object.keys(weights) as InteractionContextKey[]) {
+        result[key] = Math.max(0, weights[key]) / total;
+    }
     return result;
 };
 
@@ -157,14 +169,14 @@ const weighted = <K extends string>(
 ): Record<K, number> => {
     const result = {} as Record<K, number>;
     for (const key of keys) {
-        result[key] = INTERACTION_KINDS.reduce<number>((sum, kind) => sum + weights[kind] * read(profiles[kind])[key], 0);
+        result[key] = InteractionKinds.reduce<number>((sum, kind) => sum + weights[kind] * read(profiles[kind])[key], 0);
     }
     return result;
 };
 
 const vote = <K extends string>(weights: Record<InteractionKind, number>, read: (profile: InteractionProfile) => K): K => {
     const scores = new Map<K, number>();
-    for (const kind of INTERACTION_KINDS) {
+    for (const kind of InteractionKinds) {
         const key = read(profiles[kind]);
         scores.set(key, (scores.get(key) ?? 0) + weights[kind]);
     }
@@ -182,20 +194,26 @@ const vote = <K extends string>(weights: Record<InteractionKind, number>, read: 
 export const normalizeInteractionMix = (mix: InteractionMix): Record<InteractionKind, number> => {
     const result = {} as Record<InteractionKind, number>;
     let total = 0;
-    for (const kind of INTERACTION_KINDS) {
+    for (const kind of InteractionKinds) {
         const raw = mix[kind] ?? 0;
-        if (!Number.isFinite(raw) || raw < 0) throw new RangeError(`interaction weight ${kind} must be a finite non-negative number`);
+        if (!Number.isFinite(raw) || raw < 0) {
+            throw new RangeError(`interaction weight ${kind} must be a finite non-negative number`);
+        }
         result[kind] = raw;
         total += raw;
     }
-    if (total <= 0) throw new RangeError("interaction mix must contain at least one positive weight");
-    for (const kind of INTERACTION_KINDS) result[kind] /= total;
+    if (total <= 0) {
+        throw new RangeError("interaction mix must contain at least one positive weight");
+    }
+    for (const kind of InteractionKinds) {
+        result[kind] /= total;
+    }
     return result;
 };
 
 const moveScores = (weights: Record<InteractionKind, number>): Map<InteractionMove, number> => {
     const scores = new Map<InteractionMove, number>();
-    for (const kind of INTERACTION_KINDS) {
+    for (const kind of InteractionKinds) {
         for (const move of profiles[kind].moves) {
             scores.set(move, (scores.get(move) ?? 0) + weights[kind]);
         }
@@ -213,19 +231,29 @@ const guardrailsFor = (weights: Record<InteractionKind, number>): string[] => {
     const result: string[] = [];
     if (weights.affect > 0.05) {
         result.push("情感模式：只做倾听、标注、验证与陪伴；不诊断、不宣称治疗、不制造依赖。");
-        if (weights.affect > 0.4) result.push("高风险信号（自伤/伤人/急性危机）必须升级给人类或紧急资源。");
+        if (weights.affect > 0.4) {
+            result.push("高风险信号（自伤/伤人/急性危机）必须升级给人类或紧急资源。");
+        }
     }
-    if (weights.inspire > 0.05) result.push("启发模式：把点子标为假设，限制数量，避免用大量选项淹没判断。");
-    if (weights.think > 0.05) result.push("思维模式：区分事实/推断/未知，给出可检查的依据，不用流畅感代替正确性。");
-    if (weights.converge > 0.05) result.push("收束模式：先给判据与取舍，再给结论；主动邀请反方意见，避免过早闭合。");
-    if (weights.orchestrate > 0.05) result.push("统筹模式：明确 owner、依赖与共享状态；不隐藏资源分配与失败。");
+    if (weights.inspire > 0.05) {
+        result.push("启发模式：把点子标为假设，限制数量，避免用大量选项淹没判断。");
+    }
+    if (weights.think > 0.05) {
+        result.push("思维模式：区分事实/推断/未知，给出可检查的依据，不用流畅感代替正确性。");
+    }
+    if (weights.converge > 0.05) {
+        result.push("收束模式：先给判据与取舍，再给结论；主动邀请反方意见，避免过早闭合。");
+    }
+    if (weights.orchestrate > 0.05) {
+        result.push("统筹模式：明确 owner、依赖与共享状态；不隐藏资源分配与失败。");
+    }
     return result;
 };
 
 export const resolveInteraction = (mix: InteractionMix): InteractionPlan => {
     const weights = normalizeInteractionMix(mix);
-    const active = INTERACTION_KINDS.filter((kind) => weights[kind] >= 0.1);
-    const ranked = [...INTERACTION_KINDS].sort((left, right) => weights[right] - weights[left]);
+    const active = InteractionKinds.filter((kind) => weights[kind] >= 0.1);
+    const ranked = [...InteractionKinds].sort((left, right) => weights[right] - weights[left]);
     const primary = ranked[0];
     const secondary = ranked[1];
     const contextWeights = normalizeContext(
@@ -233,22 +261,22 @@ export const resolveInteraction = (mix: InteractionMix): InteractionPlan => {
     );
     const memoryKindWeights = weighted(weights, (profile) => profile.memory, ["episodic", "semantic", "procedural", "social", "affective"] as const);
     const attention: InteractionAttention = {
-        breadth: clamp01(INTERACTION_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.breadth, 0)),
-        depth: clamp01(INTERACTION_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.depth, 0)),
-        switchTolerance: clamp01(INTERACTION_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.switchTolerance, 0)),
+        breadth: clamp01(InteractionKinds.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.breadth, 0)),
+        depth: clamp01(InteractionKinds.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.depth, 0)),
+        switchTolerance: clamp01(InteractionKinds.reduce((sum, kind) => sum + weights[kind] * profiles[kind].attention.switchTolerance, 0)),
     };
     const response: InteractionResponse = {
         pace: vote(weights, (profile) => profile.response.pace),
         verbosity: vote(weights, (profile) => profile.response.verbosity),
-        questionRatio: clamp01(INTERACTION_KINDS.reduce((sum, kind) => sum + weights[kind] * profiles[kind].response.questionRatio, 0)),
+        questionRatio: clamp01(InteractionKinds.reduce((sum, kind) => sum + weights[kind] * profiles[kind].response.questionRatio, 0)),
         structure: vote(weights, (profile) => profile.response.structure),
     };
     const safety: InteractionSafety = {
-        noDiagnosis: INTERACTION_KINDS.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.noDiagnosis),
-        noManipulation: INTERACTION_KINDS.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.noManipulation),
-        inviteDissent: INTERACTION_KINDS.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.inviteDissent),
-        escalateRisk: INTERACTION_KINDS.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.escalateRisk),
-        labelHypotheses: INTERACTION_KINDS.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.labelHypotheses),
+        noDiagnosis: InteractionKinds.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.noDiagnosis),
+        noManipulation: InteractionKinds.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.noManipulation),
+        inviteDissent: InteractionKinds.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.inviteDissent),
+        escalateRisk: InteractionKinds.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.escalateRisk),
+        labelHypotheses: InteractionKinds.some((kind) => weights[kind] >= 0.1 && profiles[kind].safety.labelHypotheses),
     };
     const moves = [...moveScores(weights).entries()]
         .filter(([, score]) => score > 0)
@@ -262,7 +290,7 @@ export const resolveInteraction = (mix: InteractionMix): InteractionPlan => {
         weights,
         active,
         primary,
-        ...(secondary === undefined ? {} : { secondary }),
+        ...(secondary === (void 0) ? {} : { secondary }),
         sequence: sequenceFor(active),
         moves,
         contextWeights,
@@ -294,18 +322,22 @@ export const combineContextWeights = (
         const scenarioValue = scenario?.[key];
         const interactionValue = interaction?.[key];
         const value =
-            scenarioValue === undefined && interactionValue === undefined
+            scenarioValue === (void 0) && interactionValue === (void 0)
                 ? 1
-                : scenarioValue === undefined
+                : scenarioValue === (void 0)
                   ? (interactionValue as number)
-                  : interactionValue === undefined
+                  : interactionValue === (void 0)
                     ? scenarioValue
                     : w * scenarioValue + (1 - w) * interactionValue;
         combined[key] = Math.max(0, value);
         total += combined[key];
     }
-    if (total <= 0) return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
-    for (const key of keys) combined[key] /= total;
+    if (total <= 0) {
+        return { self: 1, role: 0, affect: 0, memory: 0, relationship: 0, membership: 0, background: 0 };
+    }
+    for (const key of keys) {
+        combined[key] /= total;
+    }
     return combined;
 };
 
@@ -314,7 +346,9 @@ export const combineMemoryWeights = (
     interaction?: Partial<Record<MemoryKind, number>>,
     scenarioWeight: number = 0.4,
 ): Record<MemoryKind, number> | undefined => {
-    if (scenario === undefined && interaction === undefined) return undefined;
+    if (scenario === (void 0) && interaction === (void 0)) {
+        return undefined;
+    }
     const keys: MemoryKind[] = ["episodic", "semantic", "procedural", "social", "affective"];
     const w = Math.max(0, Math.min(1, scenarioWeight));
     const combined = {} as Record<MemoryKind, number>;
@@ -322,11 +356,11 @@ export const combineMemoryWeights = (
         const scenarioValue = scenario?.[key];
         const interactionValue = interaction?.[key];
         combined[key] =
-            scenarioValue === undefined && interactionValue === undefined
+            scenarioValue === (void 0) && interactionValue === (void 0)
                 ? 1
-                : scenarioValue === undefined
+                : scenarioValue === (void 0)
                   ? (interactionValue as number)
-                  : interactionValue === undefined
+                  : interactionValue === (void 0)
                     ? scenarioValue
                     : Math.max(0, w * scenarioValue + (1 - w) * interactionValue);
     }
@@ -334,11 +368,21 @@ export const combineMemoryWeights = (
 };
 
 export const phaseFor = (plan: InteractionPlan): InteractionPhase => {
-    if (plan.weights.affect >= 0.4) return "open";
-    if (plan.weights.inspire >= 0.4) return "explore";
-    if (plan.weights.think >= 0.4) return "analyze";
-    if (plan.weights.converge >= 0.4) return "decide";
-    if (plan.weights.orchestrate >= 0.4) return "coordinate";
+    if (plan.weights.affect >= 0.4) {
+        return "open";
+    }
+    if (plan.weights.inspire >= 0.4) {
+        return "explore";
+    }
+    if (plan.weights.think >= 0.4) {
+        return "analyze";
+    }
+    if (plan.weights.converge >= 0.4) {
+        return "decide";
+    }
+    if (plan.weights.orchestrate >= 0.4) {
+        return "coordinate";
+    }
     return "close";
 };
 

@@ -17,10 +17,14 @@ import { pageIdFor, pageKey } from "./page.ts";
 
 export interface ContextWindowOptions {
     capacityTokens: number;
-    /** Hard page ceiling; defaults to 128. */
+    /**
+     * Hard page ceiling; defaults to 128.
+     */
     maxPages?: number;
     now?: () => number;
-    /** Optional loader for page content; a miss without it yields a token-only page. */
+    /**
+     * Optional loader for page content; a miss without it yields a token-only page.
+     */
     objects?: ObjectRepository;
 }
 
@@ -54,21 +58,27 @@ export class ContextWindow {
         this.resident = new LRUUnorderedMap<string, Page>(this.maxPages);
         this.table = new UnorderedMap<string, string>();
         this.now = options.now ?? (() => Date.now());
-        if (options.objects !== undefined) this.objects = options.objects;
+        if (options.objects !== (void 0)) {
+            this.objects = options.objects;
+        }
     }
 
     has(kind: string, id: string): boolean {
         return this.table.has(pageKey(kind, id));
     }
 
-    /** Load a page into the resident set, evicting unpinned pages if needed. */
+    /**
+     * Load a page into the resident set, evicting unpinned pages if needed.
+     */
     fault(kind: string, id: string, tokens: number, content?: unknown): Page {
-        if (!Number.isSafeInteger(tokens) || tokens <= 0) throw new RangeError("tokens must be a positive safe integer");
+        if (!Number.isSafeInteger(tokens) || tokens <= 0) {
+            throw new RangeError("tokens must be a positive safe integer");
+        }
         const key: string = pageKey(kind, id);
         const existingId: string | undefined = this.table.get(key);
-        if (existingId !== undefined) {
+        if (existingId !== (void 0)) {
             const existing: Page | undefined = this.resident.get(existingId);
-            if (existing !== undefined) {
+            if (existing !== (void 0)) {
                 this.hits += 1;
                 return existing;
             }
@@ -88,7 +98,9 @@ export class ContextWindow {
             lastUsed: this.now(),
         };
         const loaded: unknown = content ?? this.load(kind, id);
-        if (loaded !== undefined) page.content = loaded;
+        if (loaded !== (void 0)) {
+            page.content = loaded;
+        }
         this.resident.set(page.id, page);
         this.table.set(key, page.id);
         this.used += tokens;
@@ -96,28 +108,40 @@ export class ContextWindow {
         return page;
     }
 
-    /** Pin a page so eviction cannot remove it; returns the new pin count. */
+    /**
+     * Pin a page so eviction cannot remove it; returns the new pin count.
+     */
     pin(kind: string, id: string): number {
         const page: Page | undefined = this.pageOf(kind, id);
-        if (page === undefined) throw new WindowError("unknown_page", [pageKey(kind, id)]);
+        if (page === (void 0)) {
+            throw new WindowError("unknown_page", [pageKey(kind, id)]);
+        }
         page.pinned += 1;
         return page.pinned;
     }
 
     unpin(kind: string, id: string): number {
         const page: Page | undefined = this.pageOf(kind, id);
-        if (page === undefined) throw new WindowError("unknown_page", [pageKey(kind, id)]);
+        if (page === (void 0)) {
+            throw new WindowError("unknown_page", [pageKey(kind, id)]);
+        }
         page.pinned = Math.max(0, page.pinned - 1);
         return page.pinned;
     }
 
-    /** Remove a page regardless of pin count (explicit release, not eviction). */
+    /**
+     * Remove a page regardless of pin count (explicit release, not eviction).
+     */
     release(kind: string, id: string): boolean {
         const key: string = pageKey(kind, id);
         const pageId: string | undefined = this.table.get(key);
-        if (pageId === undefined) return false;
+        if (pageId === (void 0)) {
+            return false;
+        }
         const page: Page | undefined = this.resident.get(pageId);
-        if (page !== undefined) this.used -= page.tokens;
+        if (page !== (void 0)) {
+            this.used -= page.tokens;
+        }
         this.resident.delete(pageId);
         this.table.delete(key);
         return true;
@@ -125,7 +149,7 @@ export class ContextWindow {
 
     pageOf(kind: string, id: string): Page | undefined {
         const pageId: string | undefined = this.table.get(pageKey(kind, id));
-        return pageId === undefined ? undefined : this.resident.get(pageId);
+        return pageId === (void 0) ? undefined : this.resident.get(pageId);
     }
 
     entries(): Page[] {
@@ -180,7 +204,7 @@ export class ContextWindow {
     private evictUntil(incoming: number): void {
         while (this.used + incoming > this.capacityTokens || this.resident.size >= this.maxPages) {
             const victim: Page | undefined = this.leastRecentUnpinned();
-            if (victim === undefined) {
+            if (victim === (void 0)) {
                 throw new WindowError("window_full", [`no unpinned page can make room for ${incoming} tokens`]);
             }
             this.used -= victim.tokens;
@@ -193,16 +217,24 @@ export class ContextWindow {
     private leastRecentUnpinned(): Page | undefined {
         let victim: Page | undefined;
         for (const page of this.resident.values()) {
-            if (page.pinned > 0) continue;
-            if (victim === undefined || page.lastUsed < victim.lastUsed) victim = page;
+            if (page.pinned > 0) {
+                continue;
+            }
+            if (victim === (void 0) || page.lastUsed < victim.lastUsed) {
+                victim = page;
+            }
         }
         return victim;
     }
 
     private load(kind: string, id: string): unknown {
-        if (this.objects === undefined) return undefined;
+        if (this.objects === (void 0)) {
+            return undefined;
+        }
         const row = this.objects.find(kind, id);
-        if (row === undefined) return undefined;
+        if (row === (void 0)) {
+            return undefined;
+        }
         try {
             return JSON.parse(row.body) as unknown;
         } catch {

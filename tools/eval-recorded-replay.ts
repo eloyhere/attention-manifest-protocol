@@ -86,7 +86,9 @@ const calibration = (entries: Array<{ actual: boolean; predicted: number }>): { 
         bins[index].accuracy += entry.actual ? 1 : 0;
     }
     const ece = bins.reduce((sum, bin) => {
-        if (bin.n === 0) return sum;
+        if (bin.n === 0) {
+            return sum;
+        }
         return sum + (bin.n / entries.length) * Math.abs(bin.accuracy / bin.n - bin.confidence / bin.n);
     }, 0);
     const brier = entries.reduce((sum, entry) => sum + (entry.predicted - (entry.actual ? 1 : 0)) ** 2, 0) / entries.length;
@@ -96,7 +98,9 @@ const calibration = (entries: Array<{ actual: boolean; predicted: number }>): { 
 const results = [];
 for (const run of probe.runs) {
     const prompt = taskPrompt.get(`${run.suite}/${run.task}`);
-    if (prompt === undefined) throw new Error(`missing prompt for ${run.suite}/${run.task}`);
+    if (prompt === (void 0)) {
+        throw new Error(`missing prompt for ${run.suite}/${run.task}`);
+    }
     const response: LlmResponse = {
         text: run.answer,
         usage: {
@@ -201,7 +205,7 @@ const report = {
 writeFileSync("docs/probes/eval-recorded-replay.json", `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
 console.log(
-    `runs=${results.length} acc=${(report.metrics.accuracy * 100).toFixed(1)}% textECE=${text.ece.toFixed(3)} calibratedECE=${calibrated.ece.toFixed(3)} status=${registered.status} method=${calibrated.method}${registered.model?.temperature === undefined ? "" : ` T=${registered.model.temperature}`}${registered.model === undefined ? "" : ` CI=[${registered.model.ciLower.toFixed(3)},${registered.model.ciUpper.toFixed(3)}]`} oracleECE=${oracle.ece.toFixed(3)} labels=${labeled.length} agreement=${(labeledAgreement ?? 0).toFixed(0)}`,
+    `runs=${results.length} acc=${(report.metrics.accuracy * 100).toFixed(1)}% textECE=${text.ece.toFixed(3)} calibratedECE=${calibrated.ece.toFixed(3)} status=${registered.status} method=${calibrated.method}${registered.model?.temperature === (void 0) ? "" : ` T=${registered.model.temperature}`}${registered.model === (void 0) ? "" : ` CI=[${registered.model.ciLower.toFixed(3)},${registered.model.ciUpper.toFixed(3)}]`} oracleECE=${oracle.ece.toFixed(3)} labels=${labeled.length} agreement=${(labeledAgreement ?? 0).toFixed(0)}`,
 );
 for (const condition of conditions) {
     console.log(

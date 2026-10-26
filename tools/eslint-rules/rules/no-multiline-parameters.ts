@@ -1,13 +1,6 @@
-import {
-    ESLintUtils,
-    type TSESLint,
-    type TSESTree,
-} from "@typescript-eslint/utils";
+import { ESLintUtils, type TSESLint, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(
-    (name) =>
-        `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`,
-);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
 
 const FUNCTION_LIKE_NODE_TYPES = [
     "FunctionDeclaration",
@@ -53,9 +46,7 @@ export const noMultilineParameters = createRule({
             for (let index = 0; index < params.length - 1; index += 1) {
                 const left = params[index];
                 const right = params[index + 1];
-                const textBetween = sourceCode
-                    .getText()
-                    .slice(left.range[1], right.range[0]);
+                const textBetween = sourceCode.getText().slice(left.range[1], right.range[0]);
 
                 if (textBetween.includes("\n") || textBetween.includes("\r")) {
                     context.report({

@@ -22,8 +22,12 @@ export class MissionQueue {
     constructor(now: () => number = () => Date.now()) {
         this.heap = new BinaryHeap<MissionEntry>({
             compare: (left, right) => {
-                if (left.priority !== right.priority) return right.priority - left.priority;
-                if (left.enqueuedAt !== right.enqueuedAt) return left.enqueuedAt - right.enqueuedAt;
+                if (left.priority !== right.priority) {
+                    return right.priority - left.priority;
+                }
+                if (left.enqueuedAt !== right.enqueuedAt) {
+                    return left.enqueuedAt - right.enqueuedAt;
+                }
                 return left.pid - right.pid;
             },
         });
@@ -32,17 +36,23 @@ export class MissionQueue {
     }
 
     enqueue(pid: number, priority = 0): boolean {
-        if (this.members.has(pid)) return false;
+        if (this.members.has(pid)) {
+            return false;
+        }
         this.members.add(pid);
         this.heap.push({ pid, priority, enqueuedAt: this.now() });
         return true;
     }
 
-    /** Pop the highest-priority live entry; stale entries are skipped. */
+    /**
+     * Pop the highest-priority live entry; stale entries are skipped.
+     */
     dequeue(): number | undefined {
         while (!this.heap.isEmpty) {
             const entry: MissionEntry | undefined = this.heap.pop();
-            if (entry === undefined) return undefined;
+            if (entry === (void 0)) {
+                return undefined;
+            }
             if (this.members.has(entry.pid)) {
                 this.members.delete(entry.pid);
                 return entry.pid;

@@ -28,7 +28,9 @@ export interface RegisterOptions {
     minSamples?: number;
     minImprovement?: number;
     folds?: number;
-    /** Require the bootstrap 95% upper bound to be below zero. */
+    /**
+     * Require the bootstrap 95% upper bound to be below zero.
+     */
     requireCi?: boolean;
     bootstrapSamples?: number;
     seed?: number;
@@ -41,20 +43,29 @@ export interface RegisterResult {
     model?: CalibrationModel;
 }
 
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+/**
+ * Bootstrap confidence interval for the ECE delta.
+ */
+type BootstrapInterval = {
+    mean: number;
+    lower: number;
+    upper: number;
+};
+
+const clamp01: (value: number) => number = (value: number): number => Math.max(0, Math.min(1, value));
 
 export class CalibrationRegistry {
     private readonly models = new Map<string, CalibrationModel>();
 
     register(scope: string, points: readonly CalibrationPoint[], options: RegisterOptions = {}): RegisterResult {
-        const minSamples = options.minSamples ?? 30;
-        const minImprovement = options.minImprovement ?? 0.01;
-        const selection = selectCalibration(points, options.folds ?? 5);
-        const candidate = points.length >= minSamples && selection.method !== "raw" && selection.rawEce - selection.ece >= minImprovement;
-        const ci = candidate
+        const minSamples: number = options.minSamples ?? 30;
+        const minImprovement: number = options.minImprovement ?? 0.01;
+        const selection: CalibrationSelection = selectCalibration(points, options.folds ?? 5);
+        const candidate: boolean = points.length >= minSamples && selection.method !== "raw" && selection.rawEce - selection.ece >= minImprovement;
+        const ci: BootstrapInterval = candidate
             ? bootstrapEceDelta(points, selection.method, options.folds ?? 5, options.bootstrapSamples ?? 500, options.seed ?? 42)
             : { mean: 0, lower: 0, upper: 0 };
-        const improves = candidate && (options.requireCi === false || ci.upper < 0);
+        const improves: boolean = candidate && (options.requireCi === false || ci.upper < 0);
         if (!improves) {
             this.models.delete(scope);
             return { status: "raw", selection };
@@ -79,10 +90,14 @@ export class CalibrationRegistry {
     }
 
     calibrate(scope: string, predicted: number): number {
-        const model = this.models.get(scope);
-        if (model === undefined) return clamp01(predicted);
-        if (model.method === "temperature") return applyTemperature({ temperature: model.temperature ?? 1 }, predicted);
-        const calibrated = applyIsotonic({ thresholds: model.thresholds, values: model.values }, predicted);
+        const model: CalibrationModel | undefined = this.models.get(scope);
+        if (model === (void 0)) {
+            return clamp01(predicted);
+        }
+        if (model.method === "temperature") {
+            return applyTemperature({ temperature: model.temperature ?? 1 }, predicted);
+        }
+        const calibrated: number = applyIsotonic({ thresholds: model.thresholds, values: model.values }, predicted);
         return model.method === "isotonic" ? calibrated : 0.5 * calibrated + 0.5 * clamp01(predicted);
     }
 

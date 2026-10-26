@@ -2,6 +2,8 @@
  * Small iterator helpers shared by the collection structures.
  */
 
+type GeneratorFactory = <T>(values: readonly T[]) => Generator<T, void, unknown>;
+
 /**
  * Yield a snapshot array as a `Generator`.
  *
@@ -9,6 +11,12 @@
  * passing `this.toArray()` gives snapshot iteration without an `ArrayIterator`
  * return type. Consumers can use `for...of`, spread, or `next()` directly.
  */
-export function* generatorFrom<T>(values: readonly T[]): Generator<T, void, unknown> {
-    yield* values;
-}
+const SnapshotGenerators: {
+    from: GeneratorFactory;
+} = {
+    *from<T>(values: readonly T[]): Generator<T, void, unknown> {
+        yield* values;
+    },
+};
+
+export const generatorFrom: GeneratorFactory = <T>(values: readonly T[]): Generator<T, void, unknown> => SnapshotGenerators.from(values);

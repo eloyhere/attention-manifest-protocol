@@ -52,7 +52,7 @@ export class LRUList<T> implements Iterable<T> {
      * Seed the list front-to-back from `values`.
      */
     constructor(values?: Iterable<T>) {
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
         for (const value of values) {
@@ -297,7 +297,7 @@ class LruMapBase<K, V> {
      */
     get(key: K): V | undefined {
         const node = this.index.get(key);
-        if (node === undefined) {
+        if (node === (void 0)) {
             return undefined;
         }
         this.order.moveToFront(node);
@@ -309,7 +309,7 @@ class LruMapBase<K, V> {
      */
     set(key: K, value: V): this {
         const existing = this.index.get(key);
-        if (existing !== undefined) {
+        if (existing !== (void 0)) {
             existing.value.value = value;
             this.order.moveToFront(existing);
             return this;
@@ -321,7 +321,7 @@ class LruMapBase<K, V> {
 
         if (this.index.size > this.capacity) {
             const oldest = this.order.back;
-            if (oldest !== undefined) {
+            if (oldest !== (void 0)) {
                 this.order.popBack();
                 this.index.delete(oldest.key);
             }
@@ -331,7 +331,7 @@ class LruMapBase<K, V> {
 
     delete(key: K): boolean {
         const node = this.index.get(key);
-        if (node === undefined) {
+        if (node === (void 0)) {
             return false;
         }
         this.order.remove(node);
@@ -349,7 +349,7 @@ class LruMapBase<K, V> {
      */
     touch(key: K): boolean {
         const node = this.index.get(key);
-        if (node === undefined) {
+        if (node === (void 0)) {
             return false;
         }
         this.order.moveToFront(node);
@@ -361,7 +361,7 @@ class LruMapBase<K, V> {
      */
     leastRecentlyUsed(): [K, V] | undefined {
         const entry = this.order.back;
-        return entry === undefined ? undefined : [entry.key, entry.value];
+        return entry === (void 0) ? undefined : [entry.key, entry.value];
     }
 
     /**
@@ -369,7 +369,7 @@ class LruMapBase<K, V> {
      */
     mostRecentlyUsed(): [K, V] | undefined {
         const entry = this.order.front;
-        return entry === undefined ? undefined : [entry.key, entry.value];
+        return entry === (void 0) ? undefined : [entry.key, entry.value];
     }
 
     keys(): Generator<K> {
@@ -409,7 +409,7 @@ class LruMapBase<K, V> {
 export class LRUOrderedMap<K, V> extends LruMapBase<K, V> implements Iterable<[K, V]> {
     constructor(capacity: number, entries?: Iterable<readonly [K, V]>, options?: KeyStrategy<K>) {
         super(capacity, new OrderedMap<K, LRUListNode<LruEntry<K, V>>>(undefined, options));
-        if (entries !== undefined) {
+        if (entries !== (void 0)) {
             for (const [key, value] of entries) {
                 this.set(key, value);
             }
@@ -426,7 +426,7 @@ export class LRUOrderedMap<K, V> extends LruMapBase<K, V> implements Iterable<[K
 export class LRUUnorderedMap<K, V> extends LruMapBase<K, V> implements Iterable<[K, V]> {
     constructor(capacity: number, entries?: Iterable<readonly [K, V]>, options?: KeyStrategy<K>) {
         super(capacity, new UnorderedMap<K, LRUListNode<LruEntry<K, V>>>(undefined, options));
-        if (entries !== undefined) {
+        if (entries !== (void 0)) {
             for (const [key, value] of entries) {
                 this.set(key, value);
             }
@@ -442,7 +442,7 @@ export class LRUOrderedSet<T> implements Iterable<T> {
 
     constructor(capacity: number, values?: Iterable<T>, options?: KeyStrategy<T>) {
         this.map = new LRUOrderedMap<T, true>(capacity, undefined, options);
-        if (values !== undefined) {
+        if (values !== (void 0)) {
             for (const value of values) {
                 this.add(value);
             }
@@ -534,7 +534,7 @@ export class LRUUnorderedSet<T> implements Iterable<T> {
 
     constructor(capacity: number, values?: Iterable<T>, options?: KeyStrategy<T>) {
         this.map = new LRUUnorderedMap<T, true>(capacity, undefined, options);
-        if (values !== undefined) {
+        if (values !== (void 0)) {
             for (const value of values) {
                 this.add(value);
             }

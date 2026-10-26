@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-/** Conservative behavior priority suggestions from conflict counts. */
+/**
+ * Conservative behavior priority suggestions from conflict counts.
+ */
 import assert from "node:assert/strict";
 
-import { DEFAULT_BEHAVIORS } from "../src/runtime/behavior.ts";
+import { DefaultBehaviors } from "../src/runtime/behavior.ts";
 import { BehaviorRegistry } from "../src/runtime/behavior.ts";
 import { applyPrioritySuggestions, BehaviorTuningController, rollbackPrioritySuggestions, suggestPriorityTuning } from "../src/runtime/behaviorTuning.ts";
 
-const behaviors = DEFAULT_BEHAVIORS.map((rule) => rule.behavior);
+const behaviors = DefaultBehaviors.map((rule) => rule.behavior);
 const suggestions = suggestPriorityTuning(behaviors, {
     "affect_then_converge<-clarify_when_uncertain": 5,
     "affect_then_converge<-no_diagnosis": 5,

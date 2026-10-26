@@ -18,6 +18,15 @@ export interface EvidenceNode {
     trust?: "self" | "verified" | "trusted" | "asserted" | "inferred" | "external";
 }
 
+/**
+ * One depth-first search frame used by cycle detection.
+ */
+type SearchFrame = {
+    id: string;
+    next: number;
+    neighbors: string[];
+};
+
 export class EvidenceGraph {
     private readonly nodes: UnorderedMap<string, EvidenceNode> = new UnorderedMap<string, EvidenceNode>();
     private readonly forward: UnorderedMap<string, UnorderedSet<string>> = new UnorderedMap<string, UnorderedSet<string>>();
@@ -34,8 +43,12 @@ export class EvidenceGraph {
     }
 
     link(from: string, to: string): void {
-        if (!this.nodes.has(from) || !this.nodes.has(to)) throw new Error(`unknown evidence node ${from} -> ${to}`);
-        if (from === to) throw new Error("an evidence node cannot support itself");
+        if (!this.nodes.has(from) || !this.nodes.has(to)) {
+            throw new Error(`unknown evidence node ${from} -> ${to}`);
+        }
+        if (from === to) {
+            throw new Error("an evidence node cannot support itself");
+        }
         this.edge(this.forward, from, to);
         this.edge(this.reverse, to, from);
         if (this.hasCycle()) {
@@ -60,14 +73,20 @@ export class EvidenceGraph {
     hasCycle(): boolean {
         const visiting: UnorderedSet<string> = new UnorderedSet<string>();
         const visited: UnorderedSet<string> = new UnorderedSet<string>();
-        for (const id of this.nodes.keys()) {
-            if (visited.has(id)) continue;
-            const stack: Stack<{ id: string; next: number; neighbors: string[] }> = new Stack<{ id: string; next: number; neighbors: string[] }>();
+        const ids: string[] = [...this.nodes.keys()];
+        for (let index: number = 0; index < ids.length; index += 1) {
+            const id: string = ids[index];
+            if (visited.has(id)) {
+                continue;
+            }
+            const stack: Stack<SearchFrame> = new Stack<SearchFrame>();
             stack.push({ id, next: 0, neighbors: [...(this.forward.get(id)?.values() ?? [])] });
             visiting.add(id);
             while (!stack.isEmpty) {
-                const frame = stack.peek();
-                if (frame === undefined) break;
+                const frame: SearchFrame | undefined = stack.peek();
+                if (frame === (void 0)) {
+                    break;
+                }
                 if (frame.next >= frame.neighbors.length) {
                     stack.pop();
                     visiting.delete(frame.id);
@@ -76,7 +95,9 @@ export class EvidenceGraph {
                 }
                 const next: string = frame.neighbors[frame.next];
                 frame.next += 1;
-                if (visiting.has(next)) return true;
+                if (visiting.has(next)) {
+                    return true;
+                }
                 if (!visited.has(next)) {
                     visiting.add(next);
                     stack.push({ id: next, next: 0, neighbors: [...(this.forward.get(next)?.values() ?? [])] });
@@ -91,14 +112,16 @@ export class EvidenceGraph {
     }
 
     private addNode(node: EvidenceNode): EvidenceNode {
-        if (this.nodes.has(node.id)) throw new Error(`duplicate evidence node ${node.id}`);
+        if (this.nodes.has(node.id)) {
+            throw new Error(`duplicate evidence node ${node.id}`);
+        }
         this.nodes.set(node.id, node);
         return node;
     }
 
     private edge(map: UnorderedMap<string, UnorderedSet<string>>, from: string, to: string): void {
-        let set = map.get(from);
-        if (set === undefined) {
+        let set: UnorderedSet<string> | undefined = map.get(from);
+        if (set === (void 0)) {
             set = new UnorderedSet<string>();
             map.set(from, set);
         }

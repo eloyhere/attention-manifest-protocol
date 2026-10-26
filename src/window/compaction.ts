@@ -25,7 +25,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function idOf(payload: unknown): string | undefined {
-    if (!isRecord(payload)) return undefined;
+    if (!isRecord(payload)) {
+        return undefined;
+    }
     return typeof(payload.id) === "string" ? payload.id : undefined;
 }
 
@@ -41,17 +43,25 @@ function keyOf(kind: string, id: string): string {
  * active, so the old claim may leave the view while the successor stays.
  */
 function collectRefs(value: unknown, out: Set<string>, depth = 0): void {
-    if (depth > 16) return;
-    if (Array.isArray(value)) {
-        for (const item of value) collectRefs(item, out, depth + 1);
+    if (depth > 16) {
         return;
     }
-    if (!isRecord(value)) return;
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            collectRefs(item, out, depth + 1);
+        }
+        return;
+    }
+    if (!isRecord(value)) {
+        return;
+    }
     if (isLedgerKind(value.kind) && typeof(value.id) === "string") {
         out.add(keyOf(value.kind, value.id));
     }
     for (const [key, child] of Object.entries(value)) {
-        if (key === "amp" || key === "supersedes") continue;
+        if (key === "amp" || key === "supersedes") {
+            continue;
+        }
         collectRefs(child, out, depth + 1);
     }
 }
@@ -73,27 +83,43 @@ type Candidate = { reason: PruneDecision["reason"]; revisit_if: string };
  */
 function classify(entry: ChainEntry, id: string, policy: PrunePolicy, supersededBy: Map<string, string>): Candidate | undefined {
     const payload = entry.payload;
-    if (!isRecord(payload)) return undefined;
+    if (!isRecord(payload)) {
+        return undefined;
+    }
 
     if (entry.kind === "claim") {
         const newer = supersededBy.get(id);
-        if (!policy.dropSupersededClaims || newer === undefined) return undefined;
+        if (!policy.dropSupersededClaims || newer === (void 0)) {
+            return undefined;
+        }
         // A contested claim is the subject of adjudication; it stays until resolved.
-        if (payload.status === "contested") return undefined;
+        if (payload.status === "contested") {
+            return undefined;
+        }
         return { reason: "superseded", revisit_if: `if claim ${newer} is retracted or contested` };
     }
 
     if (entry.kind === "hypothesis") {
-        if (!policy.dropClosedHypotheses) return undefined;
+        if (!policy.dropClosedHypotheses) {
+            return undefined;
+        }
         const status = typeof(payload.status) === "string" ? payload.status : "";
-        if (!CLOSED_HYPOTHESES.includes(status)) return undefined;
+        if (!CLOSED_HYPOTHESES.includes(status)) {
+            return undefined;
+        }
         return { reason: "closed", revisit_if: `if new evidence contradicts hypothesis ${id}` };
     }
 
     if (entry.kind === "unknown") {
-        if (!policy.dropResolvedUnknowns) return undefined;
-        if (payload.blocking === true) return undefined;
-        if (payload.status !== "resolved") return undefined;
+        if (!policy.dropResolvedUnknowns) {
+            return undefined;
+        }
+        if (payload.blocking === true) {
+            return undefined;
+        }
+        if (payload.status !== "resolved") {
+            return undefined;
+        }
         return { reason: "resolved", revisit_if: `if unknown ${id} reopens` };
     }
 
@@ -102,7 +128,9 @@ function classify(entry: ChainEntry, id: string, policy: PrunePolicy, superseded
 
 export interface PruneResult {
     plan: PrunePlan;
-    /** The view itself: retained entries in chain order. */
+    /**
+     * The view itself: retained entries in chain order.
+     */
     keep: ChainEntry[];
 }
 
@@ -136,20 +164,28 @@ export function planPrune(snapshot: LedgerSnapshot, overrides: Partial<PrunePoli
 
     const supersededBy = new Map<string, string>();
     for (const entry of entries) {
-        if (entry.kind !== "claim" || !isRecord(entry.payload)) continue;
+        if (entry.kind !== "claim" || !isRecord(entry.payload)) {
+            continue;
+        }
         const supersedes = entry.payload.supersedes;
         if (isRecord(supersedes) && typeof(supersedes.id) === "string") {
-            supersededBy.set(supersedes.id, String(entry.payload.id));
+            supersededBy.set(supersedes.id, `${entry.payload.id}`);
         }
     }
 
     const candidates: { entry: ChainEntry; id: string; decision: Candidate }[] = [];
     entries.forEach((entry, index) => {
-        if (index >= cutoff) return;
+        if (index >= cutoff) {
+            return;
+        }
         const id = idOf(entry.payload);
-        if (!id) return;
+        if (!id) {
+            return;
+        }
         const decision = classify(entry, id, policy, supersededBy);
-        if (decision) candidates.push({ entry, id, decision });
+        if (decision) {
+            candidates.push({ entry, id, decision });
+        }
     });
 
     const candidateSet = new Set(candidates.map((c) => c.entry));
@@ -159,12 +195,18 @@ export function planPrune(snapshot: LedgerSnapshot, overrides: Partial<PrunePoli
     const queue = [...retained];
     while (queue.length > 0) {
         const entry = queue.pop();
-        if (!entry) break;
+        if (!entry) {
+            break;
+        }
         const refs = new Set<string>();
         collectRefs(entry.payload, refs);
         for (const candidate of candidates) {
-            if (candidateSet.has(candidate.entry) === false) continue;
-            if (!refs.has(keyOf(candidate.entry.kind, candidate.id))) continue;
+            if (candidateSet.has(candidate.entry) === false) {
+                continue;
+            }
+            if (!refs.has(keyOf(candidate.entry.kind, candidate.id))) {
+                continue;
+            }
             candidateSet.delete(candidate.entry);
             retained.push(candidate.entry);
             queue.push(candidate.entry);
@@ -204,9 +246,13 @@ export function planPrune(snapshot: LedgerSnapshot, overrides: Partial<PrunePoli
 
 export interface Compaction {
     checkpoint: Checkpoint;
-    /** The part of the chain that remains in storage, continuing from `checkpoint.tip`. */
+    /**
+     * The part of the chain that remains in storage, continuing from `checkpoint.tip`.
+     */
     tail: LedgerSnapshot;
-    /** The entries the checkpoint covers. Kept here so the commitment is checkable. */
+    /**
+     * The entries the checkpoint covers. Kept here so the commitment is checkable.
+     */
     removed: ChainEntry[];
 }
 
@@ -248,12 +294,16 @@ export function compactLedger(snapshot: LedgerSnapshot, options: CompactionOptio
     const tail = snapshot.entries.slice(cut);
 
     const tailRefs = new Set<string>();
-    for (const entry of tail) collectRefs(entry.payload, tailRefs);
+    for (const entry of tail) {
+        collectRefs(entry.payload, tailRefs);
+    }
 
     const pinned: string[] = [];
     for (const entry of removed) {
         const id = idOf(entry.payload);
-        if (id && tailRefs.has(keyOf(entry.kind, id))) pinned.push(keyOf(entry.kind, id));
+        if (id && tailRefs.has(keyOf(entry.kind, id))) {
+            pinned.push(keyOf(entry.kind, id));
+        }
     }
     if (pinned.length > 0) {
         throw new CompactionRefused("refusing to compact entries the retained tail still references", pinned);

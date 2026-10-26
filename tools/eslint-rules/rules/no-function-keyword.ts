@@ -1,14 +1,8 @@
 import { ESLintUtils, type TSESLint, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(
-    (name) =>
-        `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`,
-);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
 
-const isKeywordFunctionExpression = (
-    sourceCode: Readonly<TSESLint.SourceCode>,
-    node: TSESTree.FunctionExpression,
-): boolean => {
+const isKeywordFunctionExpression = (sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.FunctionExpression): boolean => {
     const firstToken = sourceCode.getFirstToken(node);
 
     if (!firstToken) {
@@ -37,8 +31,7 @@ export const noFunctionKeyword = createRule({
         },
         schema: [],
         messages: {
-            noFunction:
-                "禁止使用 function 关键字；请改用箭头函数，例如：const add = (a: number, b: number): number => a + b;。",
+            noFunction: "禁止使用 function 关键字；请改用箭头函数，例如：const add = (a: number, b: number): number => a + b;。",
         },
     },
     defaultOptions: [],

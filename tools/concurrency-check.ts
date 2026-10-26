@@ -6,33 +6,61 @@
  * at the protocol, not at scheduling noise.
  */
 import assert from "node:assert/strict";
+import type { DatabaseSync } from "node:sqlite";
 
 import { KernelError } from "../src/error/kernelError.ts";
 import { Mutex } from "../src/concurrency/mutex.ts";
 import { NamedLocks } from "../src/concurrency/namedLocks.ts";
 import { withBusyRetry } from "../src/concurrency/retry.ts";
 import { once } from "../src/concurrency/idempotency.ts";
+import type { OnceResult } from "../src/concurrency/idempotency.ts";
 import { heartbeatWorker, listWorkers, recoverExpiredWorkers, registerWorker, unregisterWorker } from "../src/concurrency/worker.ts";
 import { createProcess } from "../src/process/process.ts";
+import type { ProcessRecord } from "../src/process/process.ts";
 import { claimThread, getThread, spawnThread, transitionThread } from "../src/thread/thread.ts";
+import type { ThreadClaim, ThreadRecord } from "../src/thread/thread.ts";
 import { openStore, tableNames } from "../src/database/store/database.ts";
+
+type TestCase = (name: string, fn: () => void | Promise<void>) => void;
+
+type RejectionMatcher = (code: string) => (error: unknown) => boolean;
+
+type MetaRow = {
+    value: string;
+};
+
+type BusyTimeoutRow = {
+    timeout: number;
+};
+
+type DeliveredEffect = {
+    delivered: boolean;
+};
+
+type RecoveryReport = ReturnType<typeof recoverExpiredWorkers>;
+
+type Fixture = {
+    db: DatabaseSync;
+    process: ProcessRecord;
+    thread: ThreadRecord;
+};
 
 const At: string = "2026-10-24T00:00:00.000Z";
 
-let passed: number = 0;
-let failed: number = 0;
+let Passed: number = 0;
+let Failed: number = 0;
 
-const pending: Promise<void>[] = [];
+const Pending: Promise<void>[] = [];
 
-const test = (name: string, fn: () => void | Promise<void>): void => {
-    pending.push(
+const test: TestCase = (name: string, fn: () => void | Promise<void>): void => {
+    Pending.push(
         (async (): Promise<void> => {
             try {
                 await fn();
-                passed += 1;
+                Passed += 1;
                 console.log(`\x1b[32m✓\x1b[0m ${name}`);
             } catch (error) {
-                failed += 1;
+                Failed += 1;
                 const message: string = error instanceof Error ? error.message : `${error}`;
                 console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${message}`);
             }
@@ -40,14 +68,14 @@ const test = (name: string, fn: () => void | Promise<void>): void => {
     );
 };
 
-const rejects =
+const rejects: RejectionMatcher =
     (code: string) =>
     (error: unknown): boolean =>
         error instanceof KernelError && error.code === code;
 
-const setup = () => {
-    const db = openStore(":memory:");
-    const process = createProcess(
+const setup: () => Fixture = (): Fixture => {
+    const db: DatabaseSync = openStore(":memory:");
+    const process: ProcessRecord = createProcess(
         db,
         {
             id: "a.concurrent.1",
@@ -56,7 +84,7 @@ const setup = () => {
         },
         At,
     );
-    const thread = spawnThread(
+    const thread: ThreadRecord = spawnThread(
         db,
         {
             pid: process.pid,
@@ -70,20 +98,20 @@ const setup = () => {
 };
 
 test("schema exposes workers and idempotency, version 4, busy timeout", () => {
-    const db = openStore(":memory:");
+    const db: DatabaseSync = openStore(":memory:");
     const names: string[] = tableNames(db);
     assert.equal(names.includes("workers"), true);
     assert.equal(names.includes("idempotency"), true);
-    const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as { value: string };
+    const version: MetaRow = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as MetaRow;
     assert.equal(version.value, "4");
-    const busy = db.prepare("PRAGMA busy_timeout").get() as { timeout: number };
+    const busy: BusyTimeoutRow = db.prepare("PRAGMA busy_timeout").get() as BusyTimeoutRow;
     assert.equal(busy.timeout, 5000);
     db.close();
 });
 
 test("atomic claim lets exactly one worker own a thread", () => {
-    const { db, thread } = setup();
-    const first = claimThread(db, thread.tid, "w-a");
+    const { db, thread }: Fixture = setup();
+    const first: ThreadClaim = claimThread(db, thread.tid, "w-a");
     assert.equal(first.lease, 1);
     assert.equal(getThread(db, thread.tid).state, "running");
     assert.throws(() => claimThread(db, thread.tid, "w-b"), rejects("claim_failed"));
@@ -91,18 +119,18 @@ test("atomic claim lets exactly one worker own a thread", () => {
 });
 
 test("a stale lease cannot commit after another worker claims", () => {
-    const { db, thread } = setup();
-    const claim = claimThread(db, thread.tid, "w-a");
+    const { db, thread }: Fixture = setup();
+    const claim: ThreadClaim = claimThread(db, thread.tid, "w-a");
     db.prepare("UPDATE threads SET lease = lease + 1 WHERE tid = ?").run(thread.tid);
     assert.throws(() => transitionThread(db, thread.tid, ["running"], "done", { finishedAt: At }, claim.lease), rejects("lease_lost"));
-    const current = getThread(db, thread.tid).lease;
-    const done = transitionThread(db, thread.tid, ["running"], "done", { finishedAt: At }, current);
+    const current: number = getThread(db, thread.tid).lease;
+    const done: ThreadRecord = transitionThread(db, thread.tid, ["running"], "done", { finishedAt: At }, current);
     assert.equal(done.state, "done");
     db.close();
 });
 
 test("worker heartbeat and unregister are explicit", () => {
-    const db = openStore(":memory:");
+    const db: DatabaseSync = openStore(":memory:");
     registerWorker(db, { workerId: "w-a", leaseMs: 1000 }, At);
     assert.equal(listWorkers(db).length, 1);
     assert.equal(heartbeatWorker(db, "w-a", At, 1000), true);
@@ -113,16 +141,16 @@ test("worker heartbeat and unregister are explicit", () => {
 });
 
 test("expired worker leases are recovered with a new fencing token", () => {
-    const { db, thread } = setup();
+    const { db, thread }: Fixture = setup();
     registerWorker(db, { workerId: "w-a", leaseMs: 1000 }, At);
-    const claim = claimThread(db, thread.tid, "w-a");
+    const claim: ThreadClaim = claimThread(db, thread.tid, "w-a");
     assert.equal(getThread(db, thread.tid).ownerWorker, "w-a");
 
-    const later = new Date(Date.parse(At) + 5000).toISOString();
-    const recovered = recoverExpiredWorkers(db, later);
+    const later: string = new Date(Date.parse(At) + 5000).toISOString();
+    const recovered: RecoveryReport = recoverExpiredWorkers(db, later);
     assert.equal(recovered.threads, 1);
     assert.deepEqual(recovered.workers, ["w-a"]);
-    const threadAfter = getThread(db, thread.tid);
+    const threadAfter: ThreadRecord = getThread(db, thread.tid);
     assert.equal(threadAfter.state, "ready");
     assert.equal(threadAfter.ownerWorker, (void 0));
     assert.equal(threadAfter.lease, claim.lease + 1);
@@ -131,11 +159,11 @@ test("expired worker leases are recovered with a new fencing token", () => {
 });
 
 test("Mutex serializes interleaved async sections", async () => {
-    const mutex = new Mutex();
+    const mutex: Mutex = new Mutex();
     let active: number = 0;
     let maxActive: number = 0;
     let counter: number = 0;
-    const task = async (): Promise<void> => {
+    const task: () => Promise<void> = async (): Promise<void> => {
         active += 1;
         maxActive = Math.max(maxActive, active);
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -148,10 +176,10 @@ test("Mutex serializes interleaved async sections", async () => {
 });
 
 test("NamedLocks serialize one resource and allow independent ones", async () => {
-    const locks = new NamedLocks();
+    const locks: NamedLocks = new NamedLocks();
     let activeSame: number = 0;
     let maxSame: number = 0;
-    const same = async (): Promise<void> => {
+    const same: () => Promise<void> = async (): Promise<void> => {
         activeSame += 1;
         maxSame = Math.max(maxSame, activeSame);
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -162,7 +190,7 @@ test("NamedLocks serialize one resource and allow independent ones", async () =>
 
     let activeDifferent: number = 0;
     let maxDifferent: number = 0;
-    const different = async (): Promise<void> => {
+    const different: () => Promise<void> = async (): Promise<void> => {
         activeDifferent += 1;
         maxDifferent = Math.max(maxDifferent, activeDifferent);
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -175,10 +203,12 @@ test("NamedLocks serialize one resource and allow independent ones", async () =>
 
 test("withBusyRetry backs off and eventually succeeds", async () => {
     let attempts: number = 0;
-    const value = await withBusyRetry(
+    const value: string = await withBusyRetry(
         () => {
             attempts += 1;
-            if (attempts < 3) throw new Error("database is locked");
+            if (attempts < 3) {
+                throw new Error("database is locked");
+            }
             return "ok";
         },
         { attempts: 5, baseMs: 1, sleep: async () => {} },
@@ -188,13 +218,13 @@ test("withBusyRetry backs off and eventually succeeds", async () => {
 });
 
 test("idempotency executes an effect once and replays the result", () => {
-    const db = openStore(":memory:");
+    const db: DatabaseSync = openStore(":memory:");
     let calls: number = 0;
-    const first = once(db, "send:m.1", At, () => {
+    const first: OnceResult<DeliveredEffect> = once(db, "send:m.1", At, () => {
         calls += 1;
         return { delivered: true };
     });
-    const second = once(db, "send:m.1", At, () => {
+    const second: OnceResult<DeliveredEffect> = once(db, "send:m.1", At, () => {
         calls += 1;
         return { delivered: true };
     });
@@ -205,6 +235,8 @@ test("idempotency executes an effect once and replays the result", () => {
     db.close();
 });
 
-await Promise.all(pending);
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+await Promise.all(Pending);
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
+    process.exitCode = 1;
+}

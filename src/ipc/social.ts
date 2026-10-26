@@ -16,9 +16,13 @@ export interface Relationship {
     fromPid: Pid;
     toPid: Pid;
     kind: string;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     trust: number;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     attachment: number;
     obligations: string[];
     since: Timestamp;
@@ -76,5 +80,14 @@ export interface SocialStore extends SocialReader {
 }
 
 export type SocialEvent =
-    | { type: "social.relationship.updated"; relationshipId: Id; at: Timestamp }
-    | { type: "social.membership.changed"; pid: Pid; institutionId: Id; at: Timestamp };
+    | {
+          type: "social.relationship.updated";
+          relationshipId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "social.membership.changed";
+          pid: Pid;
+          institutionId: Id;
+          at: Timestamp;
+      };

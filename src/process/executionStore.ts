@@ -45,7 +45,10 @@ export interface ExecutionStore {
 
     wake(at: string): number;
     notify(condition: string): number;
-    recover(workerId?: string): { threads: number; processes: number };
+    recover(workerId?: string): {
+        threads: number;
+        processes: number;
+    };
     closeWorker(workerId: string): void;
     runningTaskCount(pid: number): number;
     readyTaskCount(pid: number): number;
@@ -123,7 +126,10 @@ export class ProcessExecutionStore implements ExecutionStore {
         return this.repository.notify(condition);
     }
 
-    recover(workerId?: string): { threads: number; processes: number } {
+    recover(workerId?: string): {
+        threads: number;
+        processes: number;
+    } {
         return this.repository.recover(workerId);
     }
 

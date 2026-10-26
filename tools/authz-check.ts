@@ -133,4 +133,6 @@ test("capabilities are listed and audited", () => {
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

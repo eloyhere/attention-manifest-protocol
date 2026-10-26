@@ -6,20 +6,26 @@
  */
 import { Database } from "../database/service/database.ts";
 
-let current: Database | undefined;
+let Current: Database | undefined;
 
-export const configureStore = (path: string): Database => {
-    if (current !== undefined) current.close();
-    current = new Database(path);
-    return current;
+export const configureStore: (path: string) => Database = (path: string): Database => {
+    if (Current !== (void 0)) {
+        Current.close();
+    }
+    Current = new Database(path);
+    return Current;
 };
 
-export const database = (): Database => {
-    if (current === undefined) throw new Error("configureStore(path) must be called before using a store");
-    return current;
+export const database: () => Database = (): Database => {
+    if (Current === (void 0)) {
+        throw new Error("configureStore(path) must be called before using a store");
+    }
+    return Current;
 };
 
-export const shutdownStore = (): void => {
-    if (current !== undefined) current.close();
-    current = undefined;
+export const shutdownStore: () => void = (): void => {
+    if (Current !== (void 0)) {
+        Current.close();
+    }
+    Current = undefined;
 };

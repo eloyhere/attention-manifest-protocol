@@ -11,14 +11,14 @@ export class RuntimeSessionRepository extends BaseRepository<RuntimeSessionRow, 
     }
 
     load(pid: number): SessionSnapshot | undefined {
-        const row = this.findById(pid);
-        return row === undefined ? undefined : (JSON.parse(row.data) as SessionSnapshot);
+        const row: RuntimeSessionRow | undefined = this.findById(pid);
+        return row === (void 0) ? undefined : (JSON.parse(row.data) as SessionSnapshot);
     }
 
     save(pid: number, snapshot: SessionSnapshot, at: string): void {
-        const data = JSON.stringify(snapshot);
-        const existing = this.findById(pid);
-        if (existing === undefined) {
+        const data: string = JSON.stringify(snapshot);
+        const existing: RuntimeSessionRow | undefined = this.findById(pid);
+        if (existing === (void 0)) {
             this.queries.insert({ pid, data, updated_at: at });
         } else {
             this.queries.update(pid, { data, updated_at: at });

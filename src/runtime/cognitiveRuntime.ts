@@ -23,14 +23,15 @@ import type { AttentionPlan } from "../attention/resource.ts";
 import { planAttention, processAttention } from "../attention/resource.ts";
 import type { AnswerScore, UserScore } from "../bayes/engine.ts";
 import { BayesianEngine } from "../bayes/engine.ts";
-import type { LlmClient, LlmMessage, LlmResponse, LlmToolDefinition, LlmUsage } from "../module/llm/llm.ts";
-import type { ToolExecutor, ToolRegistry, ToolResult, ToolRisk } from "../module/tool/tool.ts";
-import type { ToolPolicy } from "../module/tool/policy.ts";
+import type { LlmClient, LlmMessage, LlmRequest, LlmResponse, LlmToolCall, LlmToolDefinition, LlmUsage } from "../module/llm/llm.ts";
+import type { ToolDescriptor, ToolExecutor, ToolRegistry, ToolResult, ToolRisk } from "../module/tool/tool.ts";
+import type { ToolDecision, ToolPolicy } from "../module/tool/policy.ts";
 import { redactSecrets } from "../module/tool/redact.ts";
+import type { Redaction } from "../module/tool/redact.ts";
 import { checkSafety, safetyFallback } from "./safety.ts";
 import type { SafetyDecision } from "./safety.ts";
 import { inferInteractionMix, inferScenarioMix } from "./routing.ts";
-import type { RuntimeSession } from "./session.ts";
+import type { RuntimeSession, SessionSnapshot } from "./session.ts";
 import { RuntimeSession as RuntimeSessionClass } from "./session.ts";
 import type { SessionStore } from "./sessionStore.ts";
 import type { TelemetrySample, TelemetrySource } from "./telemetry.ts";
@@ -39,9 +40,10 @@ import { CrisisResources } from "./escalation.ts";
 import type { BehaviorPlan } from "./behavior.ts";
 import { BehaviorRegistry } from "./behavior.ts";
 import { BehaviorTuningController } from "./behaviorTuning.ts";
+import type { AutoTuneResult } from "./behaviorTuning.ts";
 import { buildDiagnosisFrame, toActionPlan, toContextAst } from "../diagnosis/index.ts";
-import type { DiagnosticFrame } from "../diagnosis/index.ts";
-import type { ActionPlanner, ActionRecord } from "./action.ts";
+import type { DiagnosisContext, DiagnosticFrame } from "../diagnosis/index.ts";
+import type { ActionPlan, ActionPlanner, ActionRecord } from "./action.ts";
 import { SingleActionPlanner } from "./action.ts";
 import type { ApprovalRecord, OperationRecord, SideEffect } from "./operation.ts";
 import type { TurnStore } from "./turnStore.ts";
@@ -85,6 +87,11 @@ interface ToolExecution {
     risk?: ToolRisk;
     decision?: string;
 }
+
+type ToolCallPayload = {
+    name: string;
+    arguments: string;
+};
 
 export interface RuntimeTurn {
     turnId: string;
@@ -179,7 +186,7 @@ export interface TurnOverride {
     scope?: string;
 }
 
-const mergeUsage = (left: LlmUsage, right: LlmUsage): LlmUsage => ({
+const mergeUsage: (left: LlmUsage, right: LlmUsage) => LlmUsage = (left: LlmUsage, right: LlmUsage): LlmUsage => ({
     inputTokens: left.inputTokens + right.inputTokens,
     outputTokens: left.outputTokens + right.outputTokens,
     cacheHitTokens: (left.cacheHitTokens ?? 0) + (right.cacheHitTokens ?? 0),
@@ -187,9 +194,9 @@ const mergeUsage = (left: LlmUsage, right: LlmUsage): LlmUsage => ({
     costUsd: (left.costUsd ?? 0) + (right.costUsd ?? 0),
 });
 
-const STABLE_SYSTEM_PREFIX = "You are an AI agent modeled as a person. Do not claim human feelings, a diagnosis, or a therapeutic relationship.";
+const StableSystemPrefix: string = "You are an AI agent modeled as a person. Do not claim human feelings, a diagnosis, or a therapeutic relationship.";
 
-const defaultCognitiveState = (): CognitiveState => ({
+const defaultCognitiveState: () => CognitiveState = (): CognitiveState => ({
     load: 0.3,
     vigilance: 0.8,
     arousal: 0.2,
@@ -202,24 +209,27 @@ const defaultCognitiveState = (): CognitiveState => ({
     samples: 0,
 });
 
-const systemPrompt = (
-    context: AgentContext | undefined,
-    scenario: ScenarioPlan,
-    interaction: InteractionPlan,
-    attention: AttentionPlan,
-    behavior: BehaviorPlan,
-    useContext: boolean,
-    diagnosisText?: string,
-    contextAstText?: string,
-): string => {
-    const contextText =
+type SystemPromptInput = {
+    context: AgentContext | undefined;
+    scenario: ScenarioPlan;
+    interaction: InteractionPlan;
+    attention: AttentionPlan;
+    behavior: BehaviorPlan;
+    useContext: boolean;
+    diagnosisText: string | undefined;
+    contextAstText: string | undefined;
+};
+
+const systemPrompt: (input: SystemPromptInput) => string = (input: SystemPromptInput): string => {
+    const { context, scenario, interaction, attention, behavior, useContext, diagnosisText, contextAstText }: SystemPromptInput = input;
+    const contextText: string =
         contextAstText !== (void 0) && contextAstText.length > 0
             ? `Relevant self-context (AST):\n${contextAstText}`
             : useContext && context !== (void 0) && context.segments.length > 0
               ? `Relevant self-context:\n${context.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n")}`
               : "";
     return [
-        STABLE_SYSTEM_PREFIX,
+        StableSystemPrefix,
         `Scenario: ${scenario.rationale}`,
         `Interaction: ${interaction.rationale}`,
         `Attention: ${attention.process.effectiveSlots} slots; foreground ${attention.foreground?.slots ?? 0}; reserve ${attention.process.reserveSlots}; rest=${attention.rest}.`,
@@ -250,7 +260,7 @@ export class CognitiveRuntime {
         this.options = options;
         this.sessionStore = options.sessionStore;
         this.turnStore = options.turnStore;
-        const stored = options.sessionStore?.load(options.pid);
+        const stored: SessionSnapshot | undefined = options.sessionStore?.load(options.pid);
         this.session =
             options.session ??
             (stored === (void 0)
@@ -268,43 +278,43 @@ export class CognitiveRuntime {
     }
 
     async respond(input: string, override: TurnOverride = {}): Promise<RuntimeTurn> {
-        const at = this.now();
-        const startedAt = Date.now();
-        const telemetry = this.options.telemetry?.sample();
-        const turnId = this.session?.nextTurnId() ?? `rt.${++this.turnCounter}`;
+        const at: string = this.now();
+        const startedAt: number = Date.now();
+        const telemetry: TelemetrySample | undefined = this.options.telemetry?.sample();
+        const turnId: string = this.session?.nextTurnId() ?? `rt.${++this.turnCounter}`;
         const trace: string[] = [];
-        const sessionScope = this.session?.scope;
-        const userEngine = sessionScope === (void 0) ? this.bayes : (this.session?.engineFor(sessionScope) ?? this.bayes);
-        const user = userEngine.scoreUser(input);
-        const scenario = resolveScenario(override.scenarioMix ?? this.options.scenarioMix ?? inferScenarioMix(input));
-        const scope = override.scope ?? (this.session === (void 0) ? undefined : `${this.session.scope}:${scenario.active[0] ?? "mixed"}`);
-        const engine = scope === (void 0) || this.session === (void 0) ? this.bayes : this.session.engineFor(scope);
+        const sessionScope: string | undefined = this.session?.scope;
+        const userEngine: BayesianEngine = sessionScope === (void 0) ? this.bayes : (this.session?.engineFor(sessionScope) ?? this.bayes);
+        const user: UserScore = userEngine.scoreUser(input);
+        const scenario: ScenarioPlan = resolveScenario(override.scenarioMix ?? this.options.scenarioMix ?? inferScenarioMix(input));
+        const scope: string | undefined = override.scope ?? (this.session === (void 0) ? undefined : `${this.session.scope}:${scenario.active[0] ?? "mixed"}`);
+        const engine: BayesianEngine = scope === (void 0) || this.session === (void 0) ? this.bayes : this.session.engineFor(scope);
         if (scope !== (void 0)) {
             trace.push(`scope=${scope}`);
         }
-        const interaction = resolveInteraction(override.interactionMix ?? this.options.interactionMix ?? inferInteractionMix(user));
-        const state = override.attentionState ?? this.session?.state ?? this.baseState;
-        const attention = planAttention(processAttention(this.options.pid, state), [
+        const interaction: InteractionPlan = resolveInteraction(override.interactionMix ?? this.options.interactionMix ?? inferInteractionMix(user));
+        const state: CognitiveState = override.attentionState ?? this.session?.state ?? this.baseState;
+        const attention: AttentionPlan = planAttention(processAttention(this.options.pid, state), [
             { tid: 1, pid: this.options.pid, priority: 1, preferredSlots: 2, foreground: true, role: interaction.primary },
         ]);
         trace.push(`user quality=${user.quality.toFixed(2)} emotion=${user.state.emotionalIntensity.toFixed(2)} urgency=${user.state.urgency.toFixed(2)}`);
         trace.push(`scenario=${scenario.rationale}`);
         trace.push(`interaction=${interaction.rationale}`);
         trace.push(`attention utilization=${attention.utilization.toFixed(2)} pressure=${attention.pressure.toFixed(2)} rest=${attention.rest}`);
-        const behavior = this.behaviors.select({ turnId, text: input, user, scenario, interaction, attention });
+        const behavior: BehaviorPlan = this.behaviors.select({ turnId, text: input, user, scenario, interaction, attention });
         if (behavior.activations.length > 0) {
             trace.push(`behaviors=${behavior.activations.map((activation) => `${activation.behaviorId}@${activation.confidence.toFixed(2)}`).join(",")}`);
         }
-        const diagnosis =
+        const diagnosis: DiagnosticFrame | undefined =
             this.options.diagnosis === true && scenario.active.includes("engineering")
                 ? buildDiagnosisFrame({ id: turnId, summary: input, symptoms: [] })
                 : undefined;
-        const diagnosisContext = diagnosis === (void 0) ? undefined : toContextAst(diagnosis, 800);
+        const diagnosisContext: DiagnosisContext | undefined = diagnosis === (void 0) ? undefined : toContextAst(diagnosis, 800);
         if (diagnosis !== (void 0)) {
             trace.push(`diagnosis=${diagnosis.id} scope=${diagnosisContext?.top?.hypothesis.layer ?? "open"}`);
         }
-        const diagnosisAction = diagnosis === (void 0) ? undefined : toActionPlan(diagnosis);
-        const planned =
+        const diagnosisAction: ActionPlan | undefined = diagnosis === (void 0) ? undefined : toActionPlan(diagnosis);
+        const planned: ActionPlan[] =
             diagnosisAction === (void 0) ? await this.actionPlanner.plan({ turnId, text: input, behavior, scenario, interaction }) : [diagnosisAction];
         const actions: ActionRecord[] = planned.slice(0, behavior.maxActionsPerTurn).map((action, index) => ({
             id: `act.${turnId}.${index + 1}`,
@@ -321,26 +331,27 @@ export class CognitiveRuntime {
         if (actions.length > 0) {
             trace.push(`actions=${actions.map((action) => action.intent).join(",")}`);
         }
-        const actionId = actions[0]?.id;
+        const actionId: string = actions[0]?.id;
         const operations: OperationRecord[] = [];
         const approvals: ApprovalRecord[] = [];
-        const restSuggested = this.session?.shouldRest() ?? attention.rest;
+        const restSuggested: boolean = this.session?.shouldRest() ?? attention.rest;
         if (restSuggested) {
             trace.push("rest suggested by attention/session policy");
         }
 
-        const preSafety = checkSafety(input, interaction);
+        const preSafety: SafetyDecision = checkSafety(input, interaction);
         if (preSafety.action === "escalate") {
-            const answer = safetyFallback("escalate");
-            const receipt = this.receipt(at, { inputTokens: 0, outputTokens: 0 }, "blocked", "pre-safety escalation");
-            const escalationId = this.options.escalationSink?.escalate({
+            const answer: string = safetyFallback("escalate");
+            const receipt: RuntimeReceipt = this.receipt(at, { inputTokens: 0, outputTokens: 0 }, "blocked", "pre-safety escalation");
+            const escalationId: string | undefined = this.options.escalationSink?.escalate({
                 turnId,
                 at,
                 reason: preSafety.reasons.join("; "),
                 resources: [...CrisisResources],
             });
             trace.push(`safety=escalate; no LLM call${escalationId === (void 0) ? "" : `; escalation=${escalationId}`}`);
-            for (const action of actions) {
+            for (let i: number = 0; i < actions.length; i += 1) {
+                const action: ActionRecord = actions[i];
                 action.status = "abandoned";
             }
             const turn: RuntimeTurn = {
@@ -370,12 +381,13 @@ export class CognitiveRuntime {
             this.turnStore?.save(turn);
             return turn;
         }
-        for (const action of actions) {
+        for (let i: number = 0; i < actions.length; i += 1) {
+            const action: ActionRecord = actions[i];
             action.status = "running";
         }
 
-        const useContext = override.useContext ?? this.options.useContext ?? true;
-        const context = assembleAgentContext(
+        const useContext: boolean = override.useContext ?? this.options.useContext ?? true;
+        const context: AgentContext = assembleAgentContext(
             this.options.agent,
             this.options.social,
             this.options.pid,
@@ -383,8 +395,10 @@ export class CognitiveRuntime {
             { scenario, interaction },
         );
         trace.push(`context tokens=${context.tokens} mode=${scenario.mode}`);
-        const contextAstView = this.options.contextAst === true && useContext ? agentContextToAst(context).ast.view(800) : undefined;
-        if (contextAstView !== undefined) trace.push(`context ast tokens=${contextAstView.tokens} nodes=${contextAstView.nodes.length}`);
+        const contextAstView: DiagnosisContext["view"] | undefined = this.options.contextAst === true && useContext ? agentContextToAst(context).ast.view(800) : undefined;
+        if (contextAstView !== (void 0)) {
+            trace.push(`context ast tokens=${contextAstView.tokens} nodes=${contextAstView.nodes.length}`);
+        }
         const tools: LlmToolDefinition[] | undefined = this.options.tools?.list().map((tool) => ({
             name: tool.name,
             description: tool.description,
@@ -393,29 +407,40 @@ export class CognitiveRuntime {
         const messages: LlmMessage[] = [
             {
                 role: "system",
-                content: systemPrompt(context, scenario, interaction, attention, behavior, useContext, diagnosisContext?.view.text, contextAstView?.text),
+                content: systemPrompt({
+                    context,
+                    scenario,
+                    interaction,
+                    attention,
+                    behavior,
+                    useContext,
+                    diagnosisText: diagnosisContext?.view.text,
+                    contextAstText: contextAstView?.text,
+                }),
             },
             { role: "user", content: input },
         ];
-        const baseRequest = {
+        const baseRequest: LlmRequest = {
             model: this.options.model ?? "deepseek-flash",
             messages,
             maxTokens: this.options.maxOutputTokens ?? 512,
             temperature: 0,
             ...(tools === (void 0) ? {} : { tools }),
         };
-        let response = await this.options.llm.complete(baseRequest);
+        let response: LlmResponse = await this.options.llm.complete(baseRequest);
         let usage: LlmUsage = { ...response.usage };
         const toolCalls: RuntimeToolCall[] = [];
-        const maxToolRounds = Math.max(0, this.options.maxToolRounds ?? 4);
-        let toolRounds = 0;
+        const maxToolRounds: number = Math.max(0, this.options.maxToolRounds ?? 4);
+        let toolRounds: number = 0;
         while ((response.toolCalls?.length ?? 0) > 0 && toolRounds < maxToolRounds) {
             toolRounds += 1;
             messages.push({ role: "assistant", content: response.text, toolCalls: response.toolCalls });
-            for (const call of response.toolCalls ?? []) {
-                const execution = await this.runTool(call);
-                const content = redactSecrets(execution.result.content);
-                const error = execution.result.error === (void 0) ? undefined : redactSecrets(execution.result.error);
+            const toolCallList: LlmToolCall[] = response.toolCalls ?? [];
+            for (let i: number = 0; i < toolCallList.length; i += 1) {
+                const call: LlmToolCall = toolCallList[i];
+                const execution: ToolExecution = await this.runTool(call);
+                const content: Redaction = redactSecrets(execution.result.content);
+                const error: Redaction | undefined = execution.result.error === (void 0) ? undefined : redactSecrets(execution.result.error);
                 const safeResult: ToolResult = {
                     ok: execution.result.ok,
                     content: content.text,
@@ -433,7 +458,7 @@ export class CognitiveRuntime {
                     result: { content: safeResult.content.slice(0, 4000), ...(safeResult.error === (void 0) ? {} : { error: safeResult.error }) },
                 };
                 operations.push(operation);
-                const risk = (execution.risk ?? "read") as SideEffect;
+                const risk: SideEffect = (execution.risk ?? "read") as SideEffect;
                 if (risk === "destructive" || (execution.decision !== (void 0) && execution.decision !== "allowed")) {
                     approvals.push({
                         operationId: operation.id,
@@ -473,13 +498,13 @@ export class CognitiveRuntime {
             trace.push(`tools=${toolCalls.map((call) => `${call.name}:${call.ok ? "ok" : "error"}`).join(",")}`);
         }
 
-        let text = response.text;
-        let finishReason = response.finishReason;
-        let continuations = 0;
-        const maxContinuations = Math.max(0, this.options.maxContinuations ?? 1);
-        let continuationMessages = messages;
+        let text: string = response.text;
+        let finishReason: LlmResponse["finishReason"] = response.finishReason;
+        let continuations: number = 0;
+        const maxContinuations: number = Math.max(0, this.options.maxContinuations ?? 1);
+        let continuationMessages: LlmMessage[] = messages;
         while (finishReason === "length" && continuations < maxContinuations) {
-            const next = await this.options.llm.complete({
+            const next: LlmResponse = await this.options.llm.complete({
                 ...baseRequest,
                 messages: [
                     ...continuationMessages,
@@ -519,18 +544,19 @@ export class CognitiveRuntime {
             actions[0]?.operationIds.push(llmOperation.id);
         }
         trace.push(`operations=${operations.map((operation) => `${operation.kind}:${operation.status}`).join(",")}`);
-        const postSafety = checkSafety(input, interaction, text);
-        const answer = postSafety.action === "allow" ? text : safetyFallback(postSafety.action);
-        const answerScore = engine.scoreAnswer(answer, {
+        const postSafety: SafetyDecision = checkSafety(input, interaction, text);
+        const answer: string = postSafety.action === "allow" ? text : safetyFallback(postSafety.action);
+        const answerScore: AnswerScore = engine.scoreAnswer(answer, {
             ...(override.correct === (void 0) ? {} : { correct: override.correct }),
             ...(override.safe === (void 0) ? {} : { safe: override.safe }),
             ...(override.helpful === (void 0) ? {} : { helpful: override.helpful }),
             targetTokens: (this.options.maxOutputTokens ?? 512) * (1 + continuations),
         });
         trace.push(`answer overall=${answerScore.overall.toFixed(2)} correctness=${answerScore.dimensions.correctness.mean.toFixed(2)}`);
-        const latencyMs = Date.now() - startedAt;
-        const toolErrors = toolCalls.filter((call) => !call.ok).length;
-        for (const action of actions) {
+        const latencyMs: number = Date.now() - startedAt;
+        const toolErrors: number = toolCalls.filter((call) => !call.ok).length;
+        for (let i: number = 0; i < actions.length; i += 1) {
+            const action: ActionRecord = actions[i];
             action.status = "done";
         }
         if (this.session !== (void 0)) {
@@ -553,7 +579,7 @@ export class CognitiveRuntime {
             });
             this.sessionStore?.save(this.options.pid, this.session.serialize(), at);
             if (this.options.autoTuneBehavior === true) {
-                const tuned = this.behaviorTuning.autoApply(this.session.behaviorConflicts, { enabled: true });
+                const tuned: AutoTuneResult = this.behaviorTuning.autoApply(this.session.behaviorConflicts, { enabled: true });
                 if (tuned.applied > 0) {
                     trace.push(`behavior tuning v${tuned.version}: ${tuned.applied} priorities`);
                 }
@@ -561,7 +587,7 @@ export class CognitiveRuntime {
             trace.push(`session turns=${this.session.history.length} recoveryDebt=${this.session.state.recoveryDebt.toFixed(2)}`);
         }
         const outcome: RuntimeReceipt["outcome"] = postSafety.action === "allow" ? "success" : "blocked";
-        const note =
+        const note: string =
             postSafety.action !== "allow"
                 ? `post-safety ${postSafety.action}`
                 : finishReason === "length"
@@ -569,7 +595,7 @@ export class CognitiveRuntime {
                   : continuations > 0
                     ? `runtime turn (continued ${continuations}x)`
                     : "runtime turn";
-        const receipt = this.receipt(at, usage, outcome, note);
+        const receipt: RuntimeReceipt = this.receipt(at, usage, outcome, note);
         const turn: RuntimeTurn = {
             turnId,
             sessionId: this.session?.id,
@@ -618,7 +644,7 @@ export class CognitiveRuntime {
         return this.sessionStore?.delete(this.options.pid) ?? false;
     }
 
-    private async runTool(call: { name: string; arguments: string }): Promise<ToolExecution> {
+    private async runTool(call: ToolCallPayload): Promise<ToolExecution> {
         if (this.options.toolExecutor === (void 0)) {
             return { result: { ok: false, content: "", error: "no tool executor configured" } };
         }
@@ -628,19 +654,19 @@ export class CognitiveRuntime {
         } catch (error) {
             return { result: { ok: false, content: "", error: `invalid tool arguments: ${error instanceof Error ? error.message : `${error}`}` } };
         }
-        const descriptor = this.options.tools?.get(call.name);
+        const descriptor: ToolDescriptor | undefined = this.options.tools?.get(call.name);
         if (descriptor === (void 0)) {
             return { result: { ok: false, content: "", error: `unknown tool ${call.name}` } };
         }
-        let decision = "allowed";
+        let decision: string = "allowed";
         if (this.options.toolPolicy !== (void 0)) {
-            const verdict = await this.options.toolPolicy.check({ tool: call.name, args }, descriptor);
+            const verdict: ToolDecision = await this.options.toolPolicy.check({ tool: call.name, args }, descriptor);
             decision = verdict.allowed ? "allowed" : (verdict.reason ?? `tool ${call.name} denied`);
             if (!verdict.allowed) {
                 return { result: { ok: false, content: "", error: decision }, risk: descriptor.risk, decision };
             }
         }
-        const result = await this.options.toolExecutor.execute({ tool: call.name, args });
+        const result: ToolResult = await this.options.toolExecutor.execute({ tool: call.name, args });
         return { result, risk: descriptor.risk, decision };
     }
 

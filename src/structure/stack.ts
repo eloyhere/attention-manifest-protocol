@@ -37,10 +37,12 @@ export class Stack<T> implements Iterable<T> {
      * @param values - Values to push, in order.
      */
     constructor(values?: Iterable<T>) {
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
-        for (const value of values) {
+        const initialValues: T[] = [...values];
+        for (let index: number = 0; index < initialValues.length; index += 1) {
+            const value: T = initialValues[index];
             this.items.push(value);
         }
     }

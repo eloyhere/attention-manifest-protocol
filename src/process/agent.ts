@@ -27,7 +27,9 @@ export type AgentErrorCode =
     | "relationship_not_found"
     | "institution_not_found";
 
-/** Summary of the current person; the narrative version is stored separately. */
+/**
+ * Summary of the current person; the narrative version is stored separately.
+ */
 export interface AgentProfile {
     pid: Pid;
     name: string;
@@ -38,14 +40,18 @@ export interface AgentProfile {
     updatedAt: Timestamp;
 }
 
-/** Append-only self narrative. `version` starts at 1 and only increases. */
+/**
+ * Append-only self narrative. `version` starts at 1 and only increases.
+ */
 export interface SelfNarrative {
     pid: Pid;
     version: number;
     identity: Record<string, unknown>;
     narrative: string;
     at: Timestamp;
-    /** Object-store sequence when the narrative is hash-chained. */
+    /**
+     * Object-store sequence when the narrative is hash-chained.
+     */
     objectSeq?: number;
 }
 
@@ -53,7 +59,9 @@ export interface Obligation {
     id: Id;
     statement: string;
     audience?: string;
-    /** Obligation ids in other roles that cannot be satisfied together with this one. */
+    /**
+     * Obligation ids in other roles that cannot be satisfied together with this one.
+     */
     conflictsWith?: Id[];
     weight?: Confidence;
 }
@@ -82,10 +90,14 @@ export interface Memory {
     roleId?: Id;
     kind: MemoryKind;
     content: string;
-    /** Retrieval salience in [0, 1]; mutable metadata, not truth. */
+    /**
+     * Retrieval salience in [0, 1]; mutable metadata, not truth.
+     */
     salience: number;
     at: Timestamp;
-    /** Pointers into warrant/objects; a memory is not itself evidence. */
+    /**
+     * Pointers into warrant/objects; a memory is not itself evidence.
+     */
     refs: Ref[];
     source?: string;
     consolidated: boolean;
@@ -93,13 +105,21 @@ export interface Memory {
 
 export interface AffectState {
     pid: Pid;
-    /** [-1, 1] */
+    /**
+     * [-1, 1]
+     */
     valence: number;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     arousal: number;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     stress: number;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     fatigue: number;
     mood: string;
     updatedAt: Timestamp;
@@ -110,7 +130,9 @@ export interface BackgroundProcess {
     pid: Pid;
     kind: BackgroundKind;
     label: string;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     intensity: number;
     trigger?: string;
     script?: string;
@@ -125,7 +147,9 @@ export interface LifeEvent {
     summary: string;
     at: Timestamp;
     roleId?: Id;
-    /** [0, 1] */
+    /**
+     * [0, 1]
+     */
     impact: number;
     narrativeVersion?: number;
 }
@@ -245,15 +269,73 @@ export interface AgentStore extends AgentReader {
 }
 
 export type AgentEvent =
-    | { type: "agent.created"; pid: Pid; at: Timestamp }
-    | { type: "agent.narrative.revised"; pid: Pid; version: number; at: Timestamp }
-    | { type: "agent.role.added"; pid: Pid; roleId: Id; at: Timestamp }
-    | { type: "agent.role.assigned"; pid: Pid; roleId: Id; at: Timestamp }
-    | { type: "agent.role.activated"; pid: Pid; roleId: Id; at: Timestamp }
-    | { type: "agent.role.retired"; pid: Pid; roleId: Id; at: Timestamp }
-    | { type: "agent.memory.recorded"; pid: Pid; memoryId: Id; at: Timestamp }
-    | { type: "agent.memory.consolidated"; pid: Pid; memoryIds: Id[]; at: Timestamp }
-    | { type: "agent.memory.forgotten"; pid: Pid; memoryId: Id; at: Timestamp }
-    | { type: "agent.affect.changed"; pid: Pid; at: Timestamp }
-    | { type: "agent.background.changed"; pid: Pid; backgroundId: Id; at: Timestamp }
-    | { type: "agent.life_event.recorded"; pid: Pid; lifeEventId: Id; at: Timestamp };
+    | {
+          type: "agent.created";
+          pid: Pid;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.narrative.revised";
+          pid: Pid;
+          version: number;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.role.added";
+          pid: Pid;
+          roleId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.role.assigned";
+          pid: Pid;
+          roleId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.role.activated";
+          pid: Pid;
+          roleId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.role.retired";
+          pid: Pid;
+          roleId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.memory.recorded";
+          pid: Pid;
+          memoryId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.memory.consolidated";
+          pid: Pid;
+          memoryIds: Id[];
+          at: Timestamp;
+      }
+    | {
+          type: "agent.memory.forgotten";
+          pid: Pid;
+          memoryId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.affect.changed";
+          pid: Pid;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.background.changed";
+          pid: Pid;
+          backgroundId: Id;
+          at: Timestamp;
+      }
+    | {
+          type: "agent.life_event.recorded";
+          pid: Pid;
+          lifeEventId: Id;
+          at: Timestamp;
+      };

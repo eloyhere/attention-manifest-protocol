@@ -43,9 +43,13 @@ export type StepEventSink = (db: DatabaseSync, event: StepEvent, at: string) => 
 export interface StepBase {
     usage?: Budget;
     note?: string;
-    /** Objects to append in the same transaction as the receipt (claims, frames). */
+    /**
+     * Objects to append in the same transaction as the receipt (claims, frames).
+     */
     objects?: StepObject[];
-    /** Side effects written by the event sink inside the same transaction. */
+    /**
+     * Side effects written by the event sink inside the same transaction.
+     */
     events?: StepEvent[];
 }
 
@@ -58,16 +62,26 @@ export type StepOutcome =
 
 export interface StepContext {
     db: DatabaseSync;
-    /** The agent (process) executing this task. */
+    /**
+     * The agent (process) executing this task.
+     */
     agent: ProcessRecord;
-    /** The task/goal (thread) being executed. */
+    /**
+     * The task/goal (thread) being executed.
+     */
     task: ThreadRecord;
     now: string;
-    /** Per-task context window; contents persist in `window_pages`. */
+    /**
+     * Per-task context window; contents persist in `window_pages`.
+     */
     window: ContextWindow;
-    /** Agent context assembled before this step, when an agent reader is wired. */
+    /**
+     * Agent context assembled before this step, when an agent reader is wired.
+     */
     agentContext?: AgentContext;
-    /** Process/thread attention plan for this step, when an attention policy is wired. */
+    /**
+     * Process/thread attention plan for this step, when an attention policy is wired.
+     */
     attention?: AttentionPlan;
 }
 
@@ -86,14 +100,22 @@ export interface StepReport {
 }
 
 export interface KernelOptions {
-    /** Injected clock so replays are deterministic. */
+    /**
+     * Injected clock so replays are deterministic.
+     */
     now?: () => string;
     quantumMs?: number;
-    /** Stable id for this worker; two kernels sharing a store must differ. */
+    /**
+     * Stable id for this worker; two kernels sharing a store must differ.
+     */
     workerId?: string;
-    /** Lease duration before another worker may recover this one's threads. */
+    /**
+     * Lease duration before another worker may recover this one's threads.
+     */
     leaseMs?: number;
-    /** Token capacity of each task's context window. Defaults to 4000. */
+    /**
+     * Token capacity of each task's context window. Defaults to 4000.
+     */
     windowTokens?: number;
     /**
      * Optional transactional event sink. Called from inside the commit
@@ -110,7 +132,9 @@ export interface KernelOptions {
      * wires an AgentService/AgentReader and returns the assembled context.
      */
     agentContext?: (pid: number) => AgentContext | undefined;
-    /** Process/thread attention plan provider; no storage dependency. */
+    /**
+     * Process/thread attention plan provider; no storage dependency.
+     */
     attention?: (pid: number, task: ThreadRecord) => AttentionPlan | undefined;
 }
 
@@ -149,7 +173,9 @@ export class Kernel {
         return this.nowFn();
     }
 
-    /** Recover expired workers plus this worker's own leftovers. */
+    /**
+     * Recover expired workers plus this worker's own leftovers.
+     */
     recover(): { threads: number; processes: number } {
         const at: string = this.now();
         const expired = recoverExpiredWorkers(this.db, at);
@@ -157,7 +183,9 @@ export class Kernel {
         return { threads: expired.threads + own.threads, processes: expired.processes + own.processes };
     }
 
-    /** Release this worker's claims and remove its registry row. */
+    /**
+     * Release this worker's claims and remove its registry row.
+     */
     close(): void {
         this.execution.closeWorker(this.workerId);
         unregisterWorker(this.db, this.workerId);
@@ -171,7 +199,9 @@ export class Kernel {
      */
     step(handler: StepHandler): StepReport | undefined {
         const prepared = this.prepare();
-        if (prepared === undefined) return undefined;
+        if (prepared === (void 0)) {
+            return undefined;
+        }
         let outcome: StepOutcome;
         try {
             outcome = handler(prepared.context);
@@ -190,7 +220,9 @@ export class Kernel {
      */
     async stepAsync(handler: AsyncStepHandler, taskId?: number): Promise<StepReport | undefined> {
         const prepared = this.prepare(taskId);
-        if (prepared === undefined) return undefined;
+        if (prepared === (void 0)) {
+            return undefined;
+        }
         const heartbeat = setInterval(
             () => {
                 const at = this.now();
@@ -211,24 +243,32 @@ export class Kernel {
         return transaction(this.db, () => this.commit(prepared.pid, prepared.tid, prepared.claim, outcome, prepared.at, prepared.context.window));
     }
 
-    /** Claim and build the step context, or return `undefined` when idle. */
+    /**
+     * Claim and build the step context, or return `undefined` when idle.
+     */
     private prepare(taskId?: number): { pid: number; tid: number; claim: ThreadClaim; context: StepContext; at: string } | undefined {
         const at: string = this.now();
         this.tick += 1;
         if (!heartbeatWorker(this.db, this.workerId, at, this.leaseMs)) {
             registerWorker(this.db, { workerId: this.workerId, pid: process.pid, leaseMs: this.leaseMs }, at);
         }
-        if (this.tick % 32 === 0) recoverExpiredWorkers(this.db, at);
+        if (this.tick % 32 === 0) {
+            recoverExpiredWorkers(this.db, at);
+        }
         this.execution.wake(at);
 
-        const candidate: ThreadRecord | undefined = taskId === undefined ? this.execution.nextReadyTask() : this.execution.getTask(taskId);
-        if (candidate === undefined || (taskId !== undefined && candidate.state !== "ready")) return undefined;
+        const candidate: ThreadRecord | undefined = taskId === (void 0) ? this.execution.nextReadyTask() : this.execution.getTask(taskId);
+        if (candidate === (void 0) || (taskId !== (void 0) && candidate.state !== "ready")) {
+            return undefined;
+        }
 
         let claim: ThreadClaim;
         try {
             claim = this.execution.claimTask(candidate.tid, this.workerId);
         } catch (error) {
-            if (error instanceof KernelError && error.code === "claim_failed") return undefined;
+            if (error instanceof KernelError && error.code === "claim_failed") {
+                return undefined;
+            }
             throw error;
         }
 
@@ -249,30 +289,42 @@ export class Kernel {
             window: this.windowFor(candidate.tid, at),
         };
         const person: AgentContext | undefined = this.agentContextFn?.(candidate.pid);
-        if (person !== undefined) context.agentContext = person;
+        if (person !== (void 0)) {
+            context.agentContext = person;
+        }
         const attention: AttentionPlan | undefined = this.attentionFn?.(candidate.pid, context.task);
-        if (attention !== undefined) context.attention = attention;
+        if (attention !== (void 0)) {
+            context.attention = attention;
+        }
 
         return { pid: candidate.pid, tid: candidate.tid, claim, context, at };
     }
 
-    /** Drain the queue, bounded so a bug cannot spin forever. */
+    /**
+     * Drain the queue, bounded so a bug cannot spin forever.
+     */
     run(handler: StepHandler, maxSteps = 1000): StepReport[] {
         const reports: StepReport[] = [];
         for (let index = 0; index < maxSteps; index += 1) {
             const report: StepReport | undefined = this.step(handler);
-            if (report === undefined) break;
+            if (report === (void 0)) {
+                break;
+            }
             reports.push(report);
         }
         return reports;
     }
 
-    /** Async drain for model/tool steps. */
+    /**
+     * Async drain for model/tool steps.
+     */
     async runAsync(handler: AsyncStepHandler, maxSteps = 1000): Promise<StepReport[]> {
         const reports: StepReport[] = [];
         for (let index = 0; index < maxSteps; index += 1) {
             const report: StepReport | undefined = await this.stepAsync(handler);
-            if (report === undefined) break;
+            if (report === (void 0)) {
+                break;
+            }
             reports.push(report);
         }
         return reports;
@@ -307,7 +359,9 @@ export class Kernel {
         for (const object of outcome.objects ?? []) {
             putObject(this.db, object.kind, object.id, object.body, at);
         }
-        if ((outcome.objects ?? []).length > 0) this.execution.notify(`object:${pid}`);
+        if ((outcome.objects ?? []).length > 0) {
+            this.execution.notify(`object:${pid}`);
+        }
 
         if (outcome.status === "done") {
             this.execution.transitionTask(tid, ["running"], "done", { finishedAt: at, exitNote: "completed" }, claim.lease);
@@ -354,15 +408,23 @@ export class Kernel {
     }
 
     private emit(events: StepEvent[] | undefined, at: string): void {
-        for (const event of events ?? []) this.eventSink?.(this.db, event, at);
+        for (const event of events ?? []) {
+            this.eventSink?.(this.db, event, at);
+        }
     }
 
-    /** An agent is `running` only while a task runs; otherwise it is `idle`. */
+    /**
+     * An agent is `running` only while a task runs; otherwise it is `idle`.
+     */
     private settleAgent(pid: number): void {
         const agent: ProcessRecord = this.execution.getAgent(pid);
-        if (agent.state === "terminated" || agent.state === "suspended") return;
+        if (agent.state === "terminated" || agent.state === "suspended") {
+            return;
+        }
         if (this.execution.runningTaskCount(pid) > 0) {
-            if (agent.state !== "running") this.execution.transitionAgent(pid, [agent.state], "running");
+            if (agent.state !== "running") {
+                this.execution.transitionAgent(pid, [agent.state], "running");
+            }
             return;
         }
         if (agent.state === "running") {
@@ -370,7 +432,9 @@ export class Kernel {
         }
     }
 
-    /** Load the task's page table and build its window for this step. */
+    /**
+     * Load the task's page table and build its window for this step.
+     */
     private windowFor(tid: number, at: string): ContextWindow {
         const window = new ContextWindow({
             capacityTokens: this.windowTokens,
@@ -426,7 +490,9 @@ export class Kernel {
             processState: agent.state,
             threadState: task.state,
         };
-        if (note !== undefined) report.note = note;
+        if (note !== (void 0)) {
+            report.note = note;
+        }
         return report;
     }
 }

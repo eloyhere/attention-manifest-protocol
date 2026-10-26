@@ -48,17 +48,23 @@ const unresolved = Object.entries(audit.adjudicated).filter(([, label]) => label
 
 const points: Array<{ predicted: number; actual: boolean; caseId: string }> = [];
 for (const [caseId, label] of Object.entries(audit.adjudicated)) {
-    if (label === null || label === "unsure") continue;
+    if (label === null || label === "unsure") {
+        continue;
+    }
     if (caseId.startsWith("replay:")) {
         const entry = replayById.get(caseId.slice("replay:".length));
-        if (entry !== undefined) points.push({ predicted: entry.predictedCorrectness, actual: label === "correct", caseId });
+        if (entry !== (void 0)) {
+            points.push({ predicted: entry.predictedCorrectness, actual: label === "correct", caseId });
+        }
         continue;
     }
     if (caseId.startsWith("recorded:")) {
         const parts = caseId.split(":");
         const index = Number(parts[parts.length - 1]) - 1;
         const entry = recorded.cases[index];
-        if (entry !== undefined) points.push({ predicted: entry.textCorrectness, actual: label === "correct", caseId });
+        if (entry !== (void 0)) {
+            points.push({ predicted: entry.textCorrectness, actual: label === "correct", caseId });
+        }
     }
 }
 
@@ -96,5 +102,7 @@ writeFileSync("docs/probes/calibration-imported.json", `${JSON.stringify(report,
 assert.equal(["refused", "raw", "activated"].includes(status), true);
 
 console.log(`annotations=${annotationsPath} coverage=${(audit.coverage * 100).toFixed(0)}% points=${points.length} status=${status} reason=${reason}`);
-if (selection !== null) console.log(`rawECE=${selection.rawEce.toFixed(3)} cvECE=${selection.ece.toFixed(3)} method=${selection.method}`);
+if (selection !== null) {
+    console.log(`rawECE=${selection.rawEce.toFixed(3)} cvECE=${selection.ece.toFixed(3)} method=${selection.method}`);
+}
 console.log("wrote docs/probes/calibration-imported.json");

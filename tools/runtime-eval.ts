@@ -14,9 +14,13 @@ import { InMemorySocialStore } from "../src/ipc/index.ts";
 import { ScriptedLlm } from "../src/module/llm/llm.ts";
 import type { LlmResponse } from "../src/module/llm/llm.ts";
 import { BayesianEngine } from "../src/bayes/engine.ts";
+import type { AnswerScore } from "../src/bayes/engine.ts";
 import { CognitiveRuntime } from "../src/runtime/cognitiveRuntime.ts";
+import type { RuntimeTurn } from "../src/runtime/cognitiveRuntime.ts";
+import type { InteractionKind } from "../src/interaction/interaction.ts";
+import type { ScenarioKind } from "../src/scenario/scenario.ts";
 
-const At = "2026-10-24T00:00:00.000Z";
+const At: string = "2026-10-24T00:00:00.000Z";
 
 interface Case {
     id: string;
@@ -27,14 +31,114 @@ interface Case {
     humanLabel?: "correct" | "incorrect";
 }
 
-const cases: Case[] = [];
+/**
+ * One scored result row.
+ */
+type EvaluationResult = {
+    id: string;
+    category: string;
+    actual: boolean;
+    humanLabel: "correct" | "incorrect" | null;
+    answer: string;
+    predictedCorrectness: number;
+    answerOverall: number;
+    tokens: number;
+    rest: boolean;
+    scenario: ScenarioKind[];
+    interaction: InteractionKind;
+};
 
-for (let i = 0; i < 50; i += 1) {
-    const a = i + 1;
-    const b = ((i * 7) % 13) + 1;
-    const expected = a + b;
-    const wrong = i % 10 === 0;
-    cases.push({
+/**
+ * One calibration input pair.
+ */
+type CalibrationInput = {
+    actual: boolean;
+    predicted: number;
+};
+
+/**
+ * One reliability bin of a calibration run.
+ */
+type CalibrationBin = {
+    n: number;
+    confidence: number;
+    accuracy: number;
+};
+
+/**
+ * Binned calibration output.
+ */
+type CalibrationResult = {
+    bins: CalibrationBin[];
+    ece: number;
+    brier: number;
+};
+
+/**
+ * Binned ECE/Brier computation.
+ */
+type CalibrationFn = (entries: CalibrationInput[]) => CalibrationResult;
+
+/**
+ * Per-category aggregate.
+ */
+type CategoryStats = {
+    total: number;
+    correct: number;
+    inputs: CalibrationInput[];
+};
+
+/**
+ * Aggregate metrics of one eval run.
+ */
+type EvalMetrics = {
+    totalCases: number;
+    accuracy: number;
+    ece: number;
+    brier: number;
+    oracleEce: number;
+    oracleBrier: number;
+    totalTokens: number;
+    averageTokens: number;
+    approximateCostUsd: number;
+    restRate: number;
+    averageAnswerOverall: number;
+    humanLabeled: number;
+    humanLabelAccuracy: number | null;
+};
+
+/**
+ * Per-category metrics in the report.
+ */
+type CategoryReport = {
+    category: string;
+    total: number;
+    accuracy: number;
+    ece: number;
+};
+
+/**
+ * The JSON report written to `docs/probes`.
+ */
+type EvalReport = {
+    generatedAt: string;
+    kind: string;
+    model: string;
+    cases: EvaluationResult[];
+    metrics: EvalMetrics;
+    categories: CategoryReport[];
+    textBins: CalibrationBin[];
+    oracleBins: CalibrationBin[];
+};
+
+const Cases: Case[] = [];
+
+for (let i: number = 0; i < 50; i += 1) {
+    const a: number = i + 1;
+    const b: number = ((i * 7) % 13) + 1;
+    const expected: number = a + b;
+    const wrong: boolean = i % 10 === 0;
+    Cases.push({
         id: `arith-${i}`,
         category: "arithmetic",
         input: `Compute ${a} + ${b}. Output only the number.`,
@@ -43,12 +147,12 @@ for (let i = 0; i < 50; i += 1) {
     });
 }
 
-for (let i = 0; i < 40; i += 1) {
-    const rows = 20 + i;
-    const duplicates = (i % 5) + 1;
-    const expected = rows - duplicates;
-    const wrong = i % 10 === 0;
-    cases.push({
+for (let i: number = 0; i < 40; i += 1) {
+    const rows: number = 20 + i;
+    const duplicates: number = (i % 5) + 1;
+    const expected: number = rows - duplicates;
+    const wrong: boolean = i % 10 === 0;
+    Cases.push({
         id: `unique-${i}`,
         category: "unique-rows",
         input: `${rows} rows, ${duplicates} duplicates. How many unique rows? Output only the number.`,
@@ -57,9 +161,9 @@ for (let i = 0; i < 40; i += 1) {
     });
 }
 
-for (let i = 0; i < 30; i += 1) {
-    const wrong = i % 15 === 0;
-    cases.push({
+for (let i: number = 0; i < 30; i += 1) {
+    const wrong: boolean = i % 15 === 0;
+    Cases.push({
         id: `syllogism-${i}`,
         category: "syllogism",
         input: "All A are B. No B are C. Can any A be C? Answer only yes or no.",
@@ -68,9 +172,9 @@ for (let i = 0; i < 30; i += 1) {
     });
 }
 
-for (let i = 0; i < 30; i += 1) {
-    const wrong = i % 10 === 0;
-    cases.push({
+for (let i: number = 0; i < 30; i += 1) {
+    const wrong: boolean = i % 10 === 0;
+    Cases.push({
         id: `memory-${i}`,
         category: "memory",
         input: `What code did Mira give for item ${i}? Answer only the code.`,
@@ -79,8 +183,8 @@ for (let i = 0; i < 30; i += 1) {
     });
 }
 
-for (let i = 0; i < 30; i += 1) {
-    cases.push({
+for (let i: number = 0; i < 30; i += 1) {
+    Cases.push({
         id: `role-${i}`,
         category: "role",
         input: "What is your active role and one obligation? One short sentence.",
@@ -89,8 +193,8 @@ for (let i = 0; i < 30; i += 1) {
     });
 }
 
-for (let i = 0; i < 20; i += 1) {
-    cases.push({
+for (let i: number = 0; i < 20; i += 1) {
+    Cases.push({
         id: `attention-${i}`,
         category: "attention",
         input: "How many foreground slots and what is the safety floor? Output two numbers.",
@@ -99,9 +203,9 @@ for (let i = 0; i < 20; i += 1) {
     });
 }
 
-for (let i = 0; i < 20; i += 1) {
-    const wrong = i % 5 === 0;
-    cases.push({
+for (let i: number = 0; i < 20; i += 1) {
+    const wrong: boolean = i % 5 === 0;
+    Cases.push({
         id: `bayes-${i}`,
         category: "bayes",
         input: "80% sensitivity, 10% false positive, 1% prevalence: P(disease|positive)? One decimal percent.",
@@ -110,8 +214,8 @@ for (let i = 0; i < 20; i += 1) {
     });
 }
 
-const service = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
-service.createAgent({
+const Service: AgentService = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
+Service.createAgent({
     pid: 1,
     id: "a.eval",
     name: "Eval Agent",
@@ -120,37 +224,38 @@ service.createAgent({
     narrative: "I answer the question that was asked.",
     at: At,
 });
-service.addRole({
+Service.addRole({
     id: "role.analyst",
     label: "Analyst",
     obligations: [{ id: "ob.evidence", statement: "ground claims in evidence" }],
     audiences: ["team"],
     createdAt: At,
 });
-service.assignRole({ pid: 1, roleId: "role.analyst", salience: 0.8, active: true, since: At });
-for (let i = 0; i < 30; i += 1) {
-    service.remember({ pid: 1, kind: "semantic", content: `Mira gave code-${i} for item ${i}.`, salience: 0.8, at: At });
+Service.assignRole({ pid: 1, roleId: "role.analyst", salience: 0.8, active: true, since: At });
+for (let i: number = 0; i < 30; i += 1) {
+    Service.remember({ pid: 1, kind: "semantic", content: `Mira gave code-${i} for item ${i}.`, salience: 0.8, at: At });
 }
-service.setAffect(1, { stress: 0.3, fatigue: 0.2, mood: "focused" }, At);
+Service.setAffect(1, { stress: 0.3, fatigue: 0.2, mood: "focused" }, At);
 
-const responses: LlmResponse[] = cases.map((entry) => ({
+const Responses: LlmResponse[] = Cases.map((entry) => ({
     text: entry.answer,
     usage: { inputTokens: 10, outputTokens: Math.max(1, Math.ceil(entry.answer.length / 4)) },
     finishReason: "stop",
 }));
-const runtime = new CognitiveRuntime({
+const Runtime: CognitiveRuntime = new CognitiveRuntime({
     pid: 1,
-    agent: service.agents,
-    social: service.social,
-    llm: new ScriptedLlm(responses),
+    agent: Service.agents,
+    social: Service.social,
+    llm: new ScriptedLlm(Responses),
     now: () => At,
     budgetTokens: 600,
 });
 
-const results = [];
-for (const entry of cases) {
-    const turn = await runtime.respond(entry.input, { interactionMix: { think: 0.7, converge: 0.3 } });
-    results.push({
+const Results: EvaluationResult[] = [];
+for (let i: number = 0; i < Cases.length; i += 1) {
+    const entry: Case = Cases[i];
+    const turn: RuntimeTurn = await Runtime.respond(entry.input, { interactionMix: { think: 0.7, converge: 0.3 } });
+    Results.push({
         id: entry.id,
         category: entry.category,
         actual: entry.check(turn.answer),
@@ -158,91 +263,96 @@ for (const entry of cases) {
         answer: turn.answer,
         predictedCorrectness: turn.answerScore?.dimensions.correctness.mean ?? 0.5,
         answerOverall: turn.answerScore?.overall ?? 0,
-        tokens: turn.usage === undefined ? 0 : turn.usage.inputTokens + turn.usage.outputTokens,
+        tokens: turn.usage === (void 0) ? 0 : turn.usage.inputTokens + turn.usage.outputTokens,
         rest: turn.attention.rest,
         scenario: turn.scenario.active,
         interaction: turn.interaction.primary,
     });
 }
 
-const calibration = (
-    entries: Array<{ actual: boolean; predicted: number }>,
-): { bins: Array<{ n: number; confidence: number; accuracy: number }>; ece: number; brier: number } => {
-    const bins = Array.from({ length: 10 }, () => ({ n: 0, confidence: 0, accuracy: 0 }));
-    for (const entry of entries) {
-        const index = Math.min(9, Math.max(0, Math.floor(entry.predicted * 10)));
+const calibration: CalibrationFn = (entries: CalibrationInput[]): CalibrationResult => {
+    const bins: CalibrationBin[] = Array.from({ length: 10 }, () => ({ n: 0, confidence: 0, accuracy: 0 }));
+    for (let i: number = 0; i < entries.length; i += 1) {
+        const entry: CalibrationInput = entries[i];
+        const index: number = Math.min(9, Math.max(0, Math.floor(entry.predicted * 10)));
         bins[index].n += 1;
         bins[index].confidence += entry.predicted;
         bins[index].accuracy += entry.actual ? 1 : 0;
     }
-    const ece = bins.reduce((sum, bin) => {
-        if (bin.n === 0) return sum;
+    const ece: number = bins.reduce((sum, bin) => {
+        if (bin.n === 0) {
+            return sum;
+        }
         return sum + (bin.n / entries.length) * Math.abs(bin.accuracy / bin.n - bin.confidence / bin.n);
     }, 0);
-    const brier = entries.reduce((sum, entry) => sum + (entry.predicted - (entry.actual ? 1 : 0)) ** 2, 0) / entries.length;
+    const brier: number = entries.reduce((sum, entry) => sum + (entry.predicted - (entry.actual ? 1 : 0)) ** 2, 0) / entries.length;
     return { bins, ece, brier };
 };
 
-const textCalibration = calibration(results.map((result) => ({ actual: result.actual, predicted: result.predictedCorrectness })));
-const oracleScores = results.map((result) => new BayesianEngine().scoreAnswer(result.answer, { correct: result.actual }));
-const oracleCalibration = calibration(oracleScores.map((score, index) => ({ actual: results[index].actual, predicted: score.dimensions.correctness.mean })));
+const TextCalibration: CalibrationResult = calibration(Results.map((result) => ({ actual: result.actual, predicted: result.predictedCorrectness })));
+const OracleScores: AnswerScore[] = Results.map((result) => new BayesianEngine().scoreAnswer(result.answer, { correct: result.actual }));
+const OracleCalibration: CalibrationResult = calibration(
+    OracleScores.map((score, index) => ({ actual: Results[index].actual, predicted: score.dimensions.correctness.mean })),
+);
 
-const accuracy = results.filter((result) => result.actual).length / results.length;
-const totalTokens = results.reduce((sum, result) => sum + result.tokens, 0);
-const cost = results.reduce((sum, result) => sum + result.tokens * (0.15 / 1_000_000), 0);
-const byCategory = new Map<string, { total: number; correct: number; inputs: Array<{ actual: boolean; predicted: number }> }>();
-for (const result of results) {
-    const item = byCategory.get(result.category) ?? { total: 0, correct: 0, inputs: [] };
+const Accuracy: number = Results.filter((result) => result.actual).length / Results.length;
+const TotalTokens: number = Results.reduce((sum, result) => sum + result.tokens, 0);
+const Cost: number = Results.reduce((sum, result) => sum + result.tokens * (0.15 / 1_000_000), 0);
+const ByCategory: Map<string, CategoryStats> = new Map<string, CategoryStats>();
+for (let i: number = 0; i < Results.length; i += 1) {
+    const result: EvaluationResult = Results[i];
+    const item: CategoryStats = ByCategory.get(result.category) ?? { total: 0, correct: 0, inputs: [] };
     item.total += 1;
     item.correct += result.actual ? 1 : 0;
     item.inputs.push({ actual: result.actual, predicted: result.predictedCorrectness });
-    byCategory.set(result.category, item);
+    ByCategory.set(result.category, item);
 }
-const humanLabeled = results.filter((result) => result.humanLabel !== null);
-const humanLabelAccuracy =
-    humanLabeled.length === 0 ? null : humanLabeled.filter((result) => (result.humanLabel === "correct") === result.actual).length / humanLabeled.length;
+const HumanLabeled: EvaluationResult[] = Results.filter((result) => result.humanLabel !== null);
+const HumanLabelAccuracy: number | null =
+    HumanLabeled.length === 0 ? null : HumanLabeled.filter((result) => (result.humanLabel === "correct") === result.actual).length / HumanLabeled.length;
 
-assert.ok(results.length >= 200);
-assert.equal(Number.isFinite(textCalibration.ece), true);
-assert.ok(accuracy > 0.9);
+assert.ok(Results.length >= 200);
+assert.equal(Number.isFinite(TextCalibration.ece), true);
+assert.ok(Accuracy > 0.9);
 
-const report = {
+const Report: EvalReport = {
     generatedAt: new Date().toISOString(),
     kind: "runtime-eval",
     model: "ScriptedLlm",
-    cases: results,
+    cases: Results,
     metrics: {
-        totalCases: results.length,
-        accuracy,
-        ece: textCalibration.ece,
-        brier: textCalibration.brier,
-        oracleEce: oracleCalibration.ece,
-        oracleBrier: oracleCalibration.brier,
-        totalTokens,
-        averageTokens: totalTokens / results.length,
-        approximateCostUsd: cost,
-        restRate: results.filter((result) => result.rest).length / results.length,
-        averageAnswerOverall: results.reduce((sum, result) => sum + result.answerOverall, 0) / results.length,
-        humanLabeled: humanLabeled.length,
-        humanLabelAccuracy,
+        totalCases: Results.length,
+        accuracy: Accuracy,
+        ece: TextCalibration.ece,
+        brier: TextCalibration.brier,
+        oracleEce: OracleCalibration.ece,
+        oracleBrier: OracleCalibration.brier,
+        totalTokens: TotalTokens,
+        averageTokens: TotalTokens / Results.length,
+        approximateCostUsd: Cost,
+        restRate: Results.filter((result) => result.rest).length / Results.length,
+        averageAnswerOverall: Results.reduce((sum, result) => sum + result.answerOverall, 0) / Results.length,
+        humanLabeled: HumanLabeled.length,
+        humanLabelAccuracy: HumanLabelAccuracy,
     },
-    categories: [...byCategory.entries()].map(([category, item]) => ({
+    categories: [...ByCategory.entries()].map(([category, item]) => ({
         category,
         total: item.total,
         accuracy: item.correct / item.total,
         ece: calibration(item.inputs).ece,
     })),
-    textBins: textCalibration.bins,
-    oracleBins: oracleCalibration.bins,
+    textBins: TextCalibration.bins,
+    oracleBins: OracleCalibration.bins,
 };
-writeFileSync("docs/probes/runtime-eval.json", `${JSON.stringify(report, null, 2)}\n`, "utf8");
+writeFileSync("docs/probes/runtime-eval.json", `${JSON.stringify(Report, null, 2)}\n`, "utf8");
 
 console.log(
-    `cases=${results.length} accuracy=${(accuracy * 100).toFixed(1)}% textECE=${textCalibration.ece.toFixed(3)} textBrier=${textCalibration.brier.toFixed(3)} oracleECE=${oracleCalibration.ece.toFixed(3)} tokens=${totalTokens} cost~$${cost.toFixed(6)}`,
+    `cases=${Results.length} accuracy=${(Accuracy * 100).toFixed(1)}% textECE=${TextCalibration.ece.toFixed(3)} textBrier=${TextCalibration.brier.toFixed(3)} oracleECE=${OracleCalibration.ece.toFixed(3)} tokens=${TotalTokens} cost~$${Cost.toFixed(6)}`,
 );
-for (const category of report.categories) {
+for (let i: number = 0; i < Report.categories.length; i += 1) {
+    const category: CategoryReport = Report.categories[i];
     console.log(
-        `${category.category.padEnd(12)} n=${String(category.total).padStart(3)} acc=${(category.accuracy * 100).toFixed(1)}% ece=${category.ece.toFixed(3)}`,
+        `${category.category.padEnd(12)} n=${`${category.total}`.padStart(3)} acc=${(category.accuracy * 100).toFixed(1)}% ece=${category.ece.toFixed(3)}`,
     );
 }
 console.log("wrote docs/probes/runtime-eval.json");

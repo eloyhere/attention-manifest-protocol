@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Isotonic calibration + cross-validated ECE/Brier checks. */
+/**
+ * Isotonic calibration + cross-validated ECE/Brier checks.
+ */
 import assert from "node:assert/strict";
 
 import { applyIsotonic, brier, crossValidateCalibration, ece, fitIsotonic } from "../src/bayes/calibration.ts";

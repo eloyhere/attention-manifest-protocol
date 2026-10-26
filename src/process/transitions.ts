@@ -1,4 +1,6 @@
-/** Pure process lifecycle predicate; no DB or domain implementation imports. */
+/**
+ * Pure process lifecycle predicate; no DB or domain implementation imports.
+ */
 import type { ProcessState } from "./process.ts";
 
 export const ProcessEdges: Record<ProcessState, readonly ProcessState[]> = {
@@ -9,4 +11,9 @@ export const ProcessEdges: Record<ProcessState, readonly ProcessState[]> = {
     terminated: [],
 };
 
-export const canProcessTransition = (from: ProcessState, to: ProcessState): boolean => ProcessEdges[from].includes(to);
+/**
+ * Predicate deciding whether one process state may move to another.
+ */
+type ProcessTransitionPredicate = (from: ProcessState, to: ProcessState) => boolean;
+
+export const canProcessTransition: ProcessTransitionPredicate = (from: ProcessState, to: ProcessState): boolean => ProcessEdges[from].includes(to);

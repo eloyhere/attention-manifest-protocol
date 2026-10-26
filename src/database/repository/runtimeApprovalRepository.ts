@@ -29,7 +29,9 @@ export class RuntimeApprovalRepository extends BaseRepository<RuntimeApprovalRow
         return this.queries.select({ where: "pid = ?", params: [pid], orderBy: "ORDER BY id DESC", limit });
     }
 
-    /** Owner (or a subject with a read grant) may read this pid's approval audit. */
+    /**
+     * Owner (or a subject with a read grant) may read this pid's approval audit.
+     */
     listForSubject(subject: Subject, pid: number, at: string, limit = 100): RuntimeApprovalRow[] {
         requirePermission(this.connection, subject, "read", { kind: "object", id: `approval:${pid}`, ownerPid: pid }, at);
         return this.list(pid, limit);

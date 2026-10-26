@@ -1,7 +1,7 @@
 import type { Claim, EvidenceItem, Hypothesis } from "./epistemic.ts";
 import type { Tier } from "../types/common.ts";
 
-const TIER_BASE: Record<Tier, number> = {
+const TierBase: Record<Tier, number> = {
     T0: 0.35,
     T1: 0.55,
     T2: 0.72,
@@ -9,8 +9,10 @@ const TIER_BASE: Record<Tier, number> = {
     T4: 0.92,
 };
 
-/** A chain is as strong as its weakest source, so the cap is the minimum. */
-const TRUST_CAP: Record<EvidenceItem["trust"], number> = {
+/**
+ * A chain is as strong as its weakest source, so the cap is the minimum.
+ */
+const TrustCap: Record<EvidenceItem["trust"], number> = {
     self: 0.9,
     verified: 0.95,
     trusted: 0.85,
@@ -19,47 +21,55 @@ const TRUST_CAP: Record<EvidenceItem["trust"], number> = {
     external: 0.5,
 };
 
-const TIER_ORDER: Tier[] = ["T0", "T1", "T2", "T3", "T4"];
+const TierOrder: Tier[] = ["T0", "T1", "T2", "T3", "T4"];
 
-const round = (n: number): number => Math.round(n * 1000) / 1000;
+const round: (n: number) => number = (n: number): number => Math.round(n * 1000) / 1000;
 
-/** Distinct origins, not distinct URLs. Ten retellings of one source are one source. */
-export function effectiveOrigins(evidence: EvidenceItem[]): number {
+/**
+ * Distinct origins, not distinct URLs. Ten retellings of one source are one source.
+ */
+export const effectiveOrigins: (evidence: EvidenceItem[]) => number = (evidence: EvidenceItem[]): number => {
     return new Set(evidence.map((e) => e.origin ?? e.id)).size;
-}
+};
 
 /**
  * Confidence is DERIVED (M-1), never authored by the model.
  * Tier sets the base, evidence quality moves it, the weakest source caps it.
  */
-export function deriveConfidence(claim: Pick<Claim, "tier" | "warrant">): number {
-    const base = TIER_BASE[claim.tier];
-    const evidence = claim.warrant.evidence;
-    if (evidence.length === 0) return round(Math.min(base, 0.6));
+export const deriveConfidence: (claim: Pick<Claim, "tier" | "warrant">) => number = (claim: Pick<Claim, "tier" | "warrant">): number => {
+    const base: number = TierBase[claim.tier];
+    const evidence: EvidenceItem[] = claim.warrant.evidence;
+    if (evidence.length === 0) {
+        return round(Math.min(base, 0.6));
+    }
 
-    const origins = effectiveOrigins(evidence);
-    const avgIndependence = evidence.reduce((sum, e) => sum + (e.independence ?? 0.5), 0) / evidence.length;
-    const corroboration = Math.min(1, (origins - 1) / 2);
-    const support =
+    const origins: number = effectiveOrigins(evidence);
+    const avgIndependence: number = evidence.reduce((sum, e) => sum + (e.independence ?? 0.5), 0) / evidence.length;
+    const corroboration: number = Math.min(1, (origins - 1) / 2);
+    const support: number =
         evidence.reduce((sum, e) => {
-            const weight = e.independence ?? 0.5;
-            if (e.relation === "contradicts") return sum - weight;
-            if (e.relation === "undercuts") return sum - 0.5 * weight;
+            const weight: number = e.independence ?? 0.5;
+            if (e.relation === "contradicts") {
+                return sum - weight;
+            }
+            if (e.relation === "undercuts") {
+                return sum - 0.5 * weight;
+            }
             return sum + weight;
         }, 0) / evidence.length;
-    const cap = Math.min(...evidence.map((e) => TRUST_CAP[e.trust]));
+    const cap: number = Math.min(...evidence.map((e) => TrustCap[e.trust]));
 
-    const raw = base + 0.12 * corroboration + 0.1 * avgIndependence + 0.08 * support;
+    const raw: number = base + 0.12 * corroboration + 0.1 * avgIndependence + 0.08 * support;
     return round(Math.max(0, Math.min(raw, cap)));
-}
+};
 
 /**
  * Tier inflation is a validation failure, not a style issue (W-5).
  * Returns human-readable violations; empty means admissible.
  */
-export function validateClaim(claim: Claim): string[] {
+export const validateClaim: (claim: Claim) => string[] = (claim: Claim): string[] => {
     const problems: string[] = [];
-    const evidence = claim.warrant.evidence;
+    const evidence: EvidenceItem[] = claim.warrant.evidence;
 
     if (claim.tier !== "T0" && evidence.length === 0) {
         problems.push(`${claim.tier} requires at least one evidence item`);
@@ -83,10 +93,12 @@ export function validateClaim(claim: Claim): string[] {
     }
 
     return problems;
-}
+};
 
-/** A hypothesis without a refutation condition is a position, not a hypothesis (W-2). */
-export function validateHypothesis(hypothesis: Hypothesis): string[] {
+/**
+ * A hypothesis without a refutation condition is a position, not a hypothesis (W-2).
+ */
+export const validateHypothesis: (hypothesis: Hypothesis) => string[] = (hypothesis: Hypothesis): string[] => {
     const problems: string[] = [];
     if (!hypothesis.refutes_if || hypothesis.refutes_if.trim().length === 0) {
         problems.push("refutes_if is required");
@@ -95,26 +107,38 @@ export function validateHypothesis(hypothesis: Hypothesis): string[] {
         problems.push("prediction is required");
     }
     return problems;
-}
+};
 
-/** Registered before data access → confirmatory; otherwise → exploratory (no HARKing). */
-export function classifyHypothesis(hypothesis: Hypothesis): "confirmatory" | "exploratory" {
+type HypothesisClass = "confirmatory" | "exploratory";
+
+/**
+ * Registered before data access → confirmatory; otherwise → exploratory (no HARKing).
+ */
+export const classifyHypothesis: (hypothesis: Hypothesis) => HypothesisClass = (hypothesis: Hypothesis): HypothesisClass => {
     return hypothesis.prereg ? "confirmatory" : "exploratory";
-}
+};
 
 /**
  * Contested or doubted claims may enter a Frame but must not authorize effects.
  * Returns false whenever the claim is not carried beyond reasonable doubt.
  */
-export function canAuthorizeEffect(claim: Claim, minTier: Tier): boolean {
-    if (claim.status !== "held") return false;
-    if (TIER_ORDER.indexOf(claim.tier) < TIER_ORDER.indexOf(minTier)) return false;
-    const confidence = claim.confidence ?? deriveConfidence(claim);
+export const canAuthorizeEffect: (claim: Claim, minTier: Tier) => boolean = (claim: Claim, minTier: Tier): boolean => {
+    if (claim.status !== "held") {
+        return false;
+    }
+    if (TierOrder.indexOf(claim.tier) < TierOrder.indexOf(minTier)) {
+        return false;
+    }
+    const confidence: number = claim.confidence ?? deriveConfidence(claim);
     return confidence >= 0.6;
-}
+};
 
-/** Minimal-change revision: the old claim is kept and referenced, never overwritten (W-3). */
-export function reviseClaim(previous: Claim, patch: Partial<Claim>, reason: string, at: string): Claim {
+type ClaimReviser = (previous: Claim, patch: Partial<Claim>, reason: string, at: string) => Claim;
+
+/**
+ * Minimal-change revision: the old claim is kept and referenced, never overwritten (W-3).
+ */
+export const reviseClaim: ClaimReviser = (previous: Claim, patch: Partial<Claim>, reason: string, at: string): Claim => {
     return {
         ...previous,
         ...patch,
@@ -123,21 +147,33 @@ export function reviseClaim(previous: Claim, patch: Partial<Claim>, reason: stri
         revision: { reason, at },
         created: previous.created,
     };
-}
+};
 
-/** Suggested tier for a claim — used only to warn, never to promote silently. */
-export function suggestTier(evidence: EvidenceItem[]): Tier {
-    if (evidence.length === 0) return "T0";
-    if (effectiveOrigins(evidence) >= 2 && evidence.some((e) => e.trust === "verified")) return "T4";
-    if (evidence.some((e) => e.trust === "self" || e.trust === "verified")) return "T2";
-    if (evidence.some((e) => e.entails === true)) return "T1";
+/**
+ * Suggested tier for a claim — used only to warn, never to promote silently.
+ */
+export const suggestTier: (evidence: EvidenceItem[]) => Tier = (evidence: EvidenceItem[]): Tier => {
+    if (evidence.length === 0) {
+        return "T0";
+    }
+    if (effectiveOrigins(evidence) >= 2 && evidence.some((e) => e.trust === "verified")) {
+        return "T4";
+    }
+    if (evidence.some((e) => e.trust === "self" || e.trust === "verified")) {
+        return "T2";
+    }
+    if (evidence.some((e) => e.entails === true)) {
+        return "T1";
+    }
     return "T0";
-}
+};
+
+type PressureGuard = (existing: Claim | undefined, evidence: EvidenceItem[], underPressure: boolean) => boolean;
 
 /**
  * Social pressure without new evidence must not change confidence (W-5).
  * The runtime calls this before appending a claim.
  */
-export function pressureBlocked(existing: Claim | undefined, evidence: EvidenceItem[], underPressure: boolean): boolean {
-    return underPressure && existing !== undefined && evidence.length === 0;
-}
+export const pressureBlocked: PressureGuard = (existing: Claim | undefined, evidence: EvidenceItem[], underPressure: boolean): boolean => {
+    return underPressure && existing !== (void 0) && evidence.length === 0;
+};

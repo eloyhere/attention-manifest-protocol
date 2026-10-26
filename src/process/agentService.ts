@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Agent service: the use-cases of a person, expressed only through ports.
  *
  * `createAgent` is the only place that touches the execution boundary: it asks
@@ -24,6 +24,7 @@ import type {
     NewMemory,
     NewNarrative,
     NewRole,
+    Obligation,
     Pid,
     Role,
     RoleAssignment,
@@ -33,14 +34,28 @@ import type { Institution, JoinInstitutionInput, Membership, NewInstitution, New
 import type { AgentContext, AgentContextAssembler, AgentContextOptions } from "../context/agentContext.ts";
 import { assembleAgentContext } from "../context/agentContext.ts";
 
+export interface CreateProcessInput {
+    id: Id;
+    name: string;
+    at: Timestamp;
+}
+
+export interface CreateProcessResult {
+    pid: Pid;
+}
+
 export interface AgentExecutionPort {
-    createProcess(input: { id: Id; name: string; at: Timestamp }): { pid: Pid };
+    createProcess(input: CreateProcessInput): CreateProcessResult;
 }
 
 export interface CreateAgentInput {
-    /** Process id used by the execution layer; required when no port is wired. */
+    /**
+     * Process id used by the execution layer; required when no port is wired.
+     */
     id: Id;
-    /** Supply only when the caller already created the process. */
+    /**
+     * Supply only when the caller already created the process.
+     */
     pid?: Pid;
     name: string;
     lifeChapter?: string;
@@ -56,6 +71,17 @@ export interface CreateAgentResult {
     profile: AgentProfile;
     narrative: SelfNarrative;
     role: RoleAssignment;
+}
+
+/**
+ * One pair of obligations, drawn from two assigned roles, that cannot be
+ * satisfied together.
+ */
+export interface RoleConflict {
+    left: Role;
+    right: Role;
+    obligation: string;
+    other: string;
 }
 
 export class AgentService implements AgentContextAssembler {
@@ -171,15 +197,17 @@ export class AgentService implements AgentContextAssembler {
      * Roles are social positions, so conflict is an obligation-level fact, not
      * a permission error. This is intentionally a read-only diagnostic.
      */
-    roleConflicts(pid: Pid): Array<{ left: Role; right: Role; obligation: string; other: string }> {
-        const assignments = this.agents.roles(pid);
-        const conflicts: Array<{ left: Role; right: Role; obligation: string; other: string }> = [];
-        for (let leftIndex = 0; leftIndex < assignments.length; leftIndex += 1) {
-            for (let rightIndex = leftIndex + 1; rightIndex < assignments.length; rightIndex += 1) {
-                const left = assignments[leftIndex].role;
-                const right = assignments[rightIndex].role;
-                for (const obligation of left.obligations) {
-                    for (const other of right.obligations) {
+    roleConflicts(pid: Pid): RoleConflict[] {
+        const assignments: RoleAssignment[] = this.agents.roles(pid);
+        const conflicts: RoleConflict[] = [];
+        for (let leftIndex: number = 0; leftIndex < assignments.length; leftIndex += 1) {
+            for (let rightIndex: number = leftIndex + 1; rightIndex < assignments.length; rightIndex += 1) {
+                const left: Role = assignments[leftIndex].role;
+                const right: Role = assignments[rightIndex].role;
+                for (let obligationIndex: number = 0; obligationIndex < left.obligations.length; obligationIndex += 1) {
+                    const obligation: Obligation = left.obligations[obligationIndex];
+                    for (let otherIndex: number = 0; otherIndex < right.obligations.length; otherIndex += 1) {
+                        const other: Obligation = right.obligations[otherIndex];
                         if (obligation.conflictsWith?.includes(other.id) === true || other.conflictsWith?.includes(obligation.id) === true) {
                             conflicts.push({ left, right, obligation: obligation.id, other: other.id });
                         }

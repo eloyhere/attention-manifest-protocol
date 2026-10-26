@@ -45,7 +45,7 @@ export class Deque<T> implements Iterable<T> {
      * @param values - Values to insert, in order.
      */
     constructor(values?: Iterable<T>) {
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
         for (const value of values) {

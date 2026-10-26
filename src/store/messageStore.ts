@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<MessageEntity> = bindCache(
         }),
 );
 
-export const messageStore = {
+export const MessageStore = {
     get(msgId: number): MessageEntity | undefined {
         return cacheFor().get(msgId);
     },

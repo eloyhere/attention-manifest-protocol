@@ -31,29 +31,43 @@ const splitCsvRecords = (text: string): string[][] => {
             if (quoted && text[index + 1] === '"') {
                 cell += '"';
                 index += 1;
-            } else quoted = !quoted;
+            } else {
+                quoted = !quoted;
+            }
         } else if (char === "," && !quoted) {
             record.push(cell);
             cell = "";
         } else if ((char === "\n" || char === "\r") && !quoted) {
-            if (char === "\r" && text[index + 1] === "\n") index += 1;
+            if (char === "\r" && text[index + 1] === "\n") {
+                index += 1;
+            }
             record.push(cell);
-            if (record.some((entry) => entry.trim().length > 0)) records.push(record);
+            if (record.some((entry) => entry.trim().length > 0)) {
+                records.push(record);
+            }
             record = [];
             cell = "";
-        } else cell += char;
+        } else {
+            cell += char;
+        }
     }
     if (cell.length > 0 || record.length > 0) {
         record.push(cell);
-        if (record.some((entry) => entry.trim().length > 0)) records.push(record);
+        if (record.some((entry) => entry.trim().length > 0)) {
+            records.push(record);
+        }
     }
     return records;
 };
 
-/** CSV header: caseId,annotator,label[,note]. Handles quoted newlines. */
+/**
+ * CSV header: caseId,annotator,label[,note]. Handles quoted newlines.
+ */
 export const importAnnotationsCsv = (text: string): Annotation[] => {
     const records = splitCsvRecords(text.replace(/^\uFEFF/, ""));
-    if (records.length === 0) return [];
+    if (records.length === 0) {
+        return [];
+    }
     const header = records[0].map((cell) => cell.trim());
     const indexOf = (name: string): number => header.indexOf(name);
     if (indexOf("caseId") < 0 || indexOf("annotator") < 0 || indexOf("label") < 0) {
@@ -63,13 +77,17 @@ export const importAnnotationsCsv = (text: string): Annotation[] => {
         const caseId = cells[indexOf("caseId")]?.trim();
         const annotator = cells[indexOf("annotator")]?.trim();
         const label = cells[indexOf("label")]?.trim();
-        if (caseId === undefined || annotator === undefined || label === undefined) throw new Error(`CSV row ${row + 2} is incomplete`);
+        if (caseId === (void 0) || annotator === (void 0) || label === (void 0)) {
+            throw new Error(`CSV row ${row + 2} is incomplete`);
+        }
         const note = indexOf("note") >= 0 ? cells[indexOf("note")]?.trim() : undefined;
-        return { caseId, annotator, label, ...(note === undefined || note.length === 0 ? {} : { note }) };
+        return { caseId, annotator, label, ...(note === (void 0) || note.length === 0 ? {} : { note }) };
     });
 };
 
-/** Active learning: prefer predicted probability near 0.5 and high uncertainty. */
+/**
+ * Active learning: prefer predicted probability near 0.5 and high uncertainty.
+ */
 export const selectLabelCandidates = (candidates: readonly LabelCandidate[], budget: number): LabelCandidate[] => {
     return [...candidates]
         .sort((left, right) => {
@@ -80,22 +98,32 @@ export const selectLabelCandidates = (candidates: readonly LabelCandidate[], bud
         .slice(0, Math.max(0, budget));
 };
 
-/** Fill only unresolved ties; resolved cases keep their majority label. */
+/**
+ * Fill only unresolved ties; resolved cases keep their majority label.
+ */
 export const resolveUnresolved = (audit: LabelAudit, resolutions: Record<string, string>): Record<string, string | null> => {
     const result = { ...audit.adjudicated };
     for (const [caseId, label] of Object.entries(resolutions)) {
-        if (result[caseId] !== null) continue;
+        if (result[caseId] !== null) {
+            continue;
+        }
         result[caseId] = label;
     }
     return result;
 };
 
-/** Reject an annotation batch before it is used for calibration. */
+/**
+ * Reject an annotation batch before it is used for calibration.
+ */
 export const requireLabelCoverage = (audit: LabelAudit, options: { minCoverage?: number; maxDuplicates?: number } = {}): void => {
     const minCoverage = options.minCoverage ?? 0.9;
     const maxDuplicates = options.maxDuplicates ?? 0;
-    if (audit.coverage < minCoverage) throw new Error(`label coverage ${audit.coverage.toFixed(3)} < ${minCoverage}`);
-    if (audit.duplicates.length > maxDuplicates) throw new Error(`duplicate annotations: ${audit.duplicates.length}`);
+    if (audit.coverage < minCoverage) {
+        throw new Error(`label coverage ${audit.coverage.toFixed(3)} < ${minCoverage}`);
+    }
+    if (audit.duplicates.length > maxDuplicates) {
+        throw new Error(`duplicate annotations: ${audit.duplicates.length}`);
+    }
 };
 
 export interface LabelAudit {
@@ -114,7 +142,7 @@ export interface LabelAudit {
 export const importAnnotations = (input: unknown): Annotation[] => {
     const rows = Array.isArray(input)
         ? input
-        : String(input)
+        : `${input}`
               .split(/\r?\n/)
               .filter((line) => line.trim().length > 0)
               .map((line) => JSON.parse(line));
@@ -132,9 +160,13 @@ const pairKappa = (caseIds: readonly string[], annotations: readonly Annotation[
     for (const caseId of caseIds) {
         const leftLabel = annotations.find((annotation) => annotation.caseId === caseId && annotation.annotator === left)?.label;
         const rightLabel = annotations.find((annotation) => annotation.caseId === caseId && annotation.annotator === right)?.label;
-        if (leftLabel !== undefined && rightLabel !== undefined) common.push({ caseId, left: leftLabel, right: rightLabel });
+        if (leftLabel !== (void 0) && rightLabel !== (void 0)) {
+            common.push({ caseId, left: leftLabel, right: rightLabel });
+        }
     }
-    if (common.length === 0) return { kappa: 1, common: 0 };
+    if (common.length === 0) {
+        return { kappa: 1, common: 0 };
+    }
     return {
         kappa: cohenKappa(
             common.map((entry) => entry.left as string),
@@ -148,8 +180,9 @@ export const auditLabels = (caseIds: readonly string[], annotations: readonly An
     const ids = new Set(caseIds);
     const annotators = [...new Set(annotations.map((annotation) => annotation.annotator))].sort();
     const counts = new Map<string, number>();
-    for (const annotation of annotations)
+    for (const annotation of annotations) {
         counts.set(`${annotation.caseId}\u0000${annotation.annotator}`, (counts.get(`${annotation.caseId}\u0000${annotation.annotator}`) ?? 0) + 1);
+    }
     const duplicates = [...counts.entries()]
         .filter(([, count]) => count > 1)
         .map(([key, count]) => {
@@ -161,7 +194,9 @@ export const auditLabels = (caseIds: readonly string[], annotations: readonly An
     const disagreements = caseIds
         .map((caseId) => {
             const labels: Record<string, number> = {};
-            for (const annotation of annotations.filter((entry) => entry.caseId === caseId)) labels[annotation.label] = (labels[annotation.label] ?? 0) + 1;
+            for (const annotation of annotations.filter((entry) => entry.caseId === caseId)) {
+                labels[annotation.label] = (labels[annotation.label] ?? 0) + 1;
+            }
             return { caseId, labels };
         })
         .filter((entry) => Object.keys(entry.labels).length > 1);
@@ -173,9 +208,13 @@ export const auditLabels = (caseIds: readonly string[], annotations: readonly An
             countsForCase[annotation.label] = (countsForCase[annotation.label] ?? 0) + 1;
         }
         const ranked = Object.entries(countsForCase).sort((left, right) => right[1] - left[1]);
-        if (ranked.length === 0) adjudicated[caseId] = null;
-        else if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) adjudicated[caseId] = null;
-        else adjudicated[caseId] = ranked[0][0];
+        if (ranked.length === 0) {
+            adjudicated[caseId] = null;
+        } else if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) {
+            adjudicated[caseId] = null;
+        } else {
+            adjudicated[caseId] = ranked[0][0];
+        }
     }
 
     const pairwiseKappa: LabelAudit["pairwiseKappa"] = [];

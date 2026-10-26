@@ -6,7 +6,9 @@
  * point at.
  */
 
-/** Top-level data, hence PascalCase under the project's naming rule. */
+/**
+ * Top-level data, hence PascalCase under the project's naming rule.
+ */
 const IdPattern: RegExp = /^[a-z][a-z0-9._:-]{0,63}$/;
 
-export const isId = (value: unknown): value is string => typeof(value) === "string" && IdPattern.test(value);
+export const isId: (value: unknown) => value is string = (value: unknown): value is string => typeof(value) === "string" && IdPattern.test(value);

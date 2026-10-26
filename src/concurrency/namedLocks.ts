@@ -16,8 +16,10 @@ export class NamedLocks {
     private readonly locks: UnorderedMap<string, Mutex> = new UnorderedMap<string, Mutex>();
 
     forName(name: string): Mutex {
-        const existing = this.locks.get(name);
-        if (existing !== undefined) return existing;
+        const existing: Mutex | undefined = this.locks.get(name);
+        if (existing !== (void 0)) {
+            return existing;
+        }
         const mutex: Mutex = new Mutex();
         this.locks.set(name, mutex);
         return mutex;

@@ -20,7 +20,9 @@ export interface LlmToolDefinition {
 export interface LlmMessage {
     role: LlmRole;
     content: string;
-    /** Assistant tool calls, or the tool result correlation id. */
+    /**
+     * Assistant tool calls, or the tool result correlation id.
+     */
     toolCalls?: LlmToolCall[];
     toolCallId?: string;
     name?: string;
@@ -37,11 +39,17 @@ export interface LlmRequest {
 export interface LlmUsage {
     inputTokens: number;
     outputTokens: number;
-    /** Prompt tokens served from cache, when the provider reports it. */
+    /**
+     * Prompt tokens served from cache, when the provider reports it.
+     */
     cacheHitTokens?: number;
-    /** Prompt tokens not served from cache. */
+    /**
+     * Prompt tokens not served from cache.
+     */
     cacheMissTokens?: number;
-    /** Provider-reported or adapter-computed cost. */
+    /**
+     * Provider-reported or adapter-computed cost.
+     */
     costUsd?: number;
 }
 
@@ -64,10 +72,13 @@ export class ScriptedLlm implements LlmClient {
         this.responses = [...responses];
     }
 
-    async complete(_request: LlmRequest): Promise<LlmResponse> {
+    async complete(request: LlmRequest): Promise<LlmResponse> {
+        void request;
         this.calls += 1;
         const response: LlmResponse | undefined = this.responses.shift();
-        if (response === undefined) throw new Error("scripted LLM has no response left");
+        if (response === (void 0)) {
+            throw new Error("scripted LLM has no response left");
+        }
         return response;
     }
 }

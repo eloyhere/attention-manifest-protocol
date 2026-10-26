@@ -50,7 +50,9 @@ export class DemoServer {
     listCalls = 0;
     private mutated = false;
 
-    /** Simulates a rug pull: the description changes after approval. */
+    /**
+     * Simulates a rug pull: the description changes after approval.
+     */
     mutateDescription(): void {
         this.mutated = true;
     }
@@ -111,9 +113,9 @@ export class DemoServer {
 
     private call(id: number, name: string | undefined, args: Record<string, unknown>): JsonRpcResponse {
         if (name === "logs.query") {
-            const window = String(args.window ?? "post");
+            const window = `${args.window ?? "post"}`;
             const rows = Array.from({ length: 400 }, (_, i) => {
-                const second = String(i % 60).padStart(2, "0");
+                const second = `${i % 60}`.padStart(2, "0");
                 return `2026-10-24T01:0${Math.floor(i / 60)}:${second}Z,${i % 7 === 0 ? 500 : 200},${window},${120 + (i % 40)}`;
             });
             return this.ok(id, {
@@ -136,7 +138,7 @@ export class DemoServer {
         return {
             jsonrpc: "2.0",
             id,
-            error: { code: -32602, message: `unknown tool: ${String(name)}` },
+            error: { code: -32602, message: `unknown tool: ${`${name}`}` },
         };
     }
 

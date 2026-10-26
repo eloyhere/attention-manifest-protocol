@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<ProcessEntity> = bindCache(
         }),
 );
 
-export const processStore = {
+export const ProcessStore = {
     get(pid: number): ProcessEntity | undefined {
         return cacheFor().get(pid);
     },

@@ -67,7 +67,9 @@ export interface PersonRoleRow {
     since: string;
 }
 
-/** Composite key in schema; `pid` is only used as a selector here. */
+/**
+ * Composite key in schema; `pid` is only used as a selector here.
+ */
 export const PersonRoleTable: TableMeta = {
     table: "person_roles",
     primaryKey: "pid",
@@ -150,7 +152,9 @@ export interface MembershipRow {
     since: string;
 }
 
-/** Composite key in schema; `pid` is only used as a selector here. */
+/**
+ * Composite key in schema; `pid` is only used as a selector here.
+ */
 export const MembershipTable: TableMeta = {
     table: "memberships",
     primaryKey: "pid",

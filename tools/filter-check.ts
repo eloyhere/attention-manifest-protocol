@@ -17,7 +17,7 @@ function test(name: string, fn: () => void): void {
         console.log(`\x1b[32m✓\x1b[0m ${name}`);
     } catch (error) {
         failed++;
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : `${error}`;
         console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${message}`);
     }
 }
@@ -219,7 +219,7 @@ test("deterministic randomized cuckoo workload keeps accepted keys findable", ()
         }
         if (index % 7 === 0) {
             const victim = [...present][Math.floor(random() * present.size)];
-            if (victim !== undefined && filter.delete(victim)) {
+            if (victim !== (void 0) && filter.delete(victim)) {
                 deleted += 1;
                 present.delete(victim);
             }

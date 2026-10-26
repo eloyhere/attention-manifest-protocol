@@ -19,7 +19,9 @@ import { isId } from "./ids.ts";
 import { BoundaryRejection } from "../error/boundaryRejection.ts";
 import type { RefTable } from "./refTable.ts";
 
-/** Draft accepted by {@link frameFrom}; `digest` is computed here, never supplied. */
+/**
+ * Draft accepted by {@link frameFrom}; `digest` is computed here, never supplied.
+ */
 export interface FrameDraft {
     id: Id;
     agent: Id;
@@ -37,17 +39,25 @@ export interface FrameDraft {
 }
 
 export interface FrameBoundaryOptions {
-    /** May lower the schema ceiling of 9, never raise it. Defaults to 9. */
+    /**
+     * May lower the schema ceiling of 9, never raise it. Defaults to 9.
+     */
     maxSlots?: number;
-    /** Visible exclusions kept on the frame; the rest is returned as `deferred`. Defaults to 50. */
+    /**
+     * Visible exclusions kept on the frame; the rest is returned as `deferred`. Defaults to 50.
+     */
     maxIgnored?: number;
-    /** Clock for `ts` when the draft omits it. Hosts should pass their ledger clock. */
+    /**
+     * Clock for `ts` when the draft omits it. Hosts should pass their ledger clock.
+     */
     now?: () => Timestamp;
 }
 
 export interface FrameBoundaryResult {
     frame: Frame;
-    /** Exclusions beyond `maxIgnored`, in input order. Never silently dropped. */
+    /**
+     * Exclusions beyond `maxIgnored`, in input order. Never silently dropped.
+     */
     deferred: Ignored[];
 }
 
@@ -62,14 +72,23 @@ const IgnoredReasons: readonly Ignored["reason"][] = ["low_voi", "out_of_scope",
 const ImpasseStates: readonly Impasse["state"][] = ["TIE", "STUCK", "STALLED", "CONFLICT", "INFEASIBLE", "UNKNOWN", "UNVERIFIED", "DRIFT", "BUDGET"];
 const Tiers: readonly NonNullable<Slot["tier"]>[] = ["T0", "T1", "T2", "T3", "T4"];
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof(value) === "object" && value !== null && !Array.isArray(value);
+type ProblemChecker = (value: unknown, at: string, problems: string[]) => void;
 
-const checkBudget = (value: unknown, at: string, problems: string[]): void => {
+type RefTableChecker = (value: unknown, refs: RefTable, at: string, problems: string[]) => void;
+
+type FrameBoundaryBuilder = (draft: FrameDraft, refs: RefTable, options?: FrameBoundaryOptions) => FrameBoundaryResult;
+
+const isRecord: (value: unknown) => value is Record<string, unknown> = (value: unknown): value is Record<string, unknown> =>
+    typeof(value) === "object" && value !== null && !Array.isArray(value);
+
+const checkBudget: ProblemChecker = (value: unknown, at: string, problems: string[]): void => {
     if (!isRecord(value)) {
         problems.push(`${at} must be an object`);
         return;
     }
-    for (const key of Object.keys(value)) {
+    const budgetKeys: string[] = Object.keys(value);
+    for (let keyIndex: number = 0; keyIndex < budgetKeys.length; keyIndex += 1) {
+        const key: string = budgetKeys[keyIndex];
         const amount: unknown = value[key];
         if (!BudgetDimensions.includes(key)) {
             problems.push(`${at}.${key} is not a budget dimension`);
@@ -85,7 +104,7 @@ const checkBudget = (value: unknown, at: string, problems: string[]): void => {
     }
 };
 
-const checkRef = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
+const checkRef: RefTableChecker = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
     if (!isRecord(value)) {
         problems.push(`${at} must be a Ref object`);
         return;
@@ -96,11 +115,13 @@ const checkRef = (value: unknown, refs: RefTable, at: string, problems: string[]
     }
     if (!refs.has(value as unknown as Ref)) {
         const problem: string | undefined = refs.check(value as unknown as Ref);
-        if (problem !== (void 0)) problems.push(`${at} ${problem}`);
+        if (problem !== (void 0)) {
+            problems.push(`${at} ${problem}`);
+        }
     }
 };
 
-const checkSlot = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
+const checkSlot: RefTableChecker = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
     if (!isRecord(value)) {
         problems.push(`${at} must be an object`);
         return;
@@ -136,7 +157,7 @@ const checkSlot = (value: unknown, refs: RefTable, at: string, problems: string[
     }
 };
 
-const checkIgnored = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
+const checkIgnored: RefTableChecker = (value: unknown, refs: RefTable, at: string, problems: string[]): void => {
     if (!isRecord(value)) {
         problems.push(`${at} must be an object`);
         return;
@@ -150,7 +171,7 @@ const checkIgnored = (value: unknown, refs: RefTable, at: string, problems: stri
     }
 };
 
-const checkImpasse = (value: unknown, at: string, problems: string[]): void => {
+const checkImpasse: ProblemChecker = (value: unknown, at: string, problems: string[]): void => {
     if (!isRecord(value)) {
         problems.push(`${at} must be an object`);
         return;
@@ -168,16 +189,26 @@ const checkImpasse = (value: unknown, at: string, problems: string[]): void => {
  *
  * @throws BoundaryRejection `invalid_frame` with every problem found.
  */
-export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBoundaryOptions = {}): FrameBoundaryResult => {
+export const frameFrom: FrameBoundaryBuilder = (draft: FrameDraft, refs: RefTable, options: FrameBoundaryOptions = {}): FrameBoundaryResult => {
     const problems: string[] = [];
 
-    if (!isId(draft.id)) problems.push("id is not a valid AMP id");
-    if (!isId(draft.agent)) problems.push("agent is not a valid AMP id");
-    if (!Number.isSafeInteger(draft.cycle) || draft.cycle < 0) problems.push("cycle must be a non-negative integer");
-    if (!FrameModes.includes(draft.mode)) problems.push("mode is not a frame mode");
+    if (!isId(draft.id)) {
+        problems.push("id is not a valid AMP id");
+    }
+    if (!isId(draft.agent)) {
+        problems.push("agent is not a valid AMP id");
+    }
+    if (!Number.isSafeInteger(draft.cycle) || draft.cycle < 0) {
+        problems.push("cycle must be a non-negative integer");
+    }
+    if (!FrameModes.includes(draft.mode)) {
+        problems.push("mode is not a frame mode");
+    }
 
     const ts: Timestamp = draft.ts ?? (options.now ? options.now() : new Date().toISOString());
-    if (typeof(ts) !== "string" || Number.isNaN(Date.parse(ts))) problems.push("ts is not a date-time");
+    if (typeof(ts) !== "string" || Number.isNaN(Date.parse(ts))) {
+        problems.push("ts is not a date-time");
+    }
 
     const requestedMaxSlots: number = options.maxSlots ?? SchemaMaxSlots;
     if (!Number.isInteger(requestedMaxSlots) || requestedMaxSlots < 0 || requestedMaxSlots > SchemaMaxSlots) {
@@ -194,13 +225,17 @@ export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBound
     if (!Array.isArray(draft.slots)) {
         problems.push("slots must be an array");
     } else {
-        if (draft.slots.length > maxSlots) problems.push(`slots has ${draft.slots.length} entries, max is ${maxSlots}`);
+        if (draft.slots.length > maxSlots) {
+            problems.push(`slots has ${draft.slots.length} entries, max is ${maxSlots}`);
+        }
         draft.slots.forEach((slot, index) => checkSlot(slot, refs, `slots[${index}]`, problems));
     }
 
     const declaredIgnored: unknown = draft.ignored;
     const ignored: Ignored[] = Array.isArray(declaredIgnored) ? declaredIgnored : [];
-    if (declaredIgnored !== (void 0) && !Array.isArray(declaredIgnored)) problems.push("ignored must be an array");
+    if (declaredIgnored !== (void 0) && !Array.isArray(declaredIgnored)) {
+        problems.push("ignored must be an array");
+    }
     ignored.forEach((item, index) => checkIgnored(item, refs, `ignored[${index}]`, problems));
 
     const budgetValue: unknown = draft.budget;
@@ -212,8 +247,11 @@ export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBound
         checkBudget(allocated, "budget.allocated", problems);
         checkBudget(spent, "budget.spent", problems);
         if (isRecord(allocated) && isRecord(spent)) {
-            if (Object.keys(allocated).length === 0) problems.push("budget.allocated must set at least one dimension");
-            for (const key of BudgetDimensions) {
+            if (Object.keys(allocated).length === 0) {
+                problems.push("budget.allocated must set at least one dimension");
+            }
+            for (let dimensionIndex: number = 0; dimensionIndex < BudgetDimensions.length; dimensionIndex += 1) {
+                const key: string = BudgetDimensions[dimensionIndex];
                 const limit: unknown = allocated[key];
                 const used: unknown = spent[key];
                 if (typeof(limit) === "number" && typeof(used) === "number" && used > limit) {
@@ -223,8 +261,12 @@ export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBound
         }
     }
 
-    if (draft.parent !== (void 0)) checkRef(draft.parent, refs, "parent", problems);
-    if (draft.goal !== (void 0)) checkRef(draft.goal, refs, "goal", problems);
+    if (draft.parent !== (void 0)) {
+        checkRef(draft.parent, refs, "parent", problems);
+    }
+    if (draft.goal !== (void 0)) {
+        checkRef(draft.goal, refs, "goal", problems);
+    }
     if (draft.open_questions !== (void 0)) {
         if (!Array.isArray(draft.open_questions)) {
             problems.push("open_questions must be an array");
@@ -232,8 +274,12 @@ export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBound
             draft.open_questions.forEach((ref, index) => checkRef(ref, refs, `open_questions[${index}]`, problems));
         }
     }
-    if (draft.impasse !== (void 0)) checkImpasse(draft.impasse, "impasse", problems);
-    if (draft.note !== (void 0) && typeof(draft.note) !== "string") problems.push("note must be a string");
+    if (draft.impasse !== (void 0)) {
+        checkImpasse(draft.impasse, "impasse", problems);
+    }
+    if (draft.note !== (void 0) && typeof(draft.note) !== "string") {
+        problems.push("note must be a string");
+    }
 
     if (problems.length > 0) {
         throw new BoundaryRejection("invalid_frame", problems);
@@ -252,12 +298,24 @@ export const frameFrom = (draft: FrameDraft, refs: RefTable, options: FrameBound
         slots: [...draft.slots],
         budget: { allocated: { ...draft.budget.allocated }, spent: { ...draft.budget.spent } },
     };
-    if (draft.parent !== (void 0)) body.parent = draft.parent;
-    if (draft.goal !== (void 0)) body.goal = draft.goal;
-    if (visible.length > 0) body.ignored = visible;
-    if (draft.open_questions !== (void 0)) body.open_questions = [...draft.open_questions];
-    if (draft.impasse !== (void 0)) body.impasse = draft.impasse;
-    if (draft.note !== (void 0)) body.note = draft.note;
+    if (draft.parent !== (void 0)) {
+        body.parent = draft.parent;
+    }
+    if (draft.goal !== (void 0)) {
+        body.goal = draft.goal;
+    }
+    if (visible.length > 0) {
+        body.ignored = visible;
+    }
+    if (draft.open_questions !== (void 0)) {
+        body.open_questions = [...draft.open_questions];
+    }
+    if (draft.impasse !== (void 0)) {
+        body.impasse = draft.impasse;
+    }
+    if (draft.note !== (void 0)) {
+        body.note = draft.note;
+    }
 
     const frame: Frame = { ...body, digest: digestOf(body) };
     return { frame, deferred };

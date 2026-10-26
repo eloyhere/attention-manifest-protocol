@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Calibration registry: activate only when CV improvement passes the margin. */
+/**
+ * Calibration registry: activate only when CV improvement passes the margin.
+ */
 import assert from "node:assert/strict";
 
 import { CalibrationRegistry } from "../src/bayes/calibrationRegistry.ts";

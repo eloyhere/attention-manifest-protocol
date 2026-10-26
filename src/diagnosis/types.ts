@@ -31,10 +31,14 @@ export interface Hypothesis {
     layer: DiagnosticLayer;
     supports: SignalPattern[];
     contradicts?: SignalPattern[];
-    /** A check that separates this cause from its neighbors. */
+    /**
+     * A check that separates this cause from its neighbors.
+     */
     discriminatingTest: string;
     baseConfidence: number;
-    /** Root-cause evidence weighs more than a downstream saturation symptom. */
+    /**
+     * Root-cause evidence weighs more than a downstream saturation symptom.
+     */
     rootWeight?: number;
 }
 
@@ -64,7 +68,9 @@ export interface IncidentInput {
     signals?: DiagnosticSignal[];
     recentChanges?: string[];
     constraints?: string[];
-    /** Optional narrowing; defaults to all layers. */
+    /**
+     * Optional narrowing; defaults to all layers.
+     */
     layers?: DiagnosticLayer[];
 }
 
@@ -78,6 +84,6 @@ export interface DiagnosticFrame {
     selected?: string;
 }
 
-export const LAYER_ORDER: readonly DiagnosticLayer[] = ["thread_pool", "connection_pool", "connect", "database", "queue", "application", "release"];
+export const LayerOrder: readonly DiagnosticLayer[] = ["thread_pool", "connection_pool", "connect", "database", "queue", "application", "release"];
 
-export const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+export const clamp01: (value: number) => number = (value: number): number => Math.max(0, Math.min(1, value));

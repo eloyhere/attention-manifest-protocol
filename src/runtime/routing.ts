@@ -32,17 +32,27 @@ export const inferScenarioMix = (text: string): ScenarioMix => {
         ["chat", chat],
     ];
     scores.sort((left, right) => right[1] - left[1]);
-    if (scores[0][1] === 0) return { office: 0.2, collaboration: 0.2, engineering: 0.2, chat: 0.2, writing: 0.2 };
+    if (scores[0][1] === 0) {
+        return { office: 0.2, collaboration: 0.2, engineering: 0.2, chat: 0.2, writing: 0.2 };
+    }
     const top = scores.filter(([, score]) => score > 0).slice(0, 3);
     const total = top.reduce((sum, [, score]) => sum + score, 0);
     const mix: ScenarioMix = {};
-    for (const [kind, score] of top) mix[kind as keyof ScenarioMix] = score / total;
+    for (const [kind, score] of top) {
+        mix[kind as keyof ScenarioMix] = score / total;
+    }
     return mix;
 };
 
 export const inferInteractionMix = (user: UserScore): InteractionMix => {
-    if (user.state.emotionalIntensity > 0.6) return { affect: 0.55, think: 0.2, converge: 0.2, inspire: 0.05 };
-    if (user.state.urgency > 0.6) return { converge: 0.55, think: 0.25, affect: 0.2 };
-    if (user.dimensions.clarity.mean < 0.4) return { inspire: 0.45, affect: 0.25, think: 0.3 };
+    if (user.state.emotionalIntensity > 0.6) {
+        return { affect: 0.55, think: 0.2, converge: 0.2, inspire: 0.05 };
+    }
+    if (user.state.urgency > 0.6) {
+        return { converge: 0.55, think: 0.25, affect: 0.2 };
+    }
+    if (user.dimensions.clarity.mean < 0.4) {
+        return { inspire: 0.45, affect: 0.25, think: 0.3 };
+    }
     return { think: 0.55, converge: 0.25, orchestrate: 0.2 };
 };

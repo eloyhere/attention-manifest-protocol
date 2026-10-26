@@ -7,9 +7,13 @@ import type { SessionSnapshot } from "./session.ts";
 export interface SessionStore {
     load(pid: number): SessionSnapshot | undefined;
     save(pid: number, snapshot: SessionSnapshot, at: string): void;
-    /** Retain the snapshot but mark it archived. */
+    /**
+     * Retain the snapshot but mark it archived.
+     */
     archive(pid: number, at: string): boolean;
-    /** Delete the snapshot when the agent is removed/archived. */
+    /**
+     * Delete the snapshot when the agent is removed/archived.
+     */
     delete(pid: number): boolean;
 }
 
@@ -26,7 +30,9 @@ export class MemorySessionStore implements SessionStore {
 
     archive(pid: number, at: string): boolean {
         const snapshot = this.snapshots.get(pid);
-        if (snapshot === undefined) return false;
+        if (snapshot === (void 0)) {
+            return false;
+        }
         this.snapshots.set(pid, { ...snapshot, archivedAt: at });
         return true;
     }

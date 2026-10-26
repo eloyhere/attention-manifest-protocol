@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Annotation server: serve cases, accept a label, persist JSONL. */
+/**
+ * Annotation server: serve cases, accept a label, persist JSONL.
+ */
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -9,41 +9,43 @@ import { byKey } from "../src/structure/compare.ts";
 import type { HeapOrder } from "../src/structure/heap.ts";
 import { BucketQueue, IndexedPriorityQueue, PriorityQueue, TopK } from "../src/structure/priority.ts";
 
-let passed = 0;
-let failed = 0;
+type RandomSource = () => number;
 
-function test(name: string, fn: () => void): void {
+let Passed: number = 0;
+let Failed: number = 0;
+
+const test: (name: string, fn: () => void) => void = (name: string, fn: () => void): void => {
     try {
         fn();
-        passed += 1;
+        Passed += 1;
         console.log(`✓ ${name}`);
     } catch (error) {
-        failed += 1;
-        const message = error instanceof Error ? error.message : String(error);
+        Failed += 1;
+        const message: string = error instanceof Error ? error.message : `${error}`;
         console.error(`✗ ${name}\n      ${message}`);
     }
-}
+};
 
 /**
  * Deterministic mulberry32 generator, so random checks are reproducible.
  */
-function createRandom(seed: number): () => number {
-    let state = seed >>> 0;
+const createRandom: (seed: number) => RandomSource = (seed: number): RandomSource => {
+    let state: number = seed >>> 0;
     return () => {
         state = (state + 0x6d2b79f5) >>> 0;
-        let value = state;
+        let value: number = state;
         value = Math.imul(value ^ (value >>> 15), value | 1);
         value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
         return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
     };
-}
+};
 
 interface Row {
     id: number;
     rank: number;
 }
 
-const compareRows = (left: Row, right: Row): number => left.rank - right.rank;
+const compareRows: (left: Row, right: Row) => number = (left: Row, right: Row): number => left.rank - right.rank;
 
 /**
  * Reference order for the comparison queues: priority first, then arrival.
@@ -51,26 +53,30 @@ const compareRows = (left: Row, right: Row): number => left.rank - right.rank;
  * `rows` is kept in arrival order and `sort` is stable, so equal ranks keep
  * their arrival order, which is exactly the contract the queues promise.
  */
-function orderRows(rows: readonly Row[], order: HeapOrder): Row[] {
+const orderRows: (rows: readonly Row[], order: HeapOrder) => Row[] = (rows: readonly Row[], order: HeapOrder): Row[] => {
     const copy: Row[] = rows.slice();
     copy.sort((left: Row, right: Row): number => {
         return order === "max" ? compareRows(right, left) : compareRows(left, right);
     });
     return copy;
-}
+};
 
 interface BucketRow {
     value: number;
     priority: number;
 }
 
-function orderBuckets(rows: readonly BucketRow[], order: HeapOrder): BucketRow[] {
+type BucketOrderer = (rows: readonly BucketRow[], order: HeapOrder) => BucketRow[];
+
+const orderBuckets: BucketOrderer = (rows: readonly BucketRow[], order: HeapOrder): BucketRow[] => {
     const copy: BucketRow[] = rows.slice();
     copy.sort((left: BucketRow, right: BucketRow): number => {
         return order === "max" ? right.priority - left.priority : left.priority - right.priority;
     });
     return copy;
-}
+};
+
+type SequenceAsserter = <T>(actual: readonly T[], expected: readonly T[], label: string) => void;
 
 /**
  * Compare two sequences position by position.
@@ -78,25 +84,25 @@ function orderBuckets(rows: readonly BucketRow[], order: HeapOrder): BucketRow[]
  * `deepEqual` on a few thousand entries buries the first mismatch in a full
  * dump, so these checks report the index and the two values instead.
  */
-function assertSameSequence<T>(actual: readonly T[], expected: readonly T[], label: string): void {
+const assertSameSequence: SequenceAsserter = <T>(actual: readonly T[], expected: readonly T[], label: string): void => {
     assert.equal(actual.length, expected.length, `${label}: length ${actual.length} !== ${expected.length}`);
-    for (let index = 0; index < expected.length; index += 1) {
+    for (let index: number = 0; index < expected.length; index += 1) {
         if (actual[index] !== expected[index]) {
-            assert.fail(`${label}: index ${index}: ${String(actual[index])} !== ${String(expected[index])}`);
+            assert.fail(`${label}: index ${index}: ${`${actual[index]}`} !== ${`${expected[index]}`}`);
         }
     }
-}
+};
 
 /**
  * Run the comparison queue against a stable-sort model.
  */
-function runPriorityQueueDifferential(order: HeapOrder, seed: number): void {
+const runPriorityQueueDifferential: (order: HeapOrder, seed: number) => void = (order: HeapOrder, seed: number): void => {
     const random: () => number = createRandom(seed);
-    const queue = new PriorityQueue<Row>({ compare: compareRows, order });
+    const queue: PriorityQueue<Row> = new PriorityQueue<Row>({ compare: compareRows, order });
     const model: Row[] = [];
-    let nextId = 0;
+    let nextId: number = 0;
 
-    for (let step = 0; step < 2000; step += 1) {
+    for (let step: number = 0; step < 2000; step += 1) {
         if (model.length === 0 || random() < 0.6) {
             const row: Row = { id: nextId, rank: Math.floor(random() * 12) };
             nextId += 1;
@@ -116,19 +122,23 @@ function runPriorityQueueDifferential(order: HeapOrder, seed: number): void {
         orderRows(model, order).map((row: Row): number => row.id),
         `priority queue ${order}`,
     );
-}
+};
 
 /**
  * Run the keyed queue against a Map model, exercising insert, replace, delete
  * and extract on the same keys.
  */
-function runIndexedDifferential(order: HeapOrder, seed: number): void {
+const runIndexedDifferential: (order: HeapOrder, seed: number) => void = (order: HeapOrder, seed: number): void => {
     const random: () => number = createRandom(seed);
-    const queue = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows, order });
-    const model = new Map<number, Row>();
-    let nextId = 0;
+    const queue: IndexedPriorityQueue<number, Row> = new IndexedPriorityQueue<number, Row>({
+        keyOf: (row: Row): number => row.id,
+        compare: compareRows,
+        order,
+    });
+    const model: Map<number, Row> = new Map<number, Row>();
+    let nextId: number = 0;
 
-    for (let step = 0; step < 3000; step += 1) {
+    for (let step: number = 0; step < 3000; step += 1) {
         const roll: number = random();
         if (roll < 0.45) {
             const keys: number[] = [...model.keys()];
@@ -164,18 +174,18 @@ function runIndexedDifferential(order: HeapOrder, seed: number): void {
         orderRows([...model.values()], order).map((row: Row): number => row.id),
         `indexed queue keys ${order}`,
     );
-}
+};
 
 /**
  * Run the bucket queue against a stable-sort model over sparse priorities.
  */
-function runBucketDifferential(order: HeapOrder, seed: number): void {
+const runBucketDifferential: (order: HeapOrder, seed: number) => void = (order: HeapOrder, seed: number): void => {
     const random: () => number = createRandom(seed);
-    const queue = new BucketQueue<number>({ order });
+    const queue: BucketQueue<number> = new BucketQueue<number>({ order });
     const model: BucketRow[] = [];
-    let nextValue = 0;
+    let nextValue: number = 0;
 
-    for (let step = 0; step < 2000; step += 1) {
+    for (let step: number = 0; step < 2000; step += 1) {
         if (model.length === 0 || random() < 0.55) {
             const priority: number = Math.floor(random() * 9) - 4;
             queue.enqueue(nextValue, priority);
@@ -195,10 +205,10 @@ function runBucketDifferential(order: HeapOrder, seed: number): void {
         orderBuckets(model, order).map((row: BucketRow): number => row.value),
         `bucket queue ${order}`,
     );
-}
+};
 
 test("PriorityQueue serves the greatest value first by default", () => {
-    const queue = new PriorityQueue<number>();
+    const queue: PriorityQueue<number> = new PriorityQueue<number>();
     queue.enqueue(3).enqueue(9).enqueue(1).enqueue(7);
     assert.equal(queue.size, 4);
     assert.equal(queue.isEmpty, false);
@@ -212,36 +222,36 @@ test("PriorityQueue serves the greatest value first by default", () => {
 });
 
 test("PriorityQueue serves the smallest value first with order: 'min'", () => {
-    const queue = new PriorityQueue<number>({ order: "min" });
+    const queue: PriorityQueue<number> = new PriorityQueue<number>({ order: "min" });
     queue.enqueueAll([5, 2, 8, 1]);
     assert.equal(queue.peek(), 1);
     assert.deepEqual(queue.drain(), [1, 2, 5, 8]);
 });
 
 test("PriorityQueue breaks ties by arrival, in both orders", () => {
-    const compare = (left: string, right: string): number => left.length - right.length;
-    const maxQueue = new PriorityQueue<string>({ compare, values: ["bb", "a", "cc", "dd", "e"] });
+    const compare: (left: string, right: string) => number = (left: string, right: string): number => left.length - right.length;
+    const maxQueue: PriorityQueue<string> = new PriorityQueue<string>({ compare, values: ["bb", "a", "cc", "dd", "e"] });
     assert.deepEqual(maxQueue.toArray(), ["bb", "cc", "dd", "a", "e"]);
 
-    const minQueue = new PriorityQueue<string>({ compare, order: "min", values: ["bb", "a", "cc", "dd", "e"] });
+    const minQueue: PriorityQueue<string> = new PriorityQueue<string>({ compare, order: "min", values: ["bb", "a", "cc", "dd", "e"] });
     assert.deepEqual(minQueue.toArray(), ["a", "e", "bb", "cc", "dd"]);
 });
 
 test("PriorityQueue seeds from values, enqueueAll and from()", () => {
-    const seeded = new PriorityQueue<number>({ values: [4, 1, 4, 2] });
+    const seeded: PriorityQueue<number> = new PriorityQueue<number>({ values: [4, 1, 4, 2] });
     assert.equal(seeded.size, 4);
     assert.deepEqual(seeded.drain(), [4, 4, 2, 1]);
 
-    const from = PriorityQueue.from([5, 3, 8, 1]);
+    const from: PriorityQueue<number> = PriorityQueue.from([5, 3, 8, 1]);
     assert.equal(from.size, 4);
     assert.deepEqual([...from], [8, 5, 3, 1]);
 
-    const minFrom = PriorityQueue.from(["pear", "apple", "fig"], { order: "min" });
+    const minFrom: PriorityQueue<string> = PriorityQueue.from(["pear", "apple", "fig"], { order: "min" });
     assert.deepEqual(minFrom.drain(), ["apple", "fig", "pear"]);
 });
 
 test("PriorityQueue snapshots are non-destructive and drain removes everything", () => {
-    const queue = new PriorityQueue<number>({ values: [2, 7, 4] });
+    const queue: PriorityQueue<number> = new PriorityQueue<number>({ values: [2, 7, 4] });
     const view: number[] = queue.toArray();
     assert.deepEqual(view, [7, 4, 2]);
     assert.equal(queue.size, 3);
@@ -271,7 +281,7 @@ test("PriorityQueue accepts a key-derived comparator", () => {
         { name: "urgent", priority: 9 },
         { name: "medium", priority: 5 },
     ];
-    const queue = new PriorityQueue<Job>({ compare: byKey((job: Job): number => job.priority) });
+    const queue: PriorityQueue<Job> = new PriorityQueue<Job>({ compare: byKey((job: Job): number => job.priority) });
     queue.enqueueAll(jobs);
     assert.equal(queue.peek()?.name, "urgent");
     queue.enqueue({ name: "critical", priority: 10 });
@@ -282,7 +292,7 @@ test("PriorityQueue accepts a key-derived comparator", () => {
 });
 
 test("PriorityQueue empty behavior and clear are well-defined", () => {
-    const queue = new PriorityQueue<string>();
+    const queue: PriorityQueue<string> = new PriorityQueue<string>();
     assert.equal(queue.size, 0);
     assert.equal(queue.isEmpty, true);
     assert.equal(queue.peek(), undefined);
@@ -301,9 +311,11 @@ test("PriorityQueue empty behavior and clear are well-defined", () => {
     assert.equal(queue.dequeue(), "z");
 });
 
+type OptionalComparer = (left: number | undefined, right: number | undefined) => number;
+
 test("PriorityQueue keeps undefined values without losing count", () => {
-    const compare = (left: number | undefined, right: number | undefined): number => (left ?? -1) - (right ?? -1);
-    const queue = new PriorityQueue<number | undefined>({ compare });
+    const compare: OptionalComparer = (left: number | undefined, right: number | undefined): number => (left ?? -1) - (right ?? -1);
+    const queue: PriorityQueue<number | undefined> = new PriorityQueue<number | undefined>({ compare });
     queue.enqueue(undefined).enqueue(1);
     assert.equal(queue.size, 2);
     assert.equal(queue.dequeue(), 1);
@@ -314,9 +326,9 @@ test("PriorityQueue keeps undefined values without losing count", () => {
 
 test("PriorityQueue drains 10,000 values in priority order", () => {
     const random: () => number = createRandom(0x5eed);
-    const queue = new PriorityQueue<number>();
+    const queue: PriorityQueue<number> = new PriorityQueue<number>();
     const values: number[] = [];
-    for (let index = 0; index < 10000; index += 1) {
+    for (let index: number = 0; index < 10000; index += 1) {
         const value: number = Math.floor(random() * 1000);
         values.push(value);
         queue.enqueue(value);
@@ -331,7 +343,7 @@ test("PriorityQueue matches a stable-sort model across 2,000 random operations p
 });
 
 test("IndexedPriorityQueue orders by priority and exposes keys", () => {
-    const queue = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
+    const queue: IndexedPriorityQueue<number, Row> = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
     queue.set({ id: 2, rank: 2 }).set({ id: 5, rank: 5 }).set({ id: 3, rank: 2 });
     assert.equal(queue.size, 3);
     assert.equal(queue.isEmpty, false);
@@ -350,7 +362,7 @@ test("IndexedPriorityQueue orders by priority and exposes keys", () => {
 });
 
 test("IndexedPriorityQueue re-prioritises an existing key without reordering ties", () => {
-    const queue = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
+    const queue: IndexedPriorityQueue<number, Row> = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
     queue.set({ id: 0, rank: 2 });
     queue.set({ id: 1, rank: 5 });
     queue.set({ id: 2, rank: 2 });
@@ -369,9 +381,15 @@ test("IndexedPriorityQueue re-prioritises an existing key without reordering tie
 });
 
 test("IndexedPriorityQueue replaces the value under an existing key", () => {
-    const queue = new IndexedPriorityQueue<string, { id: string; rank: number; note: string }>({
-        keyOf: (value: { id: string; rank: number; note: string }): string => value.id,
-        compare: (left: { id: string; rank: number; note: string }, right: { id: string; rank: number; note: string }): number => left.rank - right.rank,
+    type NoteRow = {
+        id: string;
+        rank: number;
+        note: string;
+    };
+
+    const queue: IndexedPriorityQueue<string, NoteRow> = new IndexedPriorityQueue<string, NoteRow>({
+        keyOf: (value: NoteRow): string => value.id,
+        compare: (left: NoteRow, right: NoteRow): number => left.rank - right.rank,
     });
     queue.set({ id: "x", rank: 1, note: "old" });
     queue.set({ id: "x", rank: 1, note: "new" });
@@ -381,7 +399,7 @@ test("IndexedPriorityQueue replaces the value under an existing key", () => {
 });
 
 test("IndexedPriorityQueue deletes by key at every heap position", () => {
-    const queue = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
+    const queue: IndexedPriorityQueue<number, Row> = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
     queue.set({ id: 0, rank: 1 });
     queue.set({ id: 1, rank: 2 });
     queue.set({ id: 2, rank: 3 });
@@ -410,7 +428,7 @@ test("IndexedPriorityQueue deletes by key at every heap position", () => {
 });
 
 test("IndexedPriorityQueue clear resets keys and iteration", () => {
-    const queue = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
+    const queue: IndexedPriorityQueue<number, Row> = new IndexedPriorityQueue<number, Row>({ keyOf: (row: Row): number => row.id, compare: compareRows });
     queue.set({ id: 1, rank: 1 }).set({ id: 2, rank: 2 });
     queue.clear();
     assert.equal(queue.size, 0);
@@ -426,7 +444,7 @@ test("IndexedPriorityQueue matches a Map model across 3,000 random operations pe
 });
 
 test("BucketQueue serves priorities in order and stays FIFO inside a bucket", () => {
-    const queue = new BucketQueue<string>();
+    const queue: BucketQueue<string> = new BucketQueue<string>();
     queue.enqueue("cold", 0).enqueue("warm", 1).enqueue("hot", 9).enqueue("warm again", 1);
     assert.equal(queue.size, 4);
     assert.equal(queue.peekPriority(), 9);
@@ -445,14 +463,14 @@ test("BucketQueue serves priorities in order and stays FIFO inside a bucket", ()
 });
 
 test("BucketQueue honors order: 'min'", () => {
-    const queue = new BucketQueue<number>({ order: "min" });
+    const queue: BucketQueue<number> = new BucketQueue<number>({ order: "min" });
     queue.enqueue(5, 3).enqueue(1, 1).enqueue(9, 9);
     assert.equal(queue.peekPriority(), 1);
     assert.deepEqual([queue.dequeue(), queue.dequeue(), queue.dequeue()], [1, 5, 9]);
 });
 
 test("BucketQueue tolerates sparse and negative priorities", () => {
-    const queue = new BucketQueue<string>();
+    const queue: BucketQueue<string> = new BucketQueue<string>();
     queue.enqueue("far", 1000000).enqueue("near", -1000000).enqueue("middle", 0);
     assert.deepEqual(queue.toArray(), ["far", "middle", "near"]);
     assert.equal(queue.peekPriority(), 1000000);
@@ -463,7 +481,7 @@ test("BucketQueue tolerates sparse and negative priorities", () => {
 });
 
 test("BucketQueue rejects priorities a bucket cannot index", () => {
-    const queue = new BucketQueue<string>();
+    const queue: BucketQueue<string> = new BucketQueue<string>();
     assert.throws(() => queue.enqueue("x", 1.5), RangeError);
     assert.throws(() => queue.enqueue("x", Number.NaN), RangeError);
     assert.throws(() => queue.enqueue("x", Number.POSITIVE_INFINITY), RangeError);
@@ -472,8 +490,8 @@ test("BucketQueue rejects priorities a bucket cannot index", () => {
 });
 
 test("BucketQueue drains a single large bucket in FIFO order", () => {
-    const queue = new BucketQueue<number>();
-    for (let index = 0; index < 500; index += 1) {
+    const queue: BucketQueue<number> = new BucketQueue<number>();
+    for (let index: number = 0; index < 500; index += 1) {
         queue.enqueue(index, 5);
     }
     const drained: number[] = [];
@@ -483,13 +501,13 @@ test("BucketQueue drains a single large bucket in FIFO order", () => {
         drained.push(value as number);
     }
     assert.equal(drained.length, 500);
-    for (let index = 0; index < drained.length; index += 1) {
+    for (let index: number = 0; index < drained.length; index += 1) {
         assert.equal(drained[index], index);
     }
 });
 
 test("BucketQueue toArray is a sorted view and clear resets the queue", () => {
-    const queue = new BucketQueue<number>();
+    const queue: BucketQueue<number> = new BucketQueue<number>();
     queue.enqueue(1, 2).enqueue(2, 4).enqueue(3, 2);
     const view: number[] = queue.toArray();
     assert.deepEqual(view, [2, 1, 3]);
@@ -511,13 +529,15 @@ test("BucketQueue matches a stable-sort model across 2,000 random operations per
 });
 
 test("TopK keeps the k best values in order", () => {
-    const best = new TopK<number>(3);
+    const best: TopK<number> = new TopK<number>(3);
     assert.equal(best.capacity, 3);
     assert.equal(best.size, 0);
     assert.equal(best.isFull, false);
     assert.equal(best.worst, undefined);
 
-    for (const value of [5, 1, 9, 3, 7]) {
+    const candidates: number[] = [5, 1, 9, 3, 7];
+    for (let candidateIndex: number = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+        const value: number = candidates[candidateIndex];
         assert.equal(best.offer(value), true);
     }
     assert.equal(best.size, 3);
@@ -539,15 +559,22 @@ test("TopK keeps the k best values in order", () => {
 });
 
 test("TopK honors order: 'min' and custom comparators", () => {
-    const smallest = new TopK<number>(3, { order: "min" });
-    for (const value of [5, 1, 9, 3, 7]) {
+    type RankedName = {
+        name: string;
+        rank: number;
+    };
+
+    const smallest: TopK<number> = new TopK<number>(3, { order: "min" });
+    const candidates: number[] = [5, 1, 9, 3, 7];
+    for (let candidateIndex: number = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+        const value: number = candidates[candidateIndex];
         smallest.offer(value);
     }
     assert.deepEqual(smallest.toArray(), [1, 3, 5]);
     assert.equal(smallest.worst, 5);
 
-    const best = new TopK<{ name: string; rank: number }>(2, {
-        compare: (left: { name: string; rank: number }, right: { name: string; rank: number }): number => left.rank - right.rank,
+    const best: TopK<RankedName> = new TopK<RankedName>(2, {
+        compare: (left: RankedName, right: RankedName): number => left.rank - right.rank,
     });
     best.offer({ name: "a", rank: 5 });
     best.offer({ name: "b", rank: 5 });
@@ -557,7 +584,7 @@ test("TopK honors order: 'min' and custom comparators", () => {
     assert.deepEqual(
         best
             .toArray()
-            .map((entry: { name: string; rank: number }): string => entry.name)
+            .map((entry: RankedName): string => entry.name)
             .sort(),
         ["b", "d"],
     );
@@ -571,14 +598,16 @@ test("TopK rejects capacities that cannot bound a buffer", () => {
 });
 
 test("TopK matches a full sort across 1,500 random offers per order", () => {
-    for (const [order, seed] of [
+    const cases: Array<[HeapOrder, number]> = [
         ["max", 0x3a5f],
         ["min", 0x64c9],
-    ] as Array<[HeapOrder, number]>) {
+    ];
+    for (let caseIndex: number = 0; caseIndex < cases.length; caseIndex += 1) {
+        const [order, seed]: [HeapOrder, number] = cases[caseIndex];
         const random: () => number = createRandom(seed);
-        const best = new TopK<number>(7, { order });
+        const best: TopK<number> = new TopK<number>(7, { order });
         const offered: number[] = [];
-        for (let step = 0; step < 1500; step += 1) {
+        for (let step: number = 0; step < 1500; step += 1) {
             const value: number = Math.floor(random() * 60);
             offered.push(value);
             best.offer(value);
@@ -592,7 +621,7 @@ test("TopK matches a full sort across 1,500 random offers per order", () => {
     }
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) {
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
     process.exitCode = 1;
 }

@@ -5,12 +5,7 @@
  */
 import { AmpError } from "./ampError.ts";
 
-export type AuthzCode =
-    | "permission_denied"
-    | "invalid_grant"
-    | "rights_amplification"
-    | "expiry_amplification"
-    | "unknown_capability";
+export type AuthzCode = "permission_denied" | "invalid_grant" | "rights_amplification" | "expiry_amplification" | "unknown_capability";
 
 export class AuthzError extends AmpError<AuthzCode> {
     constructor(code: AuthzCode, problems: readonly string[]) {

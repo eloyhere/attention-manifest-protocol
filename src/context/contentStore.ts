@@ -10,13 +10,13 @@ export interface ContentStore {
     get(ref: string): string | undefined;
 }
 
-const digest = (content: string): string => createHash("sha256").update(content).digest("hex");
+const digest: (content: string) => string = (content: string): string => createHash("sha256").update(content).digest("hex");
 
 export class MemoryContentStore implements ContentStore {
     private readonly contents = new Map<string, string>();
 
     put(content: string): string {
-        const ref = `sha256:${digest(content)}`;
+        const ref: string = `sha256:${digest(content)}`;
         this.contents.set(ref, content);
         return ref;
     }
@@ -39,16 +39,20 @@ export class FileContentStore implements ContentStore {
     }
 
     put(content: string): string {
-        const hash = digest(content);
-        const ref = `sha256:${hash}`;
-        const path = `${this.dir}/${hash}.txt`;
-        if (!existsSync(path)) writeFileSync(path, content, "utf8");
+        const hash: string = digest(content);
+        const ref: string = `sha256:${hash}`;
+        const path: string = `${this.dir}/${hash}.txt`;
+        if (!existsSync(path)) {
+            writeFileSync(path, content, "utf8");
+        }
         return ref;
     }
 
     get(ref: string): string | undefined {
-        if (!ref.startsWith("sha256:")) return undefined;
-        const path = `${this.dir}/${ref.slice("sha256:".length)}.txt`;
+        if (!ref.startsWith("sha256:")) {
+            return undefined;
+        }
+        const path: string = `${this.dir}/${ref.slice("sha256:".length)}.txt`;
         return existsSync(path) ? readFileSync(path, "utf8") : undefined;
     }
 }

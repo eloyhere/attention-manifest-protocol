@@ -39,7 +39,7 @@ export const outboxEventSink: StepEventSink = (db: DatabaseSync, event: StepEven
             decision?: string;
             status?: string;
         };
-        if (safe.pid !== undefined && safe.turnId !== undefined && safe.operationId !== undefined) {
+        if (safe.pid !== (void 0) && safe.turnId !== (void 0) && safe.operationId !== (void 0)) {
             new RuntimeApprovalRepository(db).record({
                 pid: safe.pid,
                 turnId: safe.turnId,

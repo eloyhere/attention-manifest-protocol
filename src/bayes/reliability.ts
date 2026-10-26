@@ -11,17 +11,22 @@ export interface ReliabilityBelief {
     observations: number;
 }
 
+type PriorShape = {
+    alpha: number;
+    beta: number;
+};
+
 export class SourceReliability {
-    private readonly prior: { alpha: number; beta: number };
+    private readonly prior: PriorShape;
     private readonly beliefs = new Map<string, ReliabilityBelief>();
 
-    constructor(prior: { alpha: number; beta: number } = { alpha: 2, beta: 2 }) {
+    constructor(prior: PriorShape = { alpha: 2, beta: 2 }) {
         this.prior = prior;
     }
 
     observe(source: string, correct: boolean, weight = 1): ReliabilityBelief {
-        const current = this.beliefs.get(source) ?? { ...this.prior, observations: 0 };
-        const amount = Math.max(0, weight);
+        const current: ReliabilityBelief = this.beliefs.get(source) ?? { ...this.prior, observations: 0 };
+        const amount: number = Math.max(0, weight);
         current.alpha += correct ? amount : 0;
         current.beta += correct ? 0 : amount;
         current.observations += 1;
@@ -30,9 +35,11 @@ export class SourceReliability {
     }
 
     weight(source: string): number {
-        const belief = this.beliefs.get(source);
-        if (belief === undefined) return 1;
-        const total = belief.alpha + belief.beta;
+        const belief: ReliabilityBelief | undefined = this.beliefs.get(source);
+        if (belief === (void 0)) {
+            return 1;
+        }
+        const total: number = belief.alpha + belief.beta;
         return total === 0 ? 1 : belief.alpha / total;
     }
 
@@ -45,6 +52,11 @@ export class SourceReliability {
     }
 
     load(snapshot: Record<string, ReliabilityBelief>): void {
-        for (const [source, belief] of Object.entries(snapshot)) this.beliefs.set(source, { ...belief });
+        const entries: [string, ReliabilityBelief][] = Object.entries(snapshot);
+        for (let i: number = 0; i < entries.length; i += 1) {
+            const source: string = entries[i][0];
+            const belief: ReliabilityBelief = entries[i][1];
+            this.beliefs.set(source, { ...belief });
+        }
     }
 }

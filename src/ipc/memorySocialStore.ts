@@ -30,7 +30,7 @@ export class InMemorySocialStore implements SocialStore {
 
     institution(id: string): Institution | undefined {
         const institution = this.institutions.get(id);
-        return institution === undefined ? undefined : { ...institution, norms: [...institution.norms] };
+        return institution === (void 0) ? undefined : { ...institution, norms: [...institution.norms] };
     }
 
     upsertRelationship(input: NewRelationship): Relationship {
@@ -47,13 +47,17 @@ export class InMemorySocialStore implements SocialStore {
             since: input.since,
             lastContact: input.lastContact,
         };
-        if (existing === undefined) this.nextRelationship += 1;
+        if (existing === (void 0)) {
+            this.nextRelationship += 1;
+        }
         this.relationshipRows.set(key, relationship);
         return { ...relationship, obligations: [...relationship.obligations] };
     }
 
     createInstitution(input: NewInstitution): Institution {
-        if (this.institutions.has(input.id)) throw new AgentError("institution_not_found", [`institution ${input.id} already exists`]);
+        if (this.institutions.has(input.id)) {
+            throw new AgentError("institution_not_found", [`institution ${input.id} already exists`]);
+        }
         const institution: Institution = { id: input.id, name: input.name, norms: [...(input.norms ?? [])] };
         this.institutions.set(institution.id, institution);
         return { ...institution, norms: [...institution.norms] };
@@ -61,7 +65,9 @@ export class InMemorySocialStore implements SocialStore {
 
     joinInstitution(input: JoinInstitutionInput): Membership {
         const institution = this.institutions.get(input.institutionId);
-        if (institution === undefined) throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
+        if (institution === (void 0)) {
+            throw new AgentError("institution_not_found", [`institution ${input.institutionId}`]);
+        }
         const membership: Membership = {
             institution: { ...institution, norms: [...institution.norms] },
             role: input.role,
@@ -77,7 +83,7 @@ export class InMemorySocialStore implements SocialStore {
     leaveInstitution(pid: Pid, institutionId: string, at: string): Membership {
         const rows = this.membershipRows.get(pid);
         const membership = rows?.get(institutionId);
-        if (rows === undefined || membership === undefined) {
+        if (rows === (void 0) || membership === (void 0)) {
             throw new AgentError("institution_not_found", [`membership ${pid}/${institutionId}`]);
         }
         membership.status = "left";

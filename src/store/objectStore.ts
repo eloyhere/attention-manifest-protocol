@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<ObjectEntity> = bindCache(
         }),
 );
 
-export const objectStore = {
+export const ObjectStore = {
     get(seq: number): ObjectEntity | undefined {
         return cacheFor().get(seq);
     },

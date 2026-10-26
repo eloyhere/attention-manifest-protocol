@@ -79,7 +79,7 @@ export type AstTransform<T, U> = (node: AstNode<T>, children: AstNode<U>[]) => A
  * Throw unless `kind` is a non-empty string.
  */
 function assertKind(kind: string): void {
-    if (typeof kind !== "string" || kind.length === 0) {
+    if (typeof(kind) !== "string" || kind.length === 0) {
         throw new TypeError("kind must be a non-empty string");
     }
 }
@@ -89,10 +89,10 @@ function assertKind(kind: string): void {
  */
 function makeNode<T>(kind: string, children: AstNode<T>[], value?: T, span?: SourceSpan): AstNode<T> {
     const node: AstNode<T> = { kind, children };
-    if (value !== undefined) {
+    if (value !== (void 0)) {
         node.value = value;
     }
-    if (span !== undefined) {
+    if (span !== (void 0)) {
         node.span = span;
     }
     return node;
@@ -122,7 +122,7 @@ function cloneNode<T>(root: AstNode<T>): AstNode<T> {
 
     while (pending.length > 0) {
         const node = pending.pop();
-        if (node === undefined || copies.has(node)) {
+        if (node === (void 0) || copies.has(node)) {
             continue;
         }
 
@@ -130,7 +130,7 @@ function cloneNode<T>(root: AstNode<T>): AstNode<T> {
         if ("value" in node) {
             copy.value = node.value;
         }
-        if (node.span !== undefined) {
+        if (node.span !== (void 0)) {
             copy.span = copySpan(node.span);
         }
         copies.set(node, copy);
@@ -142,19 +142,19 @@ function cloneNode<T>(root: AstNode<T>): AstNode<T> {
 
     for (const node of originals) {
         const copy = copies.get(node);
-        if (copy === undefined) {
+        if (copy === (void 0)) {
             continue;
         }
         for (const child of node.children) {
             const childCopy = copies.get(child);
-            if (childCopy !== undefined) {
+            if (childCopy !== (void 0)) {
                 copy.children.push(childCopy);
             }
         }
     }
 
     const rootCopy = copies.get(root);
-    if (rootCopy === undefined) {
+    if (rootCopy === (void 0)) {
         throw new Error("failed to clone the AST root");
     }
     return rootCopy;
@@ -164,7 +164,7 @@ function cloneNode<T>(root: AstNode<T>): AstNode<T> {
  * Compare optional spans field by field, using SameValue semantics.
  */
 function spansEqual(left: SourceSpan | undefined, right: SourceSpan | undefined): boolean {
-    if (left === undefined || right === undefined) {
+    if (left === (void 0) || right === (void 0)) {
         return left === right;
     }
     return Object.is(left.start, right.start) && Object.is(left.end, right.end) && Object.is(left.source, right.source);
@@ -247,7 +247,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
         const stack: Array<{ node: AstNode<T>; depth: number }> = [{ node: this.rootNode, depth: 1 }];
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (frame.depth > maximum) {
@@ -268,7 +268,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
         const stack: AstNode<T>[] = [this.rootNode];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             if (node.children.length === 0) {
@@ -297,13 +297,13 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
                 const stack: AstNode<T>[] = [this.rootNode];
                 while (stack.length > 0) {
                     const node = stack.pop();
-                    if (node === undefined) {
+                    if (node === (void 0)) {
                         break;
                     }
                     yield node;
                     for (let index = node.children.length - 1; index >= 0; index -= 1) {
                         const child = node.children[index];
-                        if (child !== undefined) {
+                        if (child !== (void 0)) {
                             stack.push(child);
                         }
                     }
@@ -314,7 +314,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
                 const stack: Array<{ node: AstNode<T>; expanded: boolean }> = [{ node: this.rootNode, expanded: false }];
                 while (stack.length > 0) {
                     const frame = stack.pop();
-                    if (frame === undefined) {
+                    if (frame === (void 0)) {
                         break;
                     }
                     if (frame.expanded) {
@@ -324,7 +324,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
                     stack.push({ node: frame.node, expanded: true });
                     for (let index = frame.node.children.length - 1; index >= 0; index -= 1) {
                         const child = frame.node.children[index];
-                        if (child !== undefined) {
+                        if (child !== (void 0)) {
                             stack.push({ node: child, expanded: false });
                         }
                     }
@@ -337,7 +337,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
                 while (next < queue.length) {
                     const node = queue[next];
                     next += 1;
-                    if (node === undefined) {
+                    if (node === (void 0)) {
                         continue;
                     }
                     yield node;
@@ -348,7 +348,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
                 return;
             }
             default:
-                throw new RangeError(`unknown AST traversal order: ${String(order)}`);
+                throw new RangeError(`unknown AST traversal order: ${`${order}`}`);
         }
     }
 
@@ -396,7 +396,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
 
         while (stack.length > 0) {
             const frame = stack[stack.length - 1];
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
 
@@ -410,7 +410,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
             const children: AstNode<U>[] = [];
             for (const child of frame.node.children) {
                 const mappedChild = mapped.get(child);
-                if (mappedChild === undefined) {
+                if (mappedChild === (void 0)) {
                     throw new Error("cannot map an AST child before it has been visited");
                 }
                 children.push(mappedChild);
@@ -420,7 +420,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
         }
 
         const mappedRoot = mapped.get(this.rootNode);
-        if (mappedRoot === undefined) {
+        if (mappedRoot === (void 0)) {
             throw new Error("AST mapping produced no root");
         }
         return new AbstractSyntaxTree<U>(mappedRoot);
@@ -444,7 +444,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
         const stack: Array<[AstNode<T>, AstNode<T>]> = [[this.rootNode, other.rootNode]];
         while (stack.length > 0) {
             const pair = stack.pop();
-            if (pair === undefined) {
+            if (pair === (void 0)) {
                 break;
             }
             const [left, right] = pair;
@@ -465,7 +465,7 @@ export class AbstractSyntaxTree<T> implements Iterable<AstNode<T>> {
             for (let index = 0; index < left.children.length; index += 1) {
                 const leftChild = left.children[index];
                 const rightChild = right.children[index];
-                if (leftChild === undefined || rightChild === undefined) {
+                if (leftChild === (void 0) || rightChild === (void 0)) {
                     return false;
                 }
                 stack.push([leftChild, rightChild]);

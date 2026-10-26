@@ -67,7 +67,7 @@ export class RedBlackTree<T> implements Iterable<T> {
         const stack: Array<{ node: RBNode<T>; depth: number }> = [{ node: this.rootNode, depth: 1 }];
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (frame.depth > maximum) {
@@ -318,7 +318,7 @@ export class RedBlackTree<T> implements Iterable<T> {
         let seen = 0;
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (!frame.visited) {
@@ -351,7 +351,7 @@ export class RedBlackTree<T> implements Iterable<T> {
 
             const leftBlack = node.left === null ? 0 : blackHeights.get(node.left);
             const rightBlack = node.right === null ? 0 : blackHeights.get(node.right);
-            if (leftBlack === undefined || rightBlack === undefined) {
+            if (leftBlack === (void 0) || rightBlack === (void 0)) {
                 errors.push("black height is missing for a child subtree");
                 blackHeights.set(node, node.red ? 0 : 1);
                 continue;
@@ -670,7 +670,7 @@ export class RedBlackTree<T> implements Iterable<T> {
                 node = node.left;
             }
             const current = stack.pop();
-            if (current === undefined) {
+            if (current === (void 0)) {
                 break;
             }
             yield current.value;

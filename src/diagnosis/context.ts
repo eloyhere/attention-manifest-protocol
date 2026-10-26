@@ -1,6 +1,6 @@
 import { ContextAst, MemoryDetailStore } from "../context/ast.ts";
 import type { ContextAstNode } from "../context/ast.ts";
-import type { DiagnosticFrame } from "./types.ts";
+import type { DiagnosticFrame, DiagnosticSignal, DiagnosticStep, HypothesisAssessment } from "./types.ts";
 import { assessHypotheses, selectHypothesis } from "./frame.ts";
 
 export interface DiagnosisContext {
@@ -10,15 +10,17 @@ export interface DiagnosisContext {
     top?: ReturnType<typeof selectHypothesis>;
 }
 
+type ContextProjector = (frame: DiagnosticFrame, budgetTokens?: number) => DiagnosisContext;
+
 /**
  * Project a DiagnosticFrame into the context AST:
  * incident -> layer steps -> signals/hypotheses. Summaries stay in the view;
  * raw signal/probe payloads live behind local refs.
  */
-export const toContextAst = (frame: DiagnosticFrame, budgetTokens = 1200): DiagnosisContext => {
-    const ast = new ContextAst();
-    const details = new MemoryDetailStore();
-    let order = 0;
+export const toContextAst: ContextProjector = (frame: DiagnosticFrame, budgetTokens: number = 1200): DiagnosisContext => {
+    const ast: ContextAst = new ContextAst();
+    const details: MemoryDetailStore = new MemoryDetailStore();
+    let order: number = 0;
     ast.add({
         id: "diagnosis",
         kind: "goal",
@@ -26,8 +28,9 @@ export const toContextAst = (frame: DiagnosticFrame, budgetTokens = 1200): Diagn
         order: order++,
         salience: 1,
     });
-    for (const step of frame.steps) {
-        const layerId = `step.${step.layer}`;
+    for (let stepIndex: number = 0; stepIndex < frame.steps.length; stepIndex += 1) {
+        const step: DiagnosticStep = frame.steps[stepIndex];
+        const layerId: string = `step.${step.layer}`;
         ast.add({
             id: layerId,
             parentId: "diagnosis",
@@ -36,11 +39,12 @@ export const toContextAst = (frame: DiagnosticFrame, budgetTokens = 1200): Diagn
             order: order++,
             salience: 0.8,
         });
-        const signals = (frame.incident.signals ?? []).filter((signal) => signal.layer === step.layer);
-        for (const signal of signals) {
-            const id = `signal.${step.layer}.${signal.name}`;
-            const raw = JSON.stringify(signal);
-            const ref = details.put(id, raw);
+        const signals: DiagnosticSignal[] = (frame.incident.signals ?? []).filter((signal) => signal.layer === step.layer);
+        for (let signalIndex: number = 0; signalIndex < signals.length; signalIndex += 1) {
+            const signal: DiagnosticSignal = signals[signalIndex];
+            const id: string = `signal.${step.layer}.${signal.name}`;
+            const raw: string = JSON.stringify(signal);
+            const ref: string = details.put(id, raw);
             ast.add({
                 id,
                 parentId: layerId,
@@ -53,16 +57,17 @@ export const toContextAst = (frame: DiagnosticFrame, budgetTokens = 1200): Diagn
             });
         }
     }
-    const ranked = assessHypotheses(frame);
-    for (const assessment of ranked) {
-        const id = `hyp.${assessment.hypothesis.id}`;
-        const raw = JSON.stringify({
+    const ranked: HypothesisAssessment[] = assessHypotheses(frame);
+    for (let index: number = 0; index < ranked.length; index += 1) {
+        const assessment: HypothesisAssessment = ranked[index];
+        const id: string = `hyp.${assessment.hypothesis.id}`;
+        const raw: string = JSON.stringify({
             cause: assessment.hypothesis.cause,
             matched: assessment.matched,
             missing: assessment.missing,
             contradicted: assessment.contradicted,
         });
-        const ref = details.put(id, raw);
+        const ref: string = details.put(id, raw);
         ast.add({
             id,
             parentId: "diagnosis",
@@ -74,13 +79,15 @@ export const toContextAst = (frame: DiagnosticFrame, budgetTokens = 1200): Diagn
             salience: assessment.confidence,
         });
     }
-    for (let index = 0; index < frame.steps.length - 1; index += 1) {
+    for (let index: number = 0; index < frame.steps.length - 1; index += 1) {
         ast.link({ from: `step.${frame.steps[index].layer}`, to: `step.${frame.steps[index + 1].layer}`, kind: "before" });
     }
-    const firstStep = frame.steps[0];
-    if (firstStep !== undefined) ast.link({ from: "diagnosis", to: `step.${firstStep.layer}`, kind: "before" });
+    const firstStep: DiagnosticStep = frame.steps[0];
+    if (firstStep !== (void 0)) {
+        ast.link({ from: "diagnosis", to: `step.${firstStep.layer}`, kind: "before" });
+    }
     return { ast, details, view: ast.view(budgetTokens), top: selectHypothesis(frame) };
 };
 
-export const diagnosisNode = (id: string): ContextAstNode["kind"] =>
+export const diagnosisNode: (id: string) => ContextAstNode["kind"] = (id: string): ContextAstNode["kind"] =>
     id.startsWith("hyp.") ? "hypothesis" : id.startsWith("signal.") ? "observation" : "frame";

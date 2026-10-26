@@ -13,27 +13,45 @@ import type { Pid } from "../types/common.ts";
 import type { CognitiveState } from "./cognition.ts";
 
 export interface AttentionResourcePolicy {
-    /** Working-memory chunks assumed when no measured capacity exists. */
+    /**
+     * Working-memory chunks assumed when no measured capacity exists.
+     */
     baseSlots: number;
-    /** Fraction kept away from foreground work (background, safety, recovery). */
+    /**
+     * Fraction kept away from foreground work (background, safety, recovery).
+     */
     reserveRatio: number;
-    /** Hard safety floor, in slots, reserved even under pressure. */
+    /**
+     * Hard safety floor, in slots, reserved even under pressure.
+     */
     safetyFloorRatio: number;
-    /** Foreground utilization ceiling; must stay below 1.0. */
+    /**
+     * Foreground utilization ceiling; must stay below 1.0.
+     */
     maxForegroundUtil: number;
-    /** Minimum allocation for an admitted task, in slots. */
+    /**
+     * Minimum allocation for an admitted task, in slots.
+     */
     minSliceSlots: number;
-    /** Rest after this many cycles without a rest frame. */
+    /**
+     * Rest after this many cycles without a rest frame.
+     */
     restAfterCycles: number;
-    /** Rest when vigilance falls to this level. */
+    /**
+     * Rest when vigilance falls to this level.
+     */
     vigilanceFloor: number;
-    /** Rest when load reaches this level. */
+    /**
+     * Rest when load reaches this level.
+     */
     loadCeiling: number;
-    /** Rest when recovery debt reaches this level. */
+    /**
+     * Rest when recovery debt reaches this level.
+     */
     recoveryDebtThreshold: number;
 }
 
-export const DEFAULT_ATTENTION_POLICY: AttentionResourcePolicy = {
+export const DefaultAttentionPolicy: AttentionResourcePolicy = {
     baseSlots: 4,
     reserveRatio: 0.25,
     safetyFloorRatio: 0.1,
@@ -47,18 +65,30 @@ export const DEFAULT_ATTENTION_POLICY: AttentionResourcePolicy = {
 
 export interface ProcessAttention {
     pid: Pid;
-    /** Effective working-memory slots after load penalty. */
+    /**
+     * Effective working-memory slots after load penalty.
+     */
     effectiveSlots: number;
-    /** Foreground ceiling (`floor(effective * maxForegroundUtil)`). */
+    /**
+     * Foreground ceiling (`floor(effective * maxForegroundUtil)`).
+     */
     foregroundCap: number;
-    /** Slots kept out of foreground allocation. */
+    /**
+     * Slots kept out of foreground allocation.
+     */
     reserveSlots: number;
-    /** Hard safety floor inside the reserve. */
+    /**
+     * Hard safety floor inside the reserve.
+     */
     safetySlots: number;
     state: CognitiveState;
-    /** [0, 1] accumulated need for rest. */
+    /**
+     * [0, 1] accumulated need for rest.
+     */
     recoveryDebt: number;
-    /** True when the policy says no foreground work should run. */
+    /**
+     * True when the policy says no foreground work should run.
+     */
     offline: boolean;
 }
 
@@ -68,13 +98,21 @@ export interface ThreadAttentionCandidate {
     tid: number;
     pid: Pid;
     priority: number;
-    /** Desired slots; the planner clamps to capacity. */
+    /**
+     * Desired slots; the planner clamps to capacity.
+     */
     preferredSlots: number;
-    /** Minimum slots if admitted; defaults to policy.minSliceSlots. */
+    /**
+     * Minimum slots if admitted; defaults to policy.minSliceSlots.
+     */
     minSlots?: number;
-    /** Background tasks use the reserve and never the foreground slot. */
+    /**
+     * Background tasks use the reserve and never the foreground slot.
+     */
     foreground?: boolean;
-    /** Extra pressure from role/context switching. */
+    /**
+     * Extra pressure from role/context switching.
+     */
     switchCost?: number;
     role?: string;
 }
@@ -99,11 +137,17 @@ export interface AttentionPlan {
     foreground?: ThreadAttention;
     background: ThreadAttention[];
     deferred: DeferredAttention[];
-    /** Allocated slots / effective slots. */
+    /**
+     * Allocated slots / effective slots.
+     */
     utilization: number;
-    /** Deferred pressure plus switch cost, [0, 1+]. */
+    /**
+     * Deferred pressure plus switch cost, [0, 1+].
+     */
     pressure: number;
-    /** True when the policy wants a rest frame. */
+    /**
+     * True when the policy wants a rest frame.
+     */
     rest: boolean;
 }
 
@@ -113,7 +157,7 @@ export const recoveryDebtOf = (state: CognitiveState): number => {
     return clamp01(0.5 * (1 - state.vigilance) + 0.3 * state.load + 0.2 * state.pLapse);
 };
 
-export const shouldRest = (state: CognitiveState, policy: AttentionResourcePolicy = DEFAULT_ATTENTION_POLICY): boolean => {
+export const shouldRest = (state: CognitiveState, policy: AttentionResourcePolicy = DefaultAttentionPolicy): boolean => {
     return (
         state.cyclesSinceRest >= policy.restAfterCycles ||
         state.vigilance <= policy.vigilanceFloor ||
@@ -122,7 +166,7 @@ export const shouldRest = (state: CognitiveState, policy: AttentionResourcePolic
     );
 };
 
-export const processAttention = (pid: Pid, state: CognitiveState, policy: AttentionResourcePolicy = DEFAULT_ATTENTION_POLICY): ProcessAttention => {
+export const processAttention = (pid: Pid, state: CognitiveState, policy: AttentionResourcePolicy = DefaultAttentionPolicy): ProcessAttention => {
     const effectiveSlots = Math.max(1, Math.floor(state.capacityEff));
     const safetySlots = Math.min(effectiveSlots, Math.max(1, Math.floor(effectiveSlots * policy.safetyFloorRatio)));
     const rawCap = Math.max(0, Math.floor(effectiveSlots * policy.maxForegroundUtil));
@@ -149,7 +193,9 @@ const toAttention = (candidate: ThreadAttentionCandidate, slots: number, foregro
         priority: candidate.priority,
         switchCost: Math.max(0, candidate.switchCost ?? 0),
     };
-    if (candidate.role !== undefined) attention.role = candidate.role;
+    if (candidate.role !== (void 0)) {
+        attention.role = candidate.role;
+    }
     return attention;
 };
 
@@ -163,7 +209,7 @@ const toAttention = (candidate: ThreadAttentionCandidate, slots: number, foregro
 export const planAttention = (
     process: ProcessAttention,
     candidates: readonly ThreadAttentionCandidate[],
-    policy: AttentionResourcePolicy = DEFAULT_ATTENTION_POLICY,
+    policy: AttentionResourcePolicy = DefaultAttentionPolicy,
 ): AttentionPlan => {
     const deferred: DeferredAttention[] = [];
     const background: ThreadAttention[] = [];
@@ -172,7 +218,9 @@ export const planAttention = (
     const backgroundCandidates = sorted.filter((candidate) => candidate.foreground === false);
 
     if (process.offline) {
-        for (const candidate of foregroundCandidates) deferred.push({ tid: candidate.tid, reason: "offline" });
+        for (const candidate of foregroundCandidates) {
+            deferred.push({ tid: candidate.tid, reason: "offline" });
+        }
         return {
             process,
             background,
@@ -211,12 +259,12 @@ export const planAttention = (
 
     const allocated = (foreground?.slots ?? 0) + background.reduce((sum, task) => sum + task.slots, 0);
     const utilization = allocated / process.effectiveSlots;
-    const switchPressure = foreground === undefined ? 0 : Math.min(1, foreground.switchCost / Math.max(1, process.effectiveSlots));
+    const switchPressure = foreground === (void 0) ? 0 : Math.min(1, foreground.switchCost / Math.max(1, process.effectiveSlots));
     const pressure = Math.min(1.5, deferred.length / Math.max(1, candidates.length) + switchPressure);
 
     return {
         process,
-        ...(foreground === undefined ? {} : { foreground }),
+        ...(foreground === (void 0) ? {} : { foreground }),
         background,
         deferred,
         utilization,
@@ -225,7 +273,9 @@ export const planAttention = (
     };
 };
 
-/** Rest restores vigilance, reduces load and clears the rest counter. */
+/**
+ * Rest restores vigilance, reduces load and clears the rest counter.
+ */
 export const applyRest = (state: CognitiveState, cycles: number = 1): CognitiveState => {
     const amount = Math.max(1, Math.floor(cycles));
     const vigilance = clamp01(state.vigilance + 0.25 * amount);

@@ -1,21 +1,8 @@
 import { ESLintUtils, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(
-    (name) =>
-        `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`,
-);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
 
-const DEFAULT_ALLOW_PATTERNS: readonly string[] = [
-    "^!",
-    "^#",
-    "^eslint-",
-    "^prettier-",
-    "^@ts-",
-    "^@__",
-    "^c8\\b",
-    "^istanbul\\b",
-    "^v8\\b",
-];
+const DEFAULT_ALLOW_PATTERNS: readonly string[] = ["^!", "^#", "^eslint-", "^prettier-", "^@ts-", "^@__", "^c8\\b", "^istanbul\\b", "^v8\\b"];
 
 type Options = [
     {
@@ -39,8 +26,7 @@ export const jsdocCommentFormat = createRule<Options, MessageId>({
     meta: {
         type: "suggestion",
         docs: {
-            description:
-                "Require multiline JSDoc comments and reject non-JSDoc comments",
+            description: "Require multiline JSDoc comments and reject non-JSDoc comments",
         },
         schema: [
             {
@@ -56,10 +42,8 @@ export const jsdocCommentFormat = createRule<Options, MessageId>({
             },
         ],
         messages: {
-            notJsdoc:
-                "所有注释必须使用 JSDoc：请改为多行 /** ... */ 块，而不是 // 或 /* ... */。",
-            notMultiline:
-                "JSDoc 注释必须跨多行：开头的 /**、描述行和结尾的 */ 要各占一行。",
+            notJsdoc: "所有注释必须使用 JSDoc：请改为多行 /** ... */ 块，而不是 // 或 /* ... */。",
+            notMultiline: "JSDoc 注释必须跨多行：开头的 /**、描述行和结尾的 */ 要各占一行。",
             empty: "JSDoc 注释必须包含非空的描述文本。",
         },
     },
@@ -81,12 +65,9 @@ export const jsdocCommentFormat = createRule<Options, MessageId>({
         };
 
         const isShebang = (comment: TSESTree.Comment): boolean =>
-            comment.loc.start.line === 1 &&
-            comment.loc.start.column === 0 &&
-            context.sourceCode.text.replace(/^\uFEFF/, "").startsWith("#!");
+            comment.loc.start.line === 1 && comment.loc.start.column === 0 && context.sourceCode.text.replace(/^\uFEFF/, "").startsWith("#!");
 
-        const isJsdoc = (comment: TSESTree.Comment): boolean =>
-            comment.type === "Block" && comment.value.startsWith("*");
+        const isJsdoc = (comment: TSESTree.Comment): boolean => comment.type === "Block" && comment.value.startsWith("*");
 
         return {
             Program(): void {

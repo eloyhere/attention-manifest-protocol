@@ -109,7 +109,7 @@ export class BinaryTree<T> implements Iterable<T> {
                 continue;
             }
             const parent = nodes[(index - 1) >> 1];
-            if (parent === null || parent === undefined) {
+            if (parent === null || parent === (void 0)) {
                 nodes.push(null);
                 continue;
             }
@@ -186,7 +186,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: Array<{ node: BinaryTreeNode<T>; depth: number }> = [{ node: this.rootNode, depth: 1 }];
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (frame.depth > maximum) {
@@ -299,7 +299,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: BinaryTreeNode<T>[] = [this.rootNode];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             const left = node.left;
@@ -350,7 +350,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: BinaryTreeNode<T>[] = [this.rootNode];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             const hasLeft = node.left !== null;
@@ -384,7 +384,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: BinaryTreeNode<T>[] = [root];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             copies.set(node, new BinaryTreeNode(node.value));
@@ -398,7 +398,7 @@ export class BinaryTree<T> implements Iterable<T> {
         }
         for (const original of originals) {
             const copy = copies.get(original);
-            if (copy === undefined) {
+            if (copy === (void 0)) {
                 continue;
             }
             if (original.left !== null) {
@@ -431,7 +431,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: BinaryTreeNode<T>[] = [root];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             count += 1;
@@ -452,7 +452,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: BinaryTreeNode<T>[] = [this.rootNode];
         while (stack.length > 0) {
             const node = stack.pop();
-            if (node === undefined) {
+            if (node === (void 0)) {
                 break;
             }
             yield node.value;
@@ -474,7 +474,7 @@ export class BinaryTree<T> implements Iterable<T> {
                 node = node.left;
             }
             const current = stack.pop();
-            if (current === undefined) {
+            if (current === (void 0)) {
                 break;
             }
             yield current.value;
@@ -489,7 +489,7 @@ export class BinaryTree<T> implements Iterable<T> {
         const stack: Array<{ node: BinaryTreeNode<T>; visited: boolean }> = [{ node: this.rootNode, visited: false }];
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (!frame.visited) {

@@ -1,29 +1,34 @@
 #!/usr/bin/env node
-/** Persistence checks: chain integrity, tamper/reorder/truncate, restore. */
+/**
+ * Persistence checks: chain integrity, tamper/reorder/truncate, restore.
+ */
 import assert from "node:assert/strict";
 
 import { exportLedger, restoreLedger, verifySnapshot } from "../src/ledger/persistence.ts";
+import type { ChainEntry, LedgerSnapshot, RestoredLedger, SnapshotVerdict } from "../src/ledger/persistence.ts";
 import { Ledger } from "../src/ledger/ledger.ts";
 import type { AmpEvent } from "../src/receipt/receipt.ts";
 import type { Frame } from "../src/frame/frame.ts";
 import type { Claim, UnknownItem } from "../src/warrant/epistemic.ts";
 
-let passed = 0;
-let failed = 0;
+type TestCase = () => void | Promise<void>;
 
-async function test(name, fn) {
+let Passed: number = 0;
+let Failed: number = 0;
+
+const test: (name: string, fn: TestCase) => Promise<void> = async (name: string, fn: TestCase): Promise<void> => {
     try {
         await fn();
-        passed++;
+        Passed++;
         console.log(`\x1b[32m✓\x1b[0m ${name}`);
     } catch (err) {
-        failed++;
+        Failed++;
         console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${err.message}`);
     }
-}
+};
 
-function buildLedger() {
-    const ledger = new Ledger();
+const buildLedger: () => Ledger = (): Ledger => {
+    const ledger: Ledger = new Ledger();
     ledger.events.push({
         amp: "0.1",
         kind: "event",
@@ -74,63 +79,66 @@ function buildLedger() {
         warrant: { inference: "deduction", auxiliary_assumptions: [] },
     } as unknown as Claim);
     return ledger;
-}
+};
 
-const ledger = buildLedger();
-const snapshot = exportLedger(ledger, "a.test");
+const BaseLedger: Ledger = buildLedger();
+const Snapshot: LedgerSnapshot = exportLedger(BaseLedger, "a.test");
 
 await test("export verifies and preserves counts", () => {
-    const verdict = verifySnapshot(snapshot);
+    const verdict: SnapshotVerdict = verifySnapshot(Snapshot);
     assert.equal(verdict.ok, true, verdict.reasons.join("; "));
-    assert.equal(snapshot.count, snapshot.entries.length);
-    assert.equal(snapshot.count, snapshot.entries.length);
+    assert.equal(Snapshot.count, Snapshot.entries.length);
+    assert.equal(Snapshot.count, Snapshot.entries.length);
 });
 
 await test("empty ledger still has a valid chain", () => {
-    const empty = new Ledger();
-    const snap = exportLedger(empty, "a.empty");
+    const empty: Ledger = new Ledger();
+    const snap: LedgerSnapshot = exportLedger(empty, "a.empty");
     assert.equal(snap.count, 0);
     assert.equal(verifySnapshot(snap).ok, true);
 });
 
 await test("tampering with a payload breaks its hash", () => {
-    const broken = structuredClone(snapshot);
+    const broken: LedgerSnapshot = structuredClone(Snapshot);
     broken.entries[1].payload = { ...(broken.entries[1].payload as Record<string, unknown>), statement: "forged" };
-    const verdict = verifySnapshot(broken);
+    const verdict: SnapshotVerdict = verifySnapshot(broken);
     assert.equal(verdict.ok, false);
     assert.ok(verdict.reasons.some((r) => r.includes("hash")));
 });
 
 await test("reordering entries breaks the chain", () => {
-    const broken = structuredClone(snapshot);
-    const [a, b] = [broken.entries[0], broken.entries[1]];
-    broken.entries[0] = b;
-    broken.entries[1] = a;
-    const verdict = verifySnapshot(broken);
+    const broken: LedgerSnapshot = structuredClone(Snapshot);
+    const first: ChainEntry = broken.entries[0];
+    const second: ChainEntry = broken.entries[1];
+    broken.entries[0] = second;
+    broken.entries[1] = first;
+    const verdict: SnapshotVerdict = verifySnapshot(broken);
     assert.equal(verdict.ok, false);
     assert.ok(verdict.reasons.some((r) => r.includes("seq") || r.includes("prev")));
 });
 
 await test("truncation is detected by count and tip", () => {
-    const broken = structuredClone(snapshot);
+    const broken: LedgerSnapshot = structuredClone(Snapshot);
     broken.entries = broken.entries.slice(0, -1);
-    const verdict = verifySnapshot(broken);
+    const verdict: SnapshotVerdict = verifySnapshot(broken);
     assert.equal(verdict.ok, false);
     assert.ok(verdict.reasons.some((r) => r.includes("count") || r.includes("tip")));
 });
 
 await test("restore preserves frames and claims", () => {
-    const restored = restoreLedger(snapshot);
-    assert.equal(restored.frames.length, ledger.frames.length);
-    assert.equal(restored.claims.length, ledger.claims.length);
-    assert.equal((restored.frames[0] as { id: string }).id, ledger.frames[0].id);
+    const restored: RestoredLedger = restoreLedger(Snapshot);
+    assert.equal(restored.frames.length, BaseLedger.frames.length);
+    assert.equal(restored.claims.length, BaseLedger.claims.length);
+    assert.equal((restored.frames[0] as Frame).id, BaseLedger.frames[0].id);
 });
 
 await test("restore refuses a broken snapshot", () => {
-    const broken = structuredClone(snapshot);
+    const broken: LedgerSnapshot = structuredClone(Snapshot);
     broken.entries[0].payload = { forged: true };
     assert.throws(() => restoreLedger(broken), /refusing to restore/);
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
+    process.exitCode = 1;
+}

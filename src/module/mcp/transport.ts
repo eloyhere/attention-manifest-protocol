@@ -10,7 +10,9 @@ export interface Transport {
 
 export type Handler = (request: JsonRpcRequest) => JsonRpcResponse | Promise<JsonRpcResponse>;
 
-/** In-process transport used by the demo and tests. */
+/**
+ * In-process transport used by the demo and tests.
+ */
 export class MemoryTransport implements Transport {
     readonly handler: Handler;
     readonly history: JsonRpcRequest[] = [];

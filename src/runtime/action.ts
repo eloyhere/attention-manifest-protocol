@@ -46,10 +46,12 @@ export interface ActionPlanner {
     plan(input: ActionPlannerInput): Promise<ActionPlan[]>;
 }
 
-/** One bounded action per turn; later planners can split by goal. */
+/**
+ * One bounded action per turn; later planners can split by goal.
+ */
 export class SingleActionPlanner implements ActionPlanner {
     async plan(input: ActionPlannerInput): Promise<ActionPlan[]> {
-        const preferred = input.behavior.preferredActions;
+        const preferred: string[] = input.behavior.preferredActions;
         if (preferred.includes("acknowledge")) {
             return [
                 {

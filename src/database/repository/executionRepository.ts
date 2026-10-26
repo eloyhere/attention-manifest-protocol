@@ -41,12 +41,24 @@ const toProcess = (row: ProcessEntity): ProcessRecord => {
         used: JSON.parse(row.used) as Usage,
         createdAt: row.created_at,
     };
-    if (row.role !== null) record.role = row.role;
-    if (row.parent_pid !== null) record.parentPid = row.parent_pid;
-    if (row.started_at !== null) record.startedAt = row.started_at;
-    if (row.terminated_at !== null) record.terminatedAt = row.terminated_at;
-    if (row.exit_code !== null) record.exitCode = row.exit_code;
-    if (row.exit_note !== null) record.exitNote = row.exit_note;
+    if (row.role !== null) {
+        record.role = row.role;
+    }
+    if (row.parent_pid !== null) {
+        record.parentPid = row.parent_pid;
+    }
+    if (row.started_at !== null) {
+        record.startedAt = row.started_at;
+    }
+    if (row.terminated_at !== null) {
+        record.terminatedAt = row.terminated_at;
+    }
+    if (row.exit_code !== null) {
+        record.exitCode = row.exit_code;
+    }
+    if (row.exit_note !== null) {
+        record.exitNote = row.exit_note;
+    }
     return record;
 };
 
@@ -68,11 +80,21 @@ const toThread = (row: ThreadEntity): ThreadRecord => {
         lease: row.lease,
         version: row.version,
     };
-    if (row.blocked_on !== null) record.blockedOn = row.blocked_on;
-    if (row.wake_at !== null) record.wakeAt = row.wake_at;
-    if (row.finished_at !== null) record.finishedAt = row.finished_at;
-    if (row.exit_note !== null) record.exitNote = row.exit_note;
-    if (row.owner_worker !== null) record.ownerWorker = row.owner_worker;
+    if (row.blocked_on !== null) {
+        record.blockedOn = row.blocked_on;
+    }
+    if (row.wake_at !== null) {
+        record.wakeAt = row.wake_at;
+    }
+    if (row.finished_at !== null) {
+        record.finishedAt = row.finished_at;
+    }
+    if (row.exit_note !== null) {
+        record.exitNote = row.exit_note;
+    }
+    if (row.owner_worker !== null) {
+        record.ownerWorker = row.owner_worker;
+    }
     return record;
 };
 
@@ -83,10 +105,14 @@ const charge = (budget: Budget, usedInput: Usage, usage: Budget): { used: Record
     const exceeded: string[] = [];
     for (const dimension of dimensions) {
         const amount = usage[dimension];
-        if (amount === undefined || amount === 0) continue;
+        if (amount === (void 0) || amount === 0) {
+            continue;
+        }
         used[dimension] = (used[dimension] ?? 0) + amount;
         const limit = budget[dimension];
-        if (limit !== undefined && used[dimension] > limit) exceeded.push(dimension);
+        if (limit !== (void 0) && used[dimension] > limit) {
+            exceeded.push(dimension);
+        }
     }
     return { used, exceeded };
 };
@@ -103,13 +129,13 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     findAgentByExternalId(id: string): ProcessRecord | undefined {
         const row = this.queries.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        return row === undefined ? undefined : toProcess(row);
+        return row === (void 0) ? undefined : toProcess(row);
     }
 
     listAgents(state?: ProcessState): ProcessRecord[] {
         const rows = this.queries.select({
-            where: state === undefined ? (void 0) : "state = ?",
-            params: state === undefined ? [] : [state],
+            where: state === (void 0) ? (void 0) : "state = ?",
+            params: state === (void 0) ? [] : [state],
             orderBy: "ORDER BY pid ASC",
         });
         return rows.map(toProcess);
@@ -132,7 +158,9 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     beginAgent(pid: number, at: string): boolean {
         const row = this.findById(pid);
-        if (row === undefined || (row.state !== "created" && row.state !== "idle")) return false;
+        if (row === (void 0) || (row.state !== "created" && row.state !== "idle")) {
+            return false;
+        }
         const changed = this.queries.updateWhere(
             "pid = ? AND state IN ('created','idle')",
             { state: "running", started_at: row.started_at ?? at, version: row.version + 1 },
@@ -143,30 +171,46 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     getAgent(pid: number): ProcessRecord {
         const row = this.findById(pid);
-        if (row === undefined) throw new KernelError("unknown_process", [`pid ${pid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_process", [`pid ${pid}`]);
+        }
         return toProcess(row);
     }
 
     transitionAgent(pid: number, from: ProcessState | ProcessState[], to: ProcessState, patch: ProcessPatch = {}): ProcessRecord {
         const row = this.findById(pid);
-        if (row === undefined) throw new KernelError("unknown_process", [`pid ${pid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_process", [`pid ${pid}`]);
+        }
         const fromStates = Array.isArray(from) ? from : [from];
         if (!fromStates.includes(row.state as ProcessState) || !canProcessTransition(row.state as ProcessState, to)) {
             throw new KernelError("invalid_transition", [`process ${pid}: ${row.state} -> ${to} is not an edge`]);
         }
         const values: Record<string, unknown> = { state: to, version: row.version + 1 };
-        if (patch.startedAt !== undefined) values.started_at = row.started_at ?? patch.startedAt;
-        if (patch.terminatedAt !== undefined) values.terminated_at = patch.terminatedAt;
-        if (patch.exitCode !== undefined) values.exit_code = patch.exitCode;
-        if (patch.exitNote !== undefined) values.exit_note = patch.exitNote;
+        if (patch.startedAt !== (void 0)) {
+            values.started_at = row.started_at ?? patch.startedAt;
+        }
+        if (patch.terminatedAt !== (void 0)) {
+            values.terminated_at = patch.terminatedAt;
+        }
+        if (patch.exitCode !== (void 0)) {
+            values.exit_code = patch.exitCode;
+        }
+        if (patch.exitNote !== (void 0)) {
+            values.exit_note = patch.exitNote;
+        }
         const changed = this.queries.updateWhere("pid = ?", values, pid);
-        if (changed !== 1) throw new KernelError("invalid_transition", [`process ${pid} was not updated`]);
+        if (changed !== 1) {
+            throw new KernelError("invalid_transition", [`process ${pid} was not updated`]);
+        }
         return this.getAgent(pid);
     }
 
     chargeAgent(pid: number, usage: Budget, _at: string): ChargeResult {
         const row = this.findById(pid);
-        if (row === undefined) throw new KernelError("unknown_process", [`pid ${pid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_process", [`pid ${pid}`]);
+        }
         const result = charge(JSON.parse(row.budget) as Budget, JSON.parse(row.used) as Usage, usage);
         if (result.exceeded.length > 0) {
             this.queries.updateWhere(
@@ -190,19 +234,21 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     getTask(tid: number): ThreadRecord {
         const row = this.threads.findById(tid);
-        if (row === undefined) throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        }
         return toThread(row);
     }
 
     findTaskByExternalId(id: string): ThreadRecord | undefined {
         const row = this.threads.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        return row === undefined ? undefined : toThread(row);
+        return row === (void 0) ? undefined : toThread(row);
     }
 
     listTasks(pid?: number): ThreadRecord[] {
         const rows = this.threads.select({
-            where: pid === undefined ? (void 0) : "pid = ?",
-            params: pid === undefined ? [] : [pid],
+            where: pid === (void 0) ? (void 0) : "pid = ?",
+            params: pid === (void 0) ? [] : [pid],
             orderBy: "ORDER BY tid ASC",
         });
         return rows.map(toThread);
@@ -218,7 +264,7 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
             params: [pid, goal],
             limit: 1,
         })[0];
-        return row === undefined ? undefined : { tid: row.tid };
+        return row === (void 0) ? undefined : { tid: row.tid };
     }
 
     createTask(input: {
@@ -257,15 +303,19 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
              ORDER BY t.priority DESC, t.tid ASC
              LIMIT 1`,
         );
-        return row === undefined ? undefined : toThread(row);
+        return row === (void 0) ? undefined : toThread(row);
     }
 
     claimTask(tid: number, workerId: string): ThreadClaim {
         const row = this.threads.findById(tid);
-        if (row === undefined || row.state !== "ready") throw new KernelError("claim_failed", [`thread ${tid} is not ready`]);
+        if (row === (void 0) || row.state !== "ready") {
+            throw new KernelError("claim_failed", [`thread ${tid} is not ready`]);
+        }
         const lease = row.lease + 1;
         const changed = this.threads.updateWhere("tid = ? AND state = 'ready'", { state: "running", owner_worker: workerId, lease, slice_used_ms: 0 }, tid);
-        if (changed !== 1) throw new KernelError("claim_failed", [`thread ${tid} was claimed`]);
+        if (changed !== 1) {
+            throw new KernelError("claim_failed", [`thread ${tid} was claimed`]);
+        }
         return { tid, lease, workerId };
     }
 
@@ -283,31 +333,49 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     transitionTask(tid: number, from: ThreadState | ThreadState[], to: ThreadState, patch: ThreadPatch = {}, lease?: number): ThreadRecord {
         const row = this.threads.findById(tid);
-        if (row === undefined) throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        }
         const fromStates = Array.isArray(from) ? from : [from];
         if (!fromStates.includes(row.state as ThreadState) || !canThreadTransition(row.state as ThreadState, to)) {
             throw new KernelError("invalid_transition", [`thread ${tid}: ${row.state} -> ${to} is not an edge`]);
         }
-        if (lease !== undefined && row.lease !== lease) {
+        if (lease !== (void 0) && row.lease !== lease) {
             throw new KernelError("lease_lost", [`thread ${tid}: lease ${lease} is stale, current is ${row.lease}`]);
         }
         const values: Record<string, unknown> = { state: to, version: row.version + 1 };
-        if (patch.blockedOn !== undefined) values.blocked_on = patch.blockedOn;
-        if (patch.wakeAt !== undefined) values.wake_at = patch.wakeAt;
-        if (patch.sliceUsedMs !== undefined) values.slice_used_ms = patch.sliceUsedMs;
-        if (patch.finishedAt !== undefined) values.finished_at = patch.finishedAt;
-        if (patch.exitNote !== undefined) values.exit_note = patch.exitNote;
-        const leaseClause = lease === undefined ? "" : " AND lease = ?";
+        if (patch.blockedOn !== (void 0)) {
+            values.blocked_on = patch.blockedOn;
+        }
+        if (patch.wakeAt !== (void 0)) {
+            values.wake_at = patch.wakeAt;
+        }
+        if (patch.sliceUsedMs !== (void 0)) {
+            values.slice_used_ms = patch.sliceUsedMs;
+        }
+        if (patch.finishedAt !== (void 0)) {
+            values.finished_at = patch.finishedAt;
+        }
+        if (patch.exitNote !== (void 0)) {
+            values.exit_note = patch.exitNote;
+        }
+        const leaseClause = lease === (void 0) ? "" : " AND lease = ?";
         const params: Array<number | string> = [tid];
-        if (lease !== undefined) params.push(lease);
+        if (lease !== (void 0)) {
+            params.push(lease);
+        }
         const changed = this.threads.updateWhere(`tid = ?${leaseClause}`, values, ...params);
-        if (changed !== 1) throw new KernelError("invalid_transition", [`thread ${tid} was not updated`]);
+        if (changed !== 1) {
+            throw new KernelError("invalid_transition", [`thread ${tid} was not updated`]);
+        }
         return this.getTask(tid);
     }
 
     chargeTask(tid: number, usage: Budget, at: string): ChargeResult {
         const row = this.threads.findById(tid);
-        if (row === undefined) throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        if (row === (void 0)) {
+            throw new KernelError("unknown_thread", [`tid ${tid}`]);
+        }
         const result = charge(JSON.parse(row.budget) as Budget, JSON.parse(row.used) as Usage, usage);
         if (result.exceeded.length > 0) {
             this.threads.updateWhere(
@@ -355,7 +423,7 @@ export class ExecutionRepository extends BaseRepository<ProcessEntity, number> i
 
     recover(workerId?: string): { threads: number; processes: number } {
         const rows =
-            workerId === undefined
+            workerId === (void 0)
                 ? this.threads.select({ where: "state = 'running'" })
                 : this.threads.select({ where: "state = 'running' AND (owner_worker IS NULL OR owner_worker = ?)", params: [workerId] });
         let threads = 0;

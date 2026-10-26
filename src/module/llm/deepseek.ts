@@ -14,7 +14,9 @@ export interface DeepSeekLlmOptions {
     timeoutMs?: number;
     retries?: number;
     fetchImpl?: typeof fetch;
-    /** Per-million-token prices; defaults are off-peak deepseek-flash. */
+    /**
+     * Per-million-token prices; defaults are off-peak deepseek-flash.
+     */
     inputMissPricePerMTok?: number;
     inputHitPricePerMTok?: number;
     outputPricePerMTok?: number;
@@ -70,7 +72,9 @@ export class DeepSeekLlm implements LlmClient {
     private readonly outputPrice: number;
 
     constructor(options: DeepSeekLlmOptions) {
-        if (options.apiKey.trim().length === 0) throw new Error("DeepSeekLlm requires an apiKey");
+        if (options.apiKey.trim().length === 0) {
+            throw new Error("DeepSeekLlm requires an apiKey");
+        }
         this.apiKey = options.apiKey;
         this.baseUrl = (options.baseUrl ?? "https://api.deepseek.com").replace(/\/+$/, "");
         this.model = options.model ?? "deepseek-flash";
@@ -84,7 +88,9 @@ export class DeepSeekLlm implements LlmClient {
 
     static fromEnv(env: NodeJS.ProcessEnv = process.env): DeepSeekLlm {
         const apiKey = env.DEEPSEEK_API_KEY;
-        if (apiKey === undefined || apiKey.trim().length === 0) throw new Error("DEEPSEEK_API_KEY is not set");
+        if (apiKey === (void 0) || apiKey.trim().length === 0) {
+            throw new Error("DEEPSEEK_API_KEY is not set");
+        }
         return new DeepSeekLlm({
             apiKey,
             baseUrl: env.DEEPSEEK_BASE_URL,
@@ -99,7 +105,9 @@ export class DeepSeekLlm implements LlmClient {
                 return await this.once(request);
             } catch (error) {
                 lastError = error;
-                if (!(error instanceof DeepSeekError) || !error.retryable || attempt >= this.retries) throw error;
+                if (!(error instanceof DeepSeekError) || !error.retryable || attempt >= this.retries) {
+                    throw error;
+                }
                 await sleep(250 * 2 ** attempt);
             }
         }
@@ -108,7 +116,7 @@ export class DeepSeekLlm implements LlmClient {
 
     private messagePayload(message: LlmMessage): Record<string, unknown> {
         const payload: Record<string, unknown> = { role: message.role, content: message.content };
-        if (message.toolCalls !== undefined) {
+        if (message.toolCalls !== (void 0)) {
             payload.content = message.content.length === 0 ? null : message.content;
             payload.tool_calls = message.toolCalls.map((call) => ({
                 id: call.id,
@@ -116,8 +124,12 @@ export class DeepSeekLlm implements LlmClient {
                 function: { name: call.name, arguments: call.arguments },
             }));
         }
-        if (message.toolCallId !== undefined) payload.tool_call_id = message.toolCallId;
-        if (message.name !== undefined) payload.name = message.name;
+        if (message.toolCallId !== (void 0)) {
+            payload.tool_call_id = message.toolCallId;
+        }
+        if (message.name !== (void 0)) {
+            payload.name = message.name;
+        }
         return payload;
     }
 
@@ -136,8 +148,8 @@ export class DeepSeekLlm implements LlmClient {
                     messages: request.messages.map((message: LlmMessage) => this.messagePayload(message)),
                     thinking: { type: "disabled" },
                     temperature: request.temperature ?? 0,
-                    ...(request.maxTokens === undefined ? {} : { max_tokens: request.maxTokens }),
-                    ...(request.tools === undefined
+                    ...(request.maxTokens === (void 0) ? {} : { max_tokens: request.maxTokens }),
+                    ...(request.tools === (void 0)
                         ? {}
                         : {
                               tools: request.tools.map((tool) => ({
@@ -188,7 +200,9 @@ export class DeepSeekLlm implements LlmClient {
                 ...(toolCalls.length === 0 ? {} : { toolCalls }),
             };
         } catch (error) {
-            if (error instanceof DeepSeekError) throw error;
+            if (error instanceof DeepSeekError) {
+                throw error;
+            }
             if (error instanceof DOMException && error.name === "AbortError") {
                 throw new DeepSeekError(0, `DeepSeek timeout after ${this.timeoutMs}ms`, true);
             }

@@ -8,6 +8,51 @@ import { TeamRuntime, type Delegation, type Lease } from "../delegate/team.ts";
 import { UnifiedLedger, type UnifiedSnapshot } from "../cooperation/unified.ts";
 
 /**
+ * Wiring required to open a session: the budget account, the clock and the
+ * optional team manifest.
+ */
+type TeamSessionOptions = {
+    budget: Budget;
+    now: () => Timestamp;
+    manifest?: TeamManifest;
+};
+
+/**
+ * Work item a delegation claims on the board.
+ */
+type StartInput = {
+    taskId: Id;
+    holder: Id;
+    goalDigest: Digest;
+    budget: Budget;
+    deadline: Timestamp;
+};
+
+/**
+ * Task and lease produced by `start()`.
+ */
+type StartedWork = {
+    task: BoardTask;
+    lease: Lease;
+};
+
+/**
+ * Lease and task produced by `finish()`.
+ */
+type FinishedWork = {
+    lease: Lease;
+    task: BoardTask;
+};
+
+/**
+ * Lease and optional task produced by `cancel()`.
+ */
+type CancelledWork = {
+    lease: Lease;
+    task?: BoardTask;
+};
+
+/**
  * One real collaboration session: team authority, board, lease and the unified
  * budget account are wired together so none of them can drift.
  */
@@ -18,7 +63,7 @@ export class TeamSession {
     private readonly manifest?: TeamManifest;
     private readonly leaseToTask = new Map<Id, Id>();
 
-    constructor(options: { budget: Budget; now: () => Timestamp; manifest?: TeamManifest }) {
+    constructor(options: TeamSessionOptions) {
         this.manifest = options.manifest;
         this.team = new TeamRuntime({ now: options.now });
         this.ledger = new UnifiedLedger({ budget: options.budget, now: options.now });
@@ -28,11 +73,13 @@ export class TeamSession {
         return this.team.createDelegation(input, this.manifest);
     }
 
-    /** Board first: a duplicate goal never consumes a lease. */
-    start(delegationId: Id, input: { taskId: Id; holder: Id; goalDigest: Digest; budget: Budget; deadline: Timestamp }): { task: BoardTask; lease: Lease } {
-        const task = this.board.add(input.goalDigest);
+    /**
+     * Board first: a duplicate goal never consumes a lease.
+     */
+    start(delegationId: Id, input: StartInput): StartedWork {
+        const task: BoardTask = this.board.add(input.goalDigest);
         try {
-            const lease = this.team.issueLease(delegationId, input);
+            const lease: Lease = this.team.issueLease(delegationId, input);
             this.board.claim(task.id, lease);
             this.leaseToTask.set(lease.id, task.id);
             return { task: this.board.get(task.id), lease };
@@ -42,7 +89,9 @@ export class TeamSession {
         }
     }
 
-    /** Reserve on the lease, charge the shared account, then settle. */
+    /**
+     * Reserve on the lease, charge the shared account, then settle.
+     */
     spend<T>(leaseId: Id, cost: Budget, fn: () => T): T {
         this.team.reserve(leaseId, cost);
         try {
@@ -52,17 +101,19 @@ export class TeamSession {
         }
     }
 
-    finish(leaseId: Id): { lease: Lease; task: BoardTask } {
-        const lease = this.team.complete(leaseId);
-        const taskId = this.leaseToTask.get(leaseId);
-        const task = taskId ? this.board.complete(taskId) : undefined;
-        if (!task) throw new Error(`lease ${leaseId} has no board task`);
+    finish(leaseId: Id): FinishedWork {
+        const lease: Lease = this.team.complete(leaseId);
+        const taskId: Id | undefined = this.leaseToTask.get(leaseId);
+        const task: BoardTask | undefined = taskId ? this.board.complete(taskId) : undefined;
+        if (!task) {
+            throw new Error(`lease ${leaseId} has no board task`);
+        }
         return { lease, task };
     }
 
-    cancel(leaseId: Id): { lease: Lease; task?: BoardTask } {
-        const lease = this.team.cancel(leaseId);
-        const taskId = this.leaseToTask.get(leaseId);
+    cancel(leaseId: Id): CancelledWork {
+        const lease: Lease = this.team.cancel(leaseId);
+        const taskId: Id | undefined = this.leaseToTask.get(leaseId);
         return { lease, task: taskId ? this.board.cancel(taskId) : undefined };
     }
 

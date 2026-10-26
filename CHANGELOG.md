@@ -40,6 +40,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   version. Invariants C-1 to C-4 are documented in `docs/compaction.md` §6.
 - `concept-compaction.schema.json`, two worked examples, and `tools/concept-check.ts`
   (14 assertions) wired into `npm run verify`.
+- `src/structure/priority.ts`: a stable `PriorityQueue` over a comparison heap, an
+  `IndexedPriorityQueue` that re-prioritises and deletes by key in O(log n), a `BucketQueue`
+  for integer priorities with one FIFO bucket per priority, and `TopK` for bounded
+  selection. `tools/priority-check.ts` runs 27 cases, including randomised differential
+  checks against stable-sort models, as `npm run priority-check` and inside `npm run verify`.
 
 ### Changed
 
@@ -57,6 +62,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to `server.address()`.
 - Documentation, the script paths in `package.json` and the README were updated for the
   rename.
+- Licence changed from `UNLICENSED` to Apache-2.0. A verbatim copy of the licence is at the
+  repository root, `package.json` and `package-lock.json` declare `Apache-2.0`, and both
+  READMEs state the grant and the conditions a redistribution has to meet.
+- Attribution: a `NOTICE` file records the copyright holder (Eloy Kim, 2026) and must be
+  kept by redistributions, `package.json` names the author, and both READMEs link the
+  licence and the notices.
 
 ### Fixed
 

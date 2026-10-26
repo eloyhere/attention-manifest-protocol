@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Cohen's kappa / Fleiss' kappa agreement checks. */
+/**
+ * Cohen's kappa / Fleiss' kappa agreement checks.
+ */
 import assert from "node:assert/strict";
 
 import { agreementRate, cohenKappa, fleissKappa } from "../src/evaluation/agreement.ts";

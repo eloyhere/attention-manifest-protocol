@@ -23,7 +23,9 @@ export interface OperationRecord {
     evidenceId?: string;
 }
 
-/** Independent audit record for a tool approval/denial. */
+/**
+ * Independent audit record for a tool approval/denial.
+ */
 export interface ApprovalRecord {
     operationId: string;
     tool: string;

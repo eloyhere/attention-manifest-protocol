@@ -4,68 +4,114 @@
  * We cannot complete a user-authorization flow headlessly; this verifies the chain
  * AMP's client would have to follow, and what it must implement (CIMD, resource id).
  */
-const TARGETS = ['https://mcp.linear.app/mcp', 'https://mcp.figma.com/mcp']
 
-async function post(url) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'amp-probe', version: '0.1.0' } },
-    }),
-    signal: AbortSignal.timeout(15_000),
-  })
-  return { status: res.status, authenticate: res.headers.get('www-authenticate'), body: (await res.text()).slice(0, 160) }
-}
+/**
+ * Metadata fields the probe reads from a discovery document.
+ */
+type DiscoveryMetadata = {
+    resource?: string;
+    authorization_servers?: string[];
+    scopes_supported?: string[];
+    signed_metadata?: string;
+    issuer?: string;
+    registration_endpoint?: string;
+    token_endpoint?: string;
+    client_id_metadata_document_supported?: boolean;
+    code_challenge_methods_supported?: string[];
+};
 
-async function getJson(url) {
-  const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15_000) })
-  const text = await res.text()
-  try {
-    return { status: res.status, json: JSON.parse(text) }
-  } catch {
-    return { status: res.status, text: text.slice(0, 160) }
-  }
-}
+/**
+ * Result of an MCP `initialize` request.
+ */
+type InitializeResponse = {
+    status: number;
+    authenticate: string | null;
+    body: string;
+};
 
-for (const url of TARGETS) {
-  console.log(`\n=== ${url}`)
-  const init = await post(url)
-  console.log(`initialize: HTTP ${init.status}`)
-  console.log(`www-authenticate: ${init.authenticate ?? '(none)'}`)
+/**
+ * Result of a discovery document request.
+ */
+type JsonResponse = {
+    status: number;
+    json?: DiscoveryMetadata;
+    text?: string;
+};
 
-  const match = init.authenticate?.match(/resource_metadata="([^"]+)"/)
-  if (!match) {
-    console.log('no resource_metadata pointer; cannot continue discovery')
-    continue
-  }
+const Targets: string[] = ["https://mcp.linear.app/mcp", "https://mcp.figma.com/mcp"];
 
-  const prm = await getJson(match[1])
-  console.log(`PRM: HTTP ${prm.status}`)
-  console.log(`  resource: ${prm.json?.resource}`)
-  console.log(`  authorization_servers: ${JSON.stringify(prm.json?.authorization_servers)}`)
-  console.log(`  scopes_supported: ${JSON.stringify(prm.json?.scopes_supported ?? [])}`)
-  console.log(`  signed_metadata present: ${Boolean(prm.json?.signed_metadata)}`)
+/**
+ * Send an `initialize` request and capture the status and challenge header.
+ */
+const post: (url: string) => Promise<InitializeResponse> = async (url: string): Promise<InitializeResponse> => {
+    const res: Response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "amp-probe", version: "0.1.0" } },
+        }),
+        signal: AbortSignal.timeout(15_000),
+    });
+    return { status: res.status, authenticate: res.headers.get("www-authenticate"), body: (await res.text()).slice(0, 160) };
+};
 
-  const asUrl = prm.json?.authorization_servers?.[0]
-  if (!asUrl) continue
+/**
+ * Fetch a discovery document, keeping the status when the body is not JSON.
+ */
+const getJson: (url: string) => Promise<JsonResponse> = async (url: string): Promise<JsonResponse> => {
+    const res: Response = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
+    const text: string = await res.text();
+    try {
+        return { status: res.status, json: JSON.parse(text) };
+    } catch {
+        return { status: res.status, text: text.slice(0, 160) };
+    }
+};
 
-  const candidates = [
-    `${asUrl.replace(/\/$/, '')}/.well-known/oauth-authorization-server`,
-    `${asUrl.replace(/\/$/, '')}/.well-known/openid-configuration`,
-  ]
-  for (const candidate of candidates) {
-    const as = await getJson(candidate)
-    if (as.status !== 200) continue
-    console.log(`AS metadata (${candidate}): HTTP ${as.status}`)
-    console.log(`  issuer: ${as.json?.issuer}`)
-    console.log(`  registration_endpoint: ${as.json?.registration_endpoint ?? '(none)'}`)
-    console.log(`  token_endpoint: ${as.json?.token_endpoint ?? '(none)'}`)
-    console.log(`  client_id_metadata_document_supported: ${as.json?.client_id_metadata_document_supported ?? '(absent)'}`)
-    console.log(`  code_challenge_methods_supported: ${JSON.stringify(as.json?.code_challenge_methods_supported ?? [])}`)
-    break
-  }
+for (let i: number = 0; i < Targets.length; i += 1) {
+    const url: string = Targets[i];
+    console.log(`\n=== ${url}`);
+    const init: InitializeResponse = await post(url);
+    console.log(`initialize: HTTP ${init.status}`);
+    console.log(`www-authenticate: ${init.authenticate ?? "(none)"}`);
+
+    const match: RegExpMatchArray = init.authenticate?.match(/resource_metadata="([^"]+)"/);
+    if (!match) {
+        console.log("no resource_metadata pointer; cannot continue discovery");
+        continue;
+    }
+
+    const prm: JsonResponse = await getJson(match[1]);
+    console.log(`PRM: HTTP ${prm.status}`);
+    console.log(`  resource: ${prm.json?.resource}`);
+    console.log(`  authorization_servers: ${JSON.stringify(prm.json?.authorization_servers)}`);
+    console.log(`  scopes_supported: ${JSON.stringify(prm.json?.scopes_supported ?? [])}`);
+    console.log(`  signed_metadata present: ${Boolean(prm.json?.signed_metadata)}`);
+
+    const asUrl: string = prm.json?.authorization_servers?.[0];
+    if (!asUrl) {
+        continue;
+    }
+
+    const candidates: string[] = [
+        `${asUrl.replace(/\/$/, "")}/.well-known/oauth-authorization-server`,
+        `${asUrl.replace(/\/$/, "")}/.well-known/openid-configuration`,
+    ];
+    for (let j: number = 0; j < candidates.length; j += 1) {
+        const candidate: string = candidates[j];
+        const asMetadata: JsonResponse = await getJson(candidate);
+        if (asMetadata.status !== 200) {
+            continue;
+        }
+        console.log(`AS metadata (${candidate}): HTTP ${asMetadata.status}`);
+        console.log(`  issuer: ${asMetadata.json?.issuer}`);
+        console.log(`  registration_endpoint: ${asMetadata.json?.registration_endpoint ?? "(none)"}`);
+        console.log(`  token_endpoint: ${asMetadata.json?.token_endpoint ?? "(none)"}`);
+        console.log(`  client_id_metadata_document_supported: ${asMetadata.json?.client_id_metadata_document_supported ?? "(absent)"}`);
+        console.log(`  code_challenge_methods_supported: ${JSON.stringify(asMetadata.json?.code_challenge_methods_supported ?? [])}`);
+        break;
+    }
 }

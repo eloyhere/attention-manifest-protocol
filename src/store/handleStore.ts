@@ -12,7 +12,7 @@ const cacheFor: () => EntityCache<HandleEntity> = bindCache(
         }),
 );
 
-export const handleStore = {
+export const HandleStore = {
     get(hid: number): HandleEntity | undefined {
         return cacheFor().get(hid);
     },

@@ -11,7 +11,7 @@
 
 import { generatorFrom } from "./iterator.ts";
 
-const INITIAL_CAPACITY = 8;
+const InitialCapacity: number = 8;
 
 /**
  * A first-in, first-out queue.
@@ -31,7 +31,7 @@ const INITIAL_CAPACITY = 8;
  * ```
  */
 export class Queue<T> implements Iterable<T> {
-    private items: Array<T | undefined> = new Array<T | undefined>(INITIAL_CAPACITY);
+    private items: Array<T | undefined> = new Array<T | undefined>(InitialCapacity);
     private head = 0;
     private count = 0;
 
@@ -44,11 +44,12 @@ export class Queue<T> implements Iterable<T> {
      * @param values - Values to enqueue, in order.
      */
     constructor(values?: Iterable<T>) {
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
-        for (const value of values) {
-            this.enqueue(value);
+        const initialValues: T[] = [...values];
+        for (let index: number = 0; index < initialValues.length; index += 1) {
+            this.enqueue(initialValues[index]);
         }
     }
 
@@ -76,7 +77,7 @@ export class Queue<T> implements Iterable<T> {
         if (this.count === this.items.length) {
             this.resize(this.items.length * 2);
         }
-        const tail = (this.head + this.count) % this.items.length;
+        const tail: number = (this.head + this.count) % this.items.length;
         this.items[tail] = value;
         this.count += 1;
         return this;
@@ -91,7 +92,7 @@ export class Queue<T> implements Iterable<T> {
         if (this.count === 0) {
             return undefined;
         }
-        const value = this.items[this.head] as T;
+        const value: T = this.items[this.head] as T;
         this.items[this.head] = undefined;
         this.head = (this.head + 1) % this.items.length;
         this.count -= 1;
@@ -115,7 +116,7 @@ export class Queue<T> implements Iterable<T> {
      * Remove every value and reset the ring to its initial capacity.
      */
     clear(): void {
-        this.items = new Array<T | undefined>(INITIAL_CAPACITY);
+        this.items = new Array<T | undefined>(InitialCapacity);
         this.head = 0;
         this.count = 0;
     }
@@ -126,8 +127,8 @@ export class Queue<T> implements Iterable<T> {
      * @returns A new array whose first item is the front of the queue.
      */
     toArray(): T[] {
-        const values = new Array<T>(this.count);
-        for (let index = 0; index < this.count; index += 1) {
+        const values: T[] = new Array<T>(this.count);
+        for (let index: number = 0; index < this.count; index += 1) {
             values[index] = this.items[(this.head + index) % this.items.length] as T;
         }
         return values;
@@ -144,8 +145,8 @@ export class Queue<T> implements Iterable<T> {
      * Copy the live values into a fresh ring, front to back.
      */
     private resize(capacity: number): void {
-        const next = new Array<T | undefined>(capacity);
-        for (let index = 0; index < this.count; index += 1) {
+        const next: Array<T | undefined> = new Array<T | undefined>(capacity);
+        for (let index: number = 0; index < this.count; index += 1) {
             next[index] = this.items[(this.head + index) % this.items.length];
         }
         this.items = next;
@@ -156,7 +157,7 @@ export class Queue<T> implements Iterable<T> {
      * Halve an oversized ring after dequeueing leaves it at most quarter full.
      */
     private shrinkIfSparse(): void {
-        if (this.items.length <= INITIAL_CAPACITY) {
+        if (this.items.length <= InitialCapacity) {
             return;
         }
         if (this.count > this.items.length / 4) {

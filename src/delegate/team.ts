@@ -1,212 +1,268 @@
-import type { Budget, Digest, Id, Timestamp } from '../types/common.ts'
-import type { TeamManifest } from './teamTypes.ts'
+import type { Budget, Digest, Id, Timestamp } from "../types/common.ts";
+import type { TeamManifest, TeamMember } from "./teamTypes.ts";
 
 export interface Delegation {
-  id: Id
-  parent?: Id
-  granter: Id
-  delegatee: Id
-  goalDigest: Digest
-  scope: string[]
-  budget: Budget
-  deadline: Timestamp
-  mayRedelegate: boolean
-  depth: number
+    id: Id;
+    parent?: Id;
+    granter: Id;
+    delegatee: Id;
+    goalDigest: Digest;
+    scope: string[];
+    budget: Budget;
+    deadline: Timestamp;
+    mayRedelegate: boolean;
+    depth: number;
 }
 
 export interface Lease {
-  id: Id
-  delegation: Id
-  taskId: Id
-  holder: Id
-  fence: number
-  goalDigest: Digest
-  budget: Budget
-  deadline: Timestamp
-  status: 'active' | 'done' | 'cancelled'
+    id: Id;
+    delegation: Id;
+    taskId: Id;
+    holder: Id;
+    fence: number;
+    goalDigest: Digest;
+    budget: Budget;
+    deadline: Timestamp;
+    status: "active" | "done" | "cancelled";
 }
 
 export class AttenuationError extends Error {
-  readonly code = 'delegation_widened'
+    readonly code = "delegation_widened";
 }
 
 export class FencingError extends Error {
-  readonly code = 'stale_writer'
+    readonly code = "stale_writer";
 }
 
 export class DuplicateTask extends Error {
-  readonly code = 'duplicate_goal'
+    readonly code = "duplicate_goal";
 }
 
 export class BudgetError extends Error {
-  readonly code = 'budget_exceeded'
+    readonly code = "budget_exceeded";
 }
 
-const DIMS = ['tokens', 'calls', 'ms', 'interrupts', 'money'] as const
+type BudgetDimension = keyof Budget;
 
-/** Child budgets may only shrink; every dimension is checked independently. */
-function attenuate(parent: Budget, child: Budget): void {
-  for (const dim of DIMS) {
-    const cap = parent[dim]
-    const request = child[dim]
-    if (request !== undefined && cap !== undefined && request > cap) {
-      throw new AttenuationError(`child ${dim} ${request} exceeds parent ${cap}`)
+type TeamRuntimeOptions = {
+    now: () => Timestamp;
+};
+
+type LeaseGrant = {
+    taskId: Id;
+    holder: Id;
+    goalDigest: Digest;
+    budget: Budget;
+    deadline: Timestamp;
+};
+
+type LeaseUsage = {
+    reserved: Budget;
+    spent: Budget;
+};
+
+const DIMS: readonly BudgetDimension[] = ["tokens", "calls", "ms", "interrupts", "money"];
+
+/**
+ * Child budgets may only shrink; every dimension is checked independently.
+ */
+const attenuate: (parent: Budget, child: Budget) => void = (parent: Budget, child: Budget): void => {
+    for (let index: number = 0; index < DIMS.length; index += 1) {
+        const dim: BudgetDimension = DIMS[index];
+        const cap: number | undefined = parent[dim];
+        const request: number | undefined = child[dim];
+        if (request !== (void 0) && cap !== (void 0) && request > cap) {
+            throw new AttenuationError(`child ${dim} ${request} exceeds parent ${cap}`);
+        }
     }
-  }
-}
+};
 
 /**
  * Team runtime: delegation → lease → reservation → result.
  * All authority checks happen locally; a peer's promise is never trusted.
  */
 export class TeamRuntime {
-  private readonly delegations = new Map<Id, Delegation>()
-  private readonly leases = new Map<Id, Lease>()
-  private readonly activeByGoal = new Map<Digest, Id>()
-  private readonly fences = new Map<Id, number>()
-  private readonly reserved = new Map<Id, Budget>()
-  private readonly spent = new Map<Id, Budget>()
-  private readonly now: () => Timestamp
-  private seq = 0
+    private readonly delegations = new Map<Id, Delegation>();
+    private readonly leases = new Map<Id, Lease>();
+    private readonly activeByGoal = new Map<Digest, Id>();
+    private readonly fences = new Map<Id, number>();
+    private readonly reserved = new Map<Id, Budget>();
+    private readonly spent = new Map<Id, Budget>();
+    private readonly now: () => Timestamp;
+    private seq = 0;
 
-  constructor(options: { now: () => Timestamp }) {
-    this.now = options.now
-  }
-
-  /** Injected clock, exposed so leases and receipts share one timeline. */
-  nowIso(): Timestamp {
-    return this.now()
-  }
-
-  createDelegation(input: Omit<Delegation, 'id'>, manifest?: TeamManifest): Delegation {
-    if (manifest) this.enforceManifest(input, manifest)
-    if (input.depth > 2) throw new AttenuationError('delegation depth exceeds 2')
-    if (input.parent) {
-      const parent = this.delegations.get(input.parent)
-      if (!parent) throw new AttenuationError(`unknown parent delegation ${input.parent}`)
-      if (!parent.mayRedelegate) throw new AttenuationError('parent does not allow re-delegation')
-      attenuate(parent.budget, input.budget)
-      if (input.deadline > parent.deadline) throw new AttenuationError('child deadline exceeds parent')
-    }
-    this.seq += 1
-    const delegation: Delegation = { ...input, id: `dl.${this.seq}` }
-    this.delegations.set(delegation.id, delegation)
-    return delegation
-  }
-
-  issueLease(
-    delegationId: Id,
-    input: { taskId: Id; holder: Id; goalDigest: Digest; budget: Budget; deadline: Timestamp },
-  ): Lease {
-    const delegation = this.delegations.get(delegationId)
-    if (!delegation) throw new AttenuationError(`unknown delegation ${delegationId}`)
-    attenuate(delegation.budget, input.budget)
-    if (input.deadline > delegation.deadline) throw new AttenuationError('lease deadline exceeds delegation')
-
-    const active = this.activeByGoal.get(input.goalDigest)
-    if (active && this.leases.get(active)?.status === 'active') {
-      throw new DuplicateTask(`goal already has an active lease: ${active}`)
+    constructor(options: TeamRuntimeOptions) {
+        this.now = options.now;
     }
 
-    const fence = (this.fences.get(input.taskId) ?? 0) + 1
-    this.fences.set(input.taskId, fence)
-    this.seq += 1
-    const lease: Lease = {
-      id: `ls.${this.seq}`,
-      delegation: delegationId,
-      taskId: input.taskId,
-      holder: input.holder,
-      fence,
-      goalDigest: input.goalDigest,
-      budget: input.budget,
-      deadline: input.deadline,
-      status: 'active',
+    /**
+     * Injected clock, exposed so leases and receipts share one timeline.
+     */
+    nowIso(): Timestamp {
+        return this.now();
     }
-    this.leases.set(lease.id, lease)
-    this.activeByGoal.set(input.goalDigest, lease.id)
-    this.reserved.set(lease.id, {})
-    this.spent.set(lease.id, {})
-    return lease
-  }
 
-  /** Reserve before dispatch (D-3): reservation is what makes a budget real. */
-  reserve(leaseId: Id, cost: Budget): void {
-    const lease = this.active(leaseId)
-    const reserved = { ...(this.reserved.get(leaseId) ?? {}) }
-    for (const dim of DIMS) {
-      const next = (reserved[dim] ?? 0) + (cost[dim] ?? 0)
-      const limit = lease.budget[dim]
-      if (limit !== undefined && next > limit) throw new BudgetError(`reserved ${dim} ${next} exceeds lease ${limit}`)
-      if (cost[dim] !== undefined) reserved[dim] = next
+    createDelegation(input: Omit<Delegation, "id">, manifest?: TeamManifest): Delegation {
+        if (manifest) {
+            this.enforceManifest(input, manifest);
+        }
+        if (input.depth > 2) {
+            throw new AttenuationError("delegation depth exceeds 2");
+        }
+        if (input.parent) {
+            const parent: Delegation | undefined = this.delegations.get(input.parent);
+            if (!parent) {
+                throw new AttenuationError(`unknown parent delegation ${input.parent}`);
+            }
+            if (!parent.mayRedelegate) {
+                throw new AttenuationError("parent does not allow re-delegation");
+            }
+            attenuate(parent.budget, input.budget);
+            if (input.deadline > parent.deadline) {
+                throw new AttenuationError("child deadline exceeds parent");
+            }
+        }
+        this.seq += 1;
+        const delegation: Delegation = { ...input, id: `dl.${this.seq}` };
+        this.delegations.set(delegation.id, delegation);
+        return delegation;
     }
-    this.reserved.set(leaseId, reserved)
-  }
 
-  settle(leaseId: Id, actual: Budget): void {
-    this.active(leaseId)
-    this.reserved.set(leaseId, {})
-    const spent = { ...(this.spent.get(leaseId) ?? {}) }
-    for (const dim of DIMS) spent[dim] = (spent[dim] ?? 0) + (actual[dim] ?? 0)
-    this.spent.set(leaseId, spent)
-  }
+    issueLease(delegationId: Id, input: LeaseGrant): Lease {
+        const delegation: Delegation | undefined = this.delegations.get(delegationId);
+        if (!delegation) {
+            throw new AttenuationError(`unknown delegation ${delegationId}`);
+        }
+        attenuate(delegation.budget, input.budget);
+        if (input.deadline > delegation.deadline) {
+            throw new AttenuationError("lease deadline exceeds delegation");
+        }
 
-  /** A lease is single-writer: the fence must match or the write is stale. */
-  assertWriter(leaseId: Id, fence: number): void {
-    const lease = this.active(leaseId)
-    if (lease.fence !== fence) throw new FencingError(`stale writer: fence ${fence} != ${lease.fence}`)
-  }
+        const active: Id | undefined = this.activeByGoal.get(input.goalDigest);
+        if (active && this.leases.get(active)?.status === "active") {
+            throw new DuplicateTask(`goal already has an active lease: ${active}`);
+        }
 
-  complete(leaseId: Id): Lease {
-    const lease = this.active(leaseId)
-    lease.status = 'done'
-    this.activeByGoal.delete(lease.goalDigest)
-    return lease
-  }
-
-  cancel(leaseId: Id): Lease {
-    const lease = this.active(leaseId)
-    lease.status = 'cancelled'
-    this.activeByGoal.delete(lease.goalDigest)
-    return lease
-  }
-
-  lease(leaseId: Id): Lease | undefined {
-    return this.leases.get(leaseId)
-  }
-
-  usage(leaseId: Id): { reserved: Budget; spent: Budget } {
-    return { reserved: this.reserved.get(leaseId) ?? {}, spent: this.spent.get(leaseId) ?? {} }
-  }
-
-  /**
-   * The team manifest is the directory: if it is supplied, membership, scope,
-   * fan-out and budget are checked before a delegation exists at all.
-   */
-  private enforceManifest(input: Omit<Delegation, 'id'>, manifest: TeamManifest): void {
-    const granter = manifest.members.find((member) => member.id === input.granter)
-    if (!granter) throw new AttenuationError(`granter ${input.granter} is not a team member`)
-    if (!manifest.members.some((member) => member.id === input.delegatee)) {
-      throw new AttenuationError(`delegatee ${input.delegatee} is not a team member`)
+        const fence: number = (this.fences.get(input.taskId) ?? 0) + 1;
+        this.fences.set(input.taskId, fence);
+        this.seq += 1;
+        const lease: Lease = {
+            id: `ls.${this.seq}`,
+            delegation: delegationId,
+            taskId: input.taskId,
+            holder: input.holder,
+            fence,
+            goalDigest: input.goalDigest,
+            budget: input.budget,
+            deadline: input.deadline,
+            status: "active",
+        };
+        this.leases.set(lease.id, lease);
+        this.activeByGoal.set(input.goalDigest, lease.id);
+        this.reserved.set(lease.id, {});
+        this.spent.set(lease.id, {});
+        return lease;
     }
-    if (input.depth > manifest.max_depth) {
-      throw new AttenuationError(`depth ${input.depth} exceeds team max ${manifest.max_depth}`)
-    }
-    for (const scope of input.scope) {
-      if (!granter.authority.includes(scope)) {
-        throw new AttenuationError(`scope ${scope} exceeds ${granter.id} authority`)
-      }
-    }
-    attenuate(manifest.budget, input.budget)
-    const existing = [...this.delegations.values()].filter((item) => item.granter === input.granter)
-    if (existing.length >= manifest.max_fanout) {
-      throw new AttenuationError(`fan-out limit ${manifest.max_fanout} reached for ${input.granter}`)
-    }
-  }
 
-  private active(leaseId: Id): Lease {
-    const lease = this.leases.get(leaseId)
-    if (!lease) throw new FencingError(`unknown lease ${leaseId}`)
-    if (lease.status !== 'active') throw new FencingError(`lease ${leaseId} is ${lease.status}`)
-    return lease
-  }
+    /**
+     * Reserve before dispatch (D-3): reservation is what makes a budget real.
+     */
+    reserve(leaseId: Id, cost: Budget): void {
+        const lease: Lease = this.active(leaseId);
+        const reserved: Budget = { ...(this.reserved.get(leaseId) ?? {}) };
+        for (let index: number = 0; index < DIMS.length; index += 1) {
+            const dim: BudgetDimension = DIMS[index];
+            const next: number = (reserved[dim] ?? 0) + (cost[dim] ?? 0);
+            const limit: number | undefined = lease.budget[dim];
+            if (limit !== (void 0) && next > limit) {
+                throw new BudgetError(`reserved ${dim} ${next} exceeds lease ${limit}`);
+            }
+            if (cost[dim] !== (void 0)) {
+                reserved[dim] = next;
+            }
+        }
+        this.reserved.set(leaseId, reserved);
+    }
+
+    settle(leaseId: Id, actual: Budget): void {
+        this.active(leaseId);
+        this.reserved.set(leaseId, {});
+        const spent: Budget = { ...(this.spent.get(leaseId) ?? {}) };
+        for (let index: number = 0; index < DIMS.length; index += 1) {
+            const dim: BudgetDimension = DIMS[index];
+            spent[dim] = (spent[dim] ?? 0) + (actual[dim] ?? 0);
+        }
+        this.spent.set(leaseId, spent);
+    }
+
+    /**
+     * A lease is single-writer: the fence must match or the write is stale.
+     */
+    assertWriter(leaseId: Id, fence: number): void {
+        const lease: Lease = this.active(leaseId);
+        if (lease.fence !== fence) {
+            throw new FencingError(`stale writer: fence ${fence} != ${lease.fence}`);
+        }
+    }
+
+    complete(leaseId: Id): Lease {
+        const lease: Lease = this.active(leaseId);
+        lease.status = "done";
+        this.activeByGoal.delete(lease.goalDigest);
+        return lease;
+    }
+
+    cancel(leaseId: Id): Lease {
+        const lease: Lease = this.active(leaseId);
+        lease.status = "cancelled";
+        this.activeByGoal.delete(lease.goalDigest);
+        return lease;
+    }
+
+    lease(leaseId: Id): Lease | undefined {
+        return this.leases.get(leaseId);
+    }
+
+    usage(leaseId: Id): LeaseUsage {
+        return { reserved: this.reserved.get(leaseId) ?? {}, spent: this.spent.get(leaseId) ?? {} };
+    }
+
+    /**
+     * The team manifest is the directory: if it is supplied, membership, scope,
+     * fan-out and budget are checked before a delegation exists at all.
+     */
+    private enforceManifest(input: Omit<Delegation, "id">, manifest: TeamManifest): void {
+        const granter: TeamMember | undefined = manifest.members.find((member) => member.id === input.granter);
+        if (!granter) {
+            throw new AttenuationError(`granter ${input.granter} is not a team member`);
+        }
+        if (!manifest.members.some((member) => member.id === input.delegatee)) {
+            throw new AttenuationError(`delegatee ${input.delegatee} is not a team member`);
+        }
+        if (input.depth > manifest.max_depth) {
+            throw new AttenuationError(`depth ${input.depth} exceeds team max ${manifest.max_depth}`);
+        }
+        for (let index: number = 0; index < input.scope.length; index += 1) {
+            const scope: string = input.scope[index];
+            if (!granter.authority.includes(scope)) {
+                throw new AttenuationError(`scope ${scope} exceeds ${granter.id} authority`);
+            }
+        }
+        attenuate(manifest.budget, input.budget);
+        const existing: Delegation[] = [...this.delegations.values()].filter((item) => item.granter === input.granter);
+        if (existing.length >= manifest.max_fanout) {
+            throw new AttenuationError(`fan-out limit ${manifest.max_fanout} reached for ${input.granter}`);
+        }
+    }
+
+    private active(leaseId: Id): Lease {
+        const lease: Lease | undefined = this.leases.get(leaseId);
+        if (!lease) {
+            throw new FencingError(`unknown lease ${leaseId}`);
+        }
+        if (lease.status !== "active") {
+            throw new FencingError(`lease ${leaseId} is ${lease.status}`);
+        }
+        return lease;
+    }
 }

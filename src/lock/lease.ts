@@ -35,7 +35,7 @@ const expiry = (at: string, ttlMs: number): string => new Date(Date.parse(at) + 
 
 export const getLock = (db: DatabaseSync, name: string): LockRecord | undefined => {
     const row = db.prepare("SELECT * FROM resource_locks WHERE name = ?").get(name) as unknown as LockRow | undefined;
-    return row === undefined ? undefined : toRecord(row);
+    return row === (void 0) ? undefined : toRecord(row);
 };
 
 /**
@@ -55,7 +55,9 @@ export const acquireLock = (db: DatabaseSync, name: string, holder: string, at: 
              WHERE resource_locks.expires_at <= ? OR resource_locks.holder = ?`,
         )
         .run(name, holder, at, expiry(at, ttlMs), at, holder);
-    if (Number(result.changes) !== 1) return undefined;
+    if (Number(result.changes) !== 1) {
+        return undefined;
+    }
     return getLock(db, name);
 };
 

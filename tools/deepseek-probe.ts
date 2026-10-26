@@ -13,18 +13,15 @@
  */
 import { writeFileSync } from "node:fs";
 
+import type { AgentContext } from "../src/context/agentContext.ts";
 import { AgentService, InMemoryAgentStore } from "../src/process/index.ts";
+import type { Role } from "../src/process/index.ts";
 import { InMemorySocialStore } from "../src/ipc/index.ts";
 import type { CognitiveState } from "../src/attention/cognition.ts";
 import { attentionHealth, planAttention, processAttention } from "../src/attention/resource.ts";
 import type { AttentionPlan } from "../src/attention/resource.ts";
+import type { ScenarioPlan } from "../src/scenario/scenario.ts";
 import { resolveScenario } from "../src/scenario/scenario.ts";
-
-const At = "2026-10-24T00:00:00.000Z";
-const Model = "deepseek-flash";
-const Endpoint = "https://api.deepseek.com/chat/completions";
-const OffPeak = { inputMiss: 0.15 / 1_000_000, inputHit: 0.003 / 1_000_000, output: 0.6 / 1_000_000 };
-const Peak = { inputMiss: 0.3 / 1_000_000, inputHit: 0.006 / 1_000_000, output: 1.2 / 1_000_000 };
 
 interface Task {
     suite: "objective" | "context";
@@ -45,7 +42,12 @@ interface Usage {
 interface ApiResponse {
     id: string;
     model: string;
-    choices: Array<{ message: { content: string | null; reasoning_content?: string | null } }>;
+    choices: Array<{
+        message: {
+            content: string | null;
+            reasoning_content?: string | null;
+        };
+    }>;
     usage: Usage;
 }
 
@@ -72,7 +74,88 @@ interface Run {
     };
 }
 
-const tasks: Task[] = [
+type Price = {
+    inputMiss: number;
+    inputHit: number;
+    output: number;
+};
+
+type PriceTable = {
+    inputCacheMiss: number;
+    inputCacheHit: number;
+    output: number;
+};
+
+type AttentionHealth = {
+    utilization: number;
+    pressure: number;
+    headroom: number;
+    rest: boolean;
+};
+
+type CallResult = {
+    response: ApiResponse;
+    latencyMs: number;
+};
+
+type ProbeCondition = {
+    name: string;
+    system: string;
+};
+
+type ProbeConditions = {
+    service: AgentService;
+    plan: AttentionPlan;
+    health: AttentionHealth;
+    conditions: ProbeCondition[];
+};
+
+type Summary = {
+    suite: Task["suite"];
+    condition: string;
+    accuracy: number;
+    correct: number;
+    tasks: number;
+    totalTokens: number;
+    averageTokens: number;
+    averageLatencyMs: number;
+    costUsd: number;
+    cacheHitTokens: number;
+    cacheMissTokens: number;
+    qualityPer1kTokens: number;
+};
+
+type ProbePricing = {
+    currency: string;
+    per: string;
+    offPeak: PriceTable;
+    peak: PriceTable;
+};
+
+type ProbeTaskRow = {
+    suite: Task["suite"];
+    id: string;
+    prompt: string;
+    expected: string;
+};
+
+type ProbeReport = {
+    generatedAt: string;
+    model: string;
+    endpoint: string;
+    pricing: ProbePricing;
+    tasks: ProbeTaskRow[];
+    runs: Run[];
+    summary: Summary[];
+};
+
+const At: string = "2026-10-24T00:00:00.000Z";
+const Model: string = "deepseek-flash";
+const Endpoint: string = "https://api.deepseek.com/chat/completions";
+const OffPeak: Price = { inputMiss: 0.15 / 1_000_000, inputHit: 0.003 / 1_000_000, output: 0.6 / 1_000_000 };
+const Peak: Price = { inputMiss: 0.3 / 1_000_000, inputHit: 0.006 / 1_000_000, output: 1.2 / 1_000_000 };
+
+const Tasks: Task[] = [
     {
         suite: "objective",
         id: "unique-rows",
@@ -112,7 +195,7 @@ const tasks: Task[] = [
     },
 ];
 
-const contextTasks: Task[] = [
+const ContextTasks: Task[] = [
     {
         suite: "context",
         id: "memory-penalty",
@@ -150,37 +233,37 @@ const contextTasks: Task[] = [
     },
 ];
 
-const allTasks: Task[] = [...tasks, ...contextTasks];
+const AllTasks: Task[] = [...Tasks, ...ContextTasks];
 
-const key = process.env.DEEPSEEK_API_KEY;
-if (key === undefined || key.trim().length === 0) {
+const Key: string | undefined = process.env.DEEPSEEK_API_KEY;
+if (Key === (void 0) || Key.trim().length === 0) {
     console.error("DEEPSEEK_API_KEY is not set");
     process.exit(1);
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep: (ms: number) => Promise<void> = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-const isPeak = (date: Date): boolean => {
-    const day = date.getUTCDay();
-    const hour = date.getUTCHours();
+const isPeak: (date: Date) => boolean = (date: Date): boolean => {
+    const day: number = date.getUTCDay();
+    const hour: number = date.getUTCHours();
     return day >= 1 && day <= 5 && ((hour >= 1 && hour < 4) || (hour >= 6 && hour < 10));
 };
 
-const priceFor = (date: Date): { inputMiss: number; inputHit: number; output: number } => (isPeak(date) ? Peak : OffPeak);
+const priceFor: (date: Date) => Price = (date: Date): Price => (isPeak(date) ? Peak : OffPeak);
 
-const costOf = (usage: Usage, date: Date): number => {
-    const price = priceFor(date);
-    const hit = usage.prompt_cache_hit_tokens ?? 0;
-    const miss = usage.prompt_cache_miss_tokens ?? Math.max(0, usage.prompt_tokens - hit);
+const costOf: (usage: Usage, date: Date) => number = (usage: Usage, date: Date): number => {
+    const price: Price = priceFor(date);
+    const hit: number = usage.prompt_cache_hit_tokens ?? 0;
+    const miss: number = usage.prompt_cache_miss_tokens ?? Math.max(0, usage.prompt_tokens - hit);
     return hit * price.inputHit + miss * price.inputMiss + usage.completion_tokens * price.output;
 };
 
-const call = async (system: string, user: string): Promise<{ response: ApiResponse; latencyMs: number }> => {
-    const started = performance.now();
-    const response = await fetch(Endpoint, {
+const call: (system: string, user: string) => Promise<CallResult> = async (system: string, user: string): Promise<CallResult> => {
+    const started: number = performance.now();
+    const response: Response = await fetch(Endpoint, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${key}`,
+            Authorization: `Bearer ${Key}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -195,16 +278,16 @@ const call = async (system: string, user: string): Promise<{ response: ApiRespon
             stream: false,
         }),
     });
-    const latencyMs = performance.now() - started;
+    const latencyMs: number = performance.now() - started;
     if (!response.ok) {
-        const body = await response.text();
+        const body: string = await response.text();
         throw new Error(`DeepSeek HTTP ${response.status}: ${body.slice(0, 600)}`);
     }
     return { response: (await response.json()) as ApiResponse, latencyMs };
 };
 
-const agentService = (): AgentService => {
-    const service = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
+const agentService: () => AgentService = (): AgentService => {
+    const service: AgentService = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
     service.createAgent({
         pid: 1,
         id: "a.probe",
@@ -214,7 +297,7 @@ const agentService = (): AgentService => {
         narrative: "I separate what I know from what I infer, and I keep answers short when the task is simple.",
         at: At,
     });
-    const role = service.addRole({
+    const role: Role = service.addRole({
         id: "role.analyst",
         label: "Analyst",
         obligations: [{ id: "ob.evidence", statement: "ground claims in evidence" }],
@@ -231,7 +314,7 @@ const agentService = (): AgentService => {
     return service;
 };
 
-const cognitive = (): CognitiveState => ({
+const cognitive: () => CognitiveState = (): CognitiveState => ({
     load: 0.35,
     vigilance: 0.75,
     arousal: 0.3,
@@ -244,20 +327,20 @@ const cognitive = (): CognitiveState => ({
     samples: 0,
 });
 
-const buildConditions = () => {
-    const service = agentService();
-    const context = service.context(1, { tokens: 600 });
-    const personText = context.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n");
-    const state = cognitive();
+const buildConditions: () => ProbeConditions = (): ProbeConditions => {
+    const service: AgentService = agentService();
+    const context: AgentContext = service.context(1, { tokens: 600 });
+    const personText: string = context.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n");
+    const state: CognitiveState = cognitive();
     const plan: AttentionPlan = planAttention(processAttention(1, state), [
         { tid: 1, pid: 1, priority: 5, preferredSlots: 2, foreground: true, role: "analyst" },
         { tid: 2, pid: 1, priority: 1, preferredSlots: 1, foreground: false, role: "monitor" },
     ]);
-    const health = attentionHealth(plan);
-    const scenario = resolveScenario({ chat: 0.5, engineering: 0.5 });
-    const scenarioContext = service.context(1, { tokens: 600 }, { scenario });
-    const scenarioText = scenarioContext.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n");
-    const attentionText = [
+    const health: AttentionHealth = attentionHealth(plan);
+    const scenario: ScenarioPlan = resolveScenario({ chat: 0.5, engineering: 0.5 });
+    const scenarioContext: AgentContext = service.context(1, { tokens: 600 }, { scenario });
+    const scenarioText: string = scenarioContext.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n");
+    const attentionText: string = [
         `Attention plan: capacity ${plan.process.effectiveSlots} slots; foreground cap ${plan.process.foregroundCap}; reserve ${plan.process.reserveSlots}; safety floor ${plan.process.safetySlots}.`,
         `This task is allocated ${plan.foreground?.slots ?? 0} foreground slots; utilization ${(health.utilization * 100).toFixed(0)}%; pressure ${(health.pressure * 100).toFixed(0)}%.`,
         `Recovery debt ${(plan.process.recoveryDebt * 100).toFixed(0)}%; rest=${plan.rest}.`,
@@ -292,22 +375,23 @@ const buildConditions = () => {
     };
 };
 
-const summarize = (runs: Run[]) => {
-    const byCondition = new Map<string, Run[]>();
-    for (const run of runs) {
-        const key = `${run.suite}:${run.condition}`;
-        const list = byCondition.get(key) ?? [];
+const summarize: (runs: Run[]) => Summary[] = (runs: Run[]): Summary[] => {
+    const byCondition: Map<string, Run[]> = new Map<string, Run[]>();
+    for (let index: number = 0; index < runs.length; index += 1) {
+        const run: Run = runs[index];
+        const key: string = `${run.suite}:${run.condition}`;
+        const list: Run[] = byCondition.get(key) ?? [];
         list.push(run);
         byCondition.set(key, list);
     }
     return [...byCondition.entries()].map(([key, list]) => {
-        const [suite, condition] = key.split(":") as [Task["suite"], string];
-        const correct = list.filter((run) => run.correct).length;
-        const totalTokens = list.reduce((sum, run) => sum + run.totalTokens, 0);
-        const totalLatency = list.reduce((sum, run) => sum + run.latencyMs, 0);
-        const cost = list.reduce((sum, run) => sum + run.costUsd, 0);
-        const cacheHitTokens = list.reduce((sum, run) => sum + run.cacheHitTokens, 0);
-        const cacheMissTokens = list.reduce((sum, run) => sum + run.cacheMissTokens, 0);
+        const [suite, condition]: [Task["suite"], string] = key.split(":") as [Task["suite"], string];
+        const correct: number = list.filter((run) => run.correct).length;
+        const totalTokens: number = list.reduce((sum, run) => sum + run.totalTokens, 0);
+        const totalLatency: number = list.reduce((sum, run) => sum + run.latencyMs, 0);
+        const cost: number = list.reduce((sum, run) => sum + run.costUsd, 0);
+        const cacheHitTokens: number = list.reduce((sum, run) => sum + run.cacheHitTokens, 0);
+        const cacheMissTokens: number = list.reduce((sum, run) => sum + run.cacheMissTokens, 0);
         return {
             suite,
             condition,
@@ -325,17 +409,19 @@ const summarize = (runs: Run[]) => {
     });
 };
 
-const main = async (): Promise<void> => {
-    const { plan, conditions } = buildConditions();
+const main: () => Promise<void> = async (): Promise<void> => {
+    const { plan, conditions }: ProbeConditions = buildConditions();
     const runs: Run[] = [];
-    for (const condition of conditions) {
-        for (const task of allTasks) {
-            const { response, latencyMs } = await call(condition.system, task.prompt);
-            const answer = response.choices[0]?.message.content?.trim() ?? "";
-            const usage = response.usage;
-            const hit = usage.prompt_cache_hit_tokens ?? 0;
-            const miss = usage.prompt_cache_miss_tokens ?? Math.max(0, usage.prompt_tokens - hit);
-            const attention = condition.name.includes("attention")
+    for (let index: number = 0; index < conditions.length; index += 1) {
+        const condition: ProbeCondition = conditions[index];
+        for (let taskIndex: number = 0; taskIndex < AllTasks.length; taskIndex += 1) {
+            const task: Task = AllTasks[taskIndex];
+            const { response, latencyMs }: CallResult = await call(condition.system, task.prompt);
+            const answer: string = response.choices[0]?.message.content?.trim() ?? "";
+            const usage: Usage = response.usage;
+            const hit: number = usage.prompt_cache_hit_tokens ?? 0;
+            const miss: number = usage.prompt_cache_miss_tokens ?? Math.max(0, usage.prompt_tokens - hit);
+            const attention: Run["attention"] = condition.name.includes("attention")
                 ? {
                       utilization: plan.utilization,
                       pressure: plan.pressure,
@@ -359,7 +445,9 @@ const main = async (): Promise<void> => {
                 latencyMs,
                 costUsd: costOf(usage, new Date()),
             };
-            if (attention !== undefined) run.attention = attention;
+            if (attention !== (void 0)) {
+                run.attention = attention;
+            }
             runs.push(run);
             console.log(
                 `${condition.name.padEnd(18)} ${task.id.padEnd(18)} ${run.correct ? "PASS" : "FAIL"} ` +
@@ -369,8 +457,8 @@ const main = async (): Promise<void> => {
         }
     }
 
-    const summary = summarize(runs);
-    const result = {
+    const summary: Summary[] = summarize(runs);
+    const result: ProbeReport = {
         generatedAt: new Date().toISOString(),
         model: Model,
         endpoint: Endpoint,
@@ -380,17 +468,18 @@ const main = async (): Promise<void> => {
             offPeak: { inputCacheMiss: 0.15, inputCacheHit: 0.003, output: 0.6 },
             peak: { inputCacheMiss: 0.3, inputCacheHit: 0.006, output: 1.2 },
         },
-        tasks: allTasks.map(({ suite, id, prompt, expected }) => ({ suite, id, prompt, expected })),
+        tasks: AllTasks.map(({ suite, id, prompt, expected }) => ({ suite, id, prompt, expected })),
         runs,
         summary,
     };
     writeFileSync("docs/probes/deepseek-probe.json", `${JSON.stringify(result, null, 2)}\n`, "utf8");
 
     console.log("\nsuite/condition          accuracy  totalTok  avgTok  avgMs  costUSD     q/1kTok");
-    for (const row of summary) {
+    for (let index: number = 0; index < summary.length; index += 1) {
+        const row: Summary = summary[index];
         console.log(
             `${`${row.suite}/${row.condition}`.padEnd(22)} ${(row.accuracy * 100).toFixed(0).padStart(6)}%  ` +
-                `${String(row.totalTokens).padStart(8)}  ${row.averageTokens.toFixed(0).padStart(6)}  ` +
+                `${`${row.totalTokens}`.padStart(8)}  ${row.averageTokens.toFixed(0).padStart(6)}  ` +
                 `${row.averageLatencyMs.toFixed(0).padStart(5)}  ${row.costUsd.toFixed(6).padStart(9)}  ${row.qualityPer1kTokens.toFixed(2).padStart(6)}`,
         );
     }
@@ -403,4 +492,3 @@ const main = async (): Promise<void> => {
 };
 
 await main();
-

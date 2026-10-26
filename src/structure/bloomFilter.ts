@@ -39,10 +39,10 @@ export interface BloomFilterOptions {
     maxBits?: number;
 }
 
-const DEFAULT_FALSE_POSITIVE_RATE = 0.01;
-const DEFAULT_MAX_BITS = 2 ** 31;
-const SECOND_HASH_SEED = 0x9e3779b97f4a7c15n;
-const LN2 = Math.LN2;
+const DefaultFalsePositiveRate: number = 0.01;
+const DefaultMaxBits: number = 2 ** 31;
+const SecondHashSeed: bigint = 0x9e3779b97f4a7c15n;
+const LN2: number = Math.LN2;
 
 /**
  * A Bloom filter over string or `Uint8Array` keys.
@@ -85,24 +85,24 @@ export class BloomFilter {
      * `(0, 1)`, or a computed bit count above `maxBits`.
      */
     constructor(options: BloomFilterOptions) {
-        if (options === null || typeof options !== "object") {
+        if (options === null || typeof(options) !== "object") {
             throw new TypeError("options must be an object");
         }
         if (!Number.isSafeInteger(options.expectedItems) || options.expectedItems <= 0) {
             throw new RangeError("expectedItems must be a positive safe integer");
         }
-        const rate = options.falsePositiveRate ?? DEFAULT_FALSE_POSITIVE_RATE;
+        const rate: number = options.falsePositiveRate ?? DefaultFalsePositiveRate;
         if (!Number.isFinite(rate) || rate <= 0 || rate >= 1) {
             throw new RangeError("falsePositiveRate must be a finite number in (0, 1)");
         }
-        const maxBits = options.maxBits ?? DEFAULT_MAX_BITS;
+        const maxBits: number = options.maxBits ?? DefaultMaxBits;
         if (!Number.isSafeInteger(maxBits) || maxBits <= 0) {
             throw new RangeError("maxBits must be a positive safe integer");
         }
 
-        const idealBits = Math.ceil((-options.expectedItems * Math.log(rate)) / (LN2 * LN2));
+        const idealBits: number = Math.ceil((-options.expectedItems * Math.log(rate)) / (LN2 * LN2));
         if (!Number.isSafeInteger(idealBits) || idealBits > maxBits) {
-            throw new RangeError(`filter would need ${String(idealBits)} bits, exceeding maxBits ${maxBits}`);
+            throw new RangeError(`filter would need ${`${idealBits}`} bits, exceeding maxBits ${maxBits}`);
         }
 
         this.expectedItems = options.expectedItems;
@@ -125,11 +125,11 @@ export class BloomFilter {
      */
     add(key: FilterKey): this {
         assertFilterKey(key);
-        const bytes = filterKeyBytes(key);
-        const primary = hashBytes(bytes, this.seed) % BigInt(this.bitSize);
-        const step = (hashBytes(bytes, this.seed ^ SECOND_HASH_SEED) | 1n) % BigInt(this.bitSize);
-        let position = primary;
-        for (let probe = 0; probe < this.hashCount; probe += 1) {
+        const bytes: Uint8Array = filterKeyBytes(key);
+        const primary: bigint = hashBytes(bytes, this.seed) % BigInt(this.bitSize);
+        const step: bigint = (hashBytes(bytes, this.seed ^ SecondHashSeed) | 1n) % BigInt(this.bitSize);
+        let position: bigint = primary;
+        for (let probe: number = 0; probe < this.hashCount; probe += 1) {
             this.setBit(Number(position));
             position = (position + step) % BigInt(this.bitSize);
         }
@@ -145,11 +145,11 @@ export class BloomFilter {
      */
     has(key: FilterKey): boolean {
         assertFilterKey(key);
-        const bytes = filterKeyBytes(key);
-        const primary = hashBytes(bytes, this.seed) % BigInt(this.bitSize);
-        const step = (hashBytes(bytes, this.seed ^ SECOND_HASH_SEED) | 1n) % BigInt(this.bitSize);
-        let position = primary;
-        for (let probe = 0; probe < this.hashCount; probe += 1) {
+        const bytes: Uint8Array = filterKeyBytes(key);
+        const primary: bigint = hashBytes(bytes, this.seed) % BigInt(this.bitSize);
+        const step: bigint = (hashBytes(bytes, this.seed ^ SecondHashSeed) | 1n) % BigInt(this.bitSize);
+        let position: bigint = primary;
+        for (let probe: number = 0; probe < this.hashCount; probe += 1) {
             if (!this.getBit(Number(position))) {
                 return false;
             }
@@ -203,7 +203,7 @@ export class BloomFilter {
         if (this.insertions === 0) {
             return 0;
         }
-        const exponent = (-this.hashCount * this.insertions) / this.bitSize;
+        const exponent: number = (-this.hashCount * this.insertions) / this.bitSize;
         return (1 - Math.exp(exponent)) ** this.hashCount;
     }
 
@@ -211,9 +211,9 @@ export class BloomFilter {
      * Set one bit, updating the occupancy counter only on a 0 -> 1 change.
      */
     private setBit(index: number): void {
-        const byteIndex = index >>> 3;
-        const mask = 1 << (index & 7);
-        const current = this.bits[byteIndex] ?? 0;
+        const byteIndex: number = index >>> 3;
+        const mask: number = 1 << (index & 7);
+        const current: number = this.bits[byteIndex] ?? 0;
         if ((current & mask) === 0) {
             this.bits[byteIndex] = current | mask;
             this.bitsSet += 1;
@@ -224,8 +224,8 @@ export class BloomFilter {
      * Read one bit.
      */
     private getBit(index: number): boolean {
-        const byteIndex = index >>> 3;
-        const mask = 1 << (index & 7);
+        const byteIndex: number = index >>> 3;
+        const mask: number = 1 << (index & 7);
         return ((this.bits[byteIndex] ?? 0) & mask) !== 0;
     }
 }

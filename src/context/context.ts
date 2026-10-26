@@ -30,16 +30,22 @@ const toSegment = (page: Page): ContextSegment => {
         tokens: page.tokens,
         pinned: page.pinned > 0,
     };
-    if (page.content !== undefined) segment.content = page.content;
+    if (page.content !== (void 0)) {
+        segment.content = page.content;
+    }
     return segment;
 };
 
 export const assembleContext = (window: ContextWindow, budgetTokens: number): ContextAssembly => {
-    if (!Number.isSafeInteger(budgetTokens) || budgetTokens < 0) throw new RangeError("budgetTokens must be a non-negative safe integer");
+    if (!Number.isSafeInteger(budgetTokens) || budgetTokens < 0) {
+        throw new RangeError("budgetTokens must be a non-negative safe integer");
+    }
     const pages: Page[] = window.entries().slice();
     pages.sort((left, right) => {
         const pinDiff: number = (right.pinned > 0 ? 1 : 0) - (left.pinned > 0 ? 1 : 0);
-        if (pinDiff !== 0) return pinDiff;
+        if (pinDiff !== 0) {
+            return pinDiff;
+        }
         return right.lastUsed - left.lastUsed;
     });
 

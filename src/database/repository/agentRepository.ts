@@ -62,7 +62,9 @@ const toNarrative = (row: SelfNarrativeRow): SelfNarrative => {
         narrative: row.narrative,
         at: row.at,
     };
-    if (row.object_seq !== null) narrative.objectSeq = row.object_seq;
+    if (row.object_seq !== null) {
+        narrative.objectSeq = row.object_seq;
+    }
     return narrative;
 };
 
@@ -110,8 +112,12 @@ const toBackground = (row: BackgroundRow): BackgroundProcess => {
         status: row.status as BackgroundProcess["status"],
         updatedAt: row.updated_at,
     };
-    if (row.trigger !== null) process.trigger = row.trigger;
-    if (row.script !== null) process.script = row.script;
+    if (row.trigger !== null) {
+        process.trigger = row.trigger;
+    }
+    if (row.script !== null) {
+        process.script = row.script;
+    }
     return process;
 };
 
@@ -124,8 +130,12 @@ const toLifeEvent = (row: LifeEventRow): LifeEvent => {
         at: row.at,
         impact: row.impact,
     };
-    if (row.role_id !== null) event.roleId = row.role_id;
-    if (row.narrative_version !== null) event.narrativeVersion = row.narrative_version;
+    if (row.role_id !== null) {
+        event.roleId = row.role_id;
+    }
+    if (row.narrative_version !== null) {
+        event.narrativeVersion = row.narrative_version;
+    }
     return event;
 };
 
@@ -151,12 +161,12 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
 
     profile(pid: Pid): AgentProfile | undefined {
         const row = this.findById(pid);
-        return row === undefined ? undefined : toProfile(row);
+        return row === (void 0) ? undefined : toProfile(row);
     }
 
     narrative(pid: Pid, version?: number): SelfNarrative | undefined {
         const rows =
-            version === undefined
+            version === (void 0)
                 ? this.narratives.select({ where: "pid = ?", params: [pid], orderBy: "ORDER BY version DESC", limit: 1 })
                 : this.narratives.select({ where: "pid = ? AND version = ?", params: [pid, version], limit: 1 });
         return rows.length === 0 ? undefined : toNarrative(rows[0]);
@@ -167,7 +177,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
         const result: RoleAssignment[] = [];
         for (const row of rows) {
             const role = this.roleRows.findById(row.rid);
-            if (role === undefined) continue;
+            if (role === (void 0)) {
+                continue;
+            }
             result.push({ role: toRole(role), salience: row.salience, active: row.active !== 0, since: row.since });
         }
         return result;
@@ -180,23 +192,25 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
     memories(pid: Pid, query: MemoryQuery = {}): Memory[] {
         const clauses: string[] = ["pid = ?"];
         const params: SqlParameter[] = [pid];
-        if (query.kind !== undefined) {
+        if (query.kind !== (void 0)) {
             clauses.push("kind = ?");
             params.push(query.kind);
         }
-        if (query.roleId !== undefined) {
+        if (query.roleId !== (void 0)) {
             clauses.push("role_id = ?");
             params.push(query.roleId);
         }
-        if (query.minSalience !== undefined) {
+        if (query.minSalience !== (void 0)) {
             clauses.push("salience >= ?");
             params.push(query.minSalience);
         }
-        if (query.before !== undefined) {
+        if (query.before !== (void 0)) {
             clauses.push("at < ?");
             params.push(query.before);
         }
-        if (query.includeConsolidated === false) clauses.push("consolidated = 0");
+        if (query.includeConsolidated === false) {
+            clauses.push("consolidated = 0");
+        }
         const rows = this.memoryRows.select({
             where: clauses.join(" AND "),
             params,
@@ -208,13 +222,13 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
 
     affect(pid: Pid): AffectState | undefined {
         const row = this.affectRows.findById(pid);
-        return row === undefined ? undefined : toAffect(row);
+        return row === (void 0) ? undefined : toAffect(row);
     }
 
     background(pid: Pid, status?: BackgroundProcess["status"]): BackgroundProcess[] {
         const clauses: string[] = ["pid = ?"];
         const params: SqlParameter[] = [pid];
-        if (status !== undefined) {
+        if (status !== (void 0)) {
             clauses.push("status = ?");
             params.push(status);
         }
@@ -226,7 +240,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
     }
 
     createProfile(input: Parameters<AgentStore["createProfile"]>[0]): AgentProfile {
-        if (this.findById(input.pid) !== undefined) throw new AgentError("profile_exists", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) !== (void 0)) {
+            throw new AgentError("profile_exists", [`pid ${input.pid}`]);
+        }
         this.queries.insert({
             pid: input.pid,
             name: input.name,
@@ -238,12 +254,16 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             version: 1,
         });
         const profile = this.profile(input.pid);
-        if (profile === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (profile === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         return profile;
     }
 
     reviseNarrative(input: Parameters<AgentStore["reviseNarrative"]>[0]): SelfNarrative {
-        if (this.findById(input.pid) === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         const count = this.narratives.count("pid = ?", input.pid);
         const version = count + 1;
         this.narratives.insert({
@@ -254,7 +274,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             at: input.at,
         });
         const narrative = this.narrative(input.pid, version);
-        if (narrative === undefined) throw new AgentError("agent_not_found", [`narrative ${input.pid}/${version}`]);
+        if (narrative === (void 0)) {
+            throw new AgentError("agent_not_found", [`narrative ${input.pid}/${version}`]);
+        }
         return narrative;
     }
 
@@ -270,16 +292,24 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             created_at: input.createdAt,
         });
         const row = this.roleRows.select({ where: "id = ?", params: [input.id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("role_not_found", [`role ${input.id}`]);
+        if (row === (void 0)) {
+            throw new AgentError("role_not_found", [`role ${input.id}`]);
+        }
         return toRole(row);
     }
 
     assignRole(input: Parameters<AgentStore["assignRole"]>[0]): RoleAssignment {
-        if (this.findById(input.pid) === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         const role = this.roleRows.select({ where: "id = ?", params: [input.roleId], limit: 1 })[0];
-        if (role === undefined) throw new AgentError("role_not_found", [`role ${input.roleId}`]);
+        if (role === (void 0)) {
+            throw new AgentError("role_not_found", [`role ${input.roleId}`]);
+        }
         const active = input.active === true ? 1 : 0;
-        if (active === 1) this.assignments.updateWhere("pid = ?", { active: 0 }, input.pid);
+        if (active === 1) {
+            this.assignments.updateWhere("pid = ?", { active: 0 }, input.pid);
+        }
         const existing = this.assignments.select({ where: "pid = ? AND rid = ?", params: [input.pid, role.rid], limit: 1 });
         if (existing.length === 0) {
             this.assignments.insert({ pid: input.pid, rid: role.rid, salience: input.salience ?? 0.5, active, since: input.since });
@@ -287,24 +317,34 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             this.assignments.updateWhere("pid = ? AND rid = ?", { salience: input.salience ?? 0.5, active, since: input.since }, input.pid, role.rid);
         }
         const assignment = this.assignments.select({ where: "pid = ? AND rid = ?", params: [input.pid, role.rid], limit: 1 })[0];
-        if (assignment === undefined) throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        if (assignment === (void 0)) {
+            throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        }
         return { role: toRole(role), salience: assignment.salience, active: assignment.active !== 0, since: assignment.since };
     }
 
     activateRole(input: Parameters<AgentStore["activateRole"]>[0]): RoleAssignment {
         const role = this.roleRows.select({ where: "id = ?", params: [input.roleId], limit: 1 })[0];
-        if (role === undefined) throw new AgentError("role_not_found", [`role ${input.roleId}`]);
+        if (role === (void 0)) {
+            throw new AgentError("role_not_found", [`role ${input.roleId}`]);
+        }
         const assigned = this.assignments.select({ where: "pid = ? AND rid = ?", params: [input.pid, role.rid], limit: 1 });
-        if (assigned.length === 0) throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        if (assigned.length === 0) {
+            throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        }
         this.assignments.updateWhere("pid = ?", { active: 0 }, input.pid);
         this.assignments.updateWhere("pid = ? AND rid = ?", { active: 1, since: input.at }, input.pid, role.rid);
         const assignment = this.assignments.select({ where: "pid = ? AND rid = ?", params: [input.pid, role.rid], limit: 1 })[0];
-        if (assignment === undefined) throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        if (assignment === (void 0)) {
+            throw new AgentError("role_not_assigned", [`pid ${input.pid} role ${input.roleId}`]);
+        }
         return { role: toRole(role), salience: assignment.salience, active: true, since: assignment.since };
     }
 
     remember(input: Parameters<AgentStore["remember"]>[0]): Memory {
-        if (this.findById(input.pid) === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         const next = this.memoryRows.queryOne<{ n: number }>("SELECT COALESCE(MAX(mem_id), 0) + 1 AS n FROM memories")?.n ?? 1;
         const id = `mem.${input.pid}.${next}`;
         this.memoryRows.insert({
@@ -320,7 +360,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             consolidated: 0,
         });
         const row = this.memoryRows.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("memory_not_found", [`memory ${id}`]);
+        if (row === (void 0)) {
+            throw new AgentError("memory_not_found", [`memory ${id}`]);
+        }
         return toMemory(row);
     }
 
@@ -337,7 +379,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
     }
 
     setAffect(pid: Pid, input: Parameters<AgentStore["setAffect"]>[1], at: string): AffectState {
-        if (this.findById(pid) === undefined) throw new AgentError("agent_not_found", [`pid ${pid}`]);
+        if (this.findById(pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${pid}`]);
+        }
         const previous = this.affect(pid);
         this.affectRows.upsert({
             pid,
@@ -349,12 +393,16 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             updated_at: at,
         });
         const affect = this.affect(pid);
-        if (affect === undefined) throw new AgentError("invalid_affect", [`pid ${pid}`]);
+        if (affect === (void 0)) {
+            throw new AgentError("invalid_affect", [`pid ${pid}`]);
+        }
         return affect;
     }
 
     addBackground(input: Parameters<AgentStore["addBackground"]>[0]): BackgroundProcess {
-        if (this.findById(input.pid) === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         const next = this.backgroundRows.queryOne<{ n: number }>("SELECT COALESCE(MAX(bpid), 0) + 1 AS n FROM background_processes")?.n ?? 1;
         const id = `bg.${input.pid}.${next}`;
         this.backgroundRows.insert({
@@ -369,20 +417,28 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             updated_at: input.at,
         });
         const row = this.backgroundRows.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("agent_not_found", [`background ${id}`]);
+        if (row === (void 0)) {
+            throw new AgentError("agent_not_found", [`background ${id}`]);
+        }
         return toBackground(row);
     }
 
     setBackgroundStatus(pid: Pid, id: string, status: BackgroundProcess["status"], at: string): BackgroundProcess {
         const changed = this.backgroundRows.updateWhere("pid = ? AND id = ?", { status, updated_at: at }, pid, id);
-        if (changed === 0) throw new AgentError("agent_not_found", [`background ${id}`]);
+        if (changed === 0) {
+            throw new AgentError("agent_not_found", [`background ${id}`]);
+        }
         const row = this.backgroundRows.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("agent_not_found", [`background ${id}`]);
+        if (row === (void 0)) {
+            throw new AgentError("agent_not_found", [`background ${id}`]);
+        }
         return toBackground(row);
     }
 
     recordLifeEvent(input: Parameters<AgentStore["recordLifeEvent"]>[0]): LifeEvent {
-        if (this.findById(input.pid) === undefined) throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        if (this.findById(input.pid) === (void 0)) {
+            throw new AgentError("agent_not_found", [`pid ${input.pid}`]);
+        }
         const next = this.eventRows.queryOne<{ n: number }>("SELECT COALESCE(MAX(ev_id), 0) + 1 AS n FROM life_events")?.n ?? 1;
         const id = `ev.${input.pid}.${next}`;
         this.eventRows.insert({
@@ -396,7 +452,9 @@ export class AgentRepository extends BaseRepository<AgentProfileRow, number> imp
             narrative_version: input.narrativeVersion ?? null,
         });
         const row = this.eventRows.select({ where: "id = ?", params: [id], limit: 1 })[0];
-        if (row === undefined) throw new AgentError("agent_not_found", [`life event ${id}`]);
+        if (row === (void 0)) {
+            throw new AgentError("agent_not_found", [`life event ${id}`]);
+        }
         return toLifeEvent(row);
     }
 }

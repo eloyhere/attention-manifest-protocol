@@ -4,65 +4,85 @@ import { AbstractSyntaxTree } from "../src/structure/abstractSyntaxTree.ts";
 import type { AstNode, SourceSpan } from "../src/structure/abstractSyntaxTree.ts";
 import { SegmentTree } from "../src/structure/segmentTree.ts";
 
-let passed = 0;
-let failed = 0;
+/**
+ * Kinds of a node sequence, in traversal order.
+ */
+type NodeKinds = <T>(nodes: Iterable<AstNode<T>>) => string[];
 
-const test = (name: string, run: () => void): void => {
+/**
+ * One recorded `map()` invocation: the visited kind and its transformed children.
+ */
+type MappedCall = {
+    kind: string;
+    childKinds: string[];
+};
+
+/**
+ * Payload object used to prove `clone()` shares values instead of copying them.
+ */
+type CountPayload = {
+    count: number;
+};
+
+let Passed: number = 0;
+let Failed: number = 0;
+
+const test: (name: string, run: () => void) => void = (name: string, run: () => void): void => {
     try {
         run();
-        passed += 1;
+        Passed += 1;
         console.log(`✓ ${name}`);
     } catch (error: unknown) {
-        failed += 1;
-        const message = error instanceof Error ? error.message : String(error);
+        Failed += 1;
+        const message: string = error instanceof Error ? error.message : `${error}`;
         console.error(`✗ ${name}\n  ${message}`);
     }
 };
 
-const sum = (left: number, right: number): number => left + right;
-const min = (left: number, right: number): number => Math.min(left, right);
-const max = (left: number, right: number): number => Math.max(left, right);
-const concatenate = (left: string, right: string): string => left + right;
+const sum: (left: number, right: number) => number = (left: number, right: number): number => left + right;
+const min: (left: number, right: number) => number = (left: number, right: number): number => Math.min(left, right);
+const max: (left: number, right: number) => number = (left: number, right: number): number => Math.max(left, right);
+const concatenate: (left: string, right: string) => string = (left: string, right: string): string => left + right;
 
-const gcd = (left: number, right: number): number => {
-    let a = Math.abs(left);
-    let b = Math.abs(right);
+const gcd: (left: number, right: number) => number = (left: number, right: number): number => {
+    let a: number = Math.abs(left);
+    let b: number = Math.abs(right);
     while (b !== 0) {
-        const remainder = a % b;
+        const remainder: number = a % b;
         a = b;
         b = remainder;
     }
     return a;
 };
 
-const createRandom = (seed: number): (() => number) => {
-    let state = seed >>> 0;
+const createRandom: (seed: number) => () => number = (seed: number): (() => number) => {
+    let state: number = seed >>> 0;
     return (): number => {
         state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
         return state / 0x100000000;
     };
 };
 
-const nodeKinds = <T>(nodes: Iterable<AstNode<T>>): string[] => [...nodes].map((node) => node.kind);
+const nodeKinds: NodeKinds = <T>(nodes: Iterable<AstNode<T>>): string[] => [...nodes].map((node) => node.kind);
 
-const makeNumberTree = (): AbstractSyntaxTree<number> => {
-    const a = AbstractSyntaxTree.leaf<number>("a", 1, {
+const makeNumberTree: () => AbstractSyntaxTree<number> = (): AbstractSyntaxTree<number> => {
+    const a: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("a", 1, {
         start: 0,
         end: 1,
         source: "sample",
     });
-    const b1 = AbstractSyntaxTree.leaf<number>("b1", 2, {
+    const b1: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("b1", 2, {
         start: 3,
         end: 4,
         source: "sample",
     });
-    const b2 = AbstractSyntaxTree.leaf<number>("b2", 3, {
+    const b2: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("b2", 3, {
         start: 4,
         end: 5,
         source: "sample",
     });
-    const b = AbstractSyntaxTree.branch<number>("b", [b1.root, b2.root], 0, { start: 2, end: 5, source: "sample" });
-    const c = AbstractSyntaxTree.leaf<number>("c", 4, {
+    const b: AbstractSyntaxTree<number> = AbstractSyntaxTree.branch<number>("b", [b1.root, b2.root], 0, { start: 2, end: 5, source: "sample" });
+    const c: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("c", 4, {
         start: 6,
         end: 7,
         source: "sample",
@@ -70,12 +90,12 @@ const makeNumberTree = (): AbstractSyntaxTree<number> => {
     return AbstractSyntaxTree.branch<number>("root", [a.root, b.root, c.root], 0, { start: 0, end: 8, source: "sample" });
 };
 
-const PREORDER = ["root", "a", "b", "b1", "b2", "c"];
-const POSTORDER = ["a", "b1", "b2", "b", "c", "root"];
-const LEVELORDER = ["root", "a", "b", "c", "b1", "b2"];
+const PREORDER: string[] = ["root", "a", "b", "b1", "b2", "c"];
+const POSTORDER: string[] = ["a", "b1", "b2", "b", "c", "root"];
+const LEVELORDER: string[] = ["root", "a", "b", "c", "b1", "b2"];
 
 test("segment tree initializes, reads, sets, and updates sum leaves", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 5,
         operation: sum,
         identity: 0,
@@ -90,7 +110,7 @@ test("segment tree initializes, reads, sets, and updates sum leaves", () => {
     assert.equal(tree.get(2), 10);
     assert.equal(tree.query(0, 5), 22);
 
-    let observed = -1;
+    let observed: number = -1;
     tree.update(4, (previous) => {
         observed = previous;
         return previous + 10;
@@ -100,7 +120,7 @@ test("segment tree initializes, reads, sets, and updates sum leaves", () => {
     assert.equal(tree.queryAll(), 32);
     assert.deepEqual(tree.toArray(), [1, 2, 10, 4, 15]);
 
-    const identityFilled = new SegmentTree<number>({
+    const identityFilled: SegmentTree<number> = new SegmentTree<number>({
         size: 4,
         operation: sum,
         identity: 0,
@@ -111,7 +131,7 @@ test("segment tree initializes, reads, sets, and updates sum leaves", () => {
 });
 
 test("segment tree sum range queries include empty and full ranges", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 6,
         operation: sum,
         identity: 0,
@@ -130,7 +150,7 @@ test("segment tree sum range queries include empty and full ranges", () => {
 });
 
 test("segment tree min queries use the identity for empty ranges", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 7,
         operation: min,
         identity: Number.POSITIVE_INFINITY,
@@ -149,7 +169,7 @@ test("segment tree min queries use the identity for empty ranges", () => {
 });
 
 test("segment tree max queries track point replacements", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 5,
         operation: max,
         identity: Number.NEGATIVE_INFINITY,
@@ -166,7 +186,7 @@ test("segment tree max queries track point replacements", () => {
 });
 
 test("segment tree gcd queries combine values and track updates", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 5,
         operation: gcd,
         identity: 0,
@@ -184,7 +204,7 @@ test("segment tree gcd queries combine values and track updates", () => {
 });
 
 test("segment tree preserves left-to-right order for string concatenation", () => {
-    const tree = new SegmentTree<string>({
+    const tree: SegmentTree<string> = new SegmentTree<string>({
         size: 5,
         operation: concatenate,
         identity: "",
@@ -207,7 +227,7 @@ test("segment tree preserves left-to-right order for string concatenation", () =
 });
 
 test("segment tree validates leaf indices and query bounds", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 4,
         operation: sum,
         identity: 0,
@@ -282,7 +302,7 @@ test("segment tree rejects value counts that do not match size", () => {
             }),
         RangeError,
     );
-    const emptyWithValues = new SegmentTree<number>({
+    const emptyWithValues: SegmentTree<number> = new SegmentTree<number>({
         size: 0,
         operation: sum,
         identity: 0,
@@ -292,7 +312,7 @@ test("segment tree rejects value counts that do not match size", () => {
 });
 
 test("segment tree supports size zero", () => {
-    const empty = new SegmentTree<number>({
+    const empty: SegmentTree<number> = new SegmentTree<number>({
         size: 0,
         operation: sum,
         identity: 0,
@@ -310,7 +330,7 @@ test("segment tree supports size zero", () => {
 });
 
 test("segment tree clear resets all leaves and remains usable", () => {
-    const tree = new SegmentTree<number>({
+    const tree: SegmentTree<number> = new SegmentTree<number>({
         size: 6,
         operation: sum,
         identity: 0,
@@ -328,7 +348,7 @@ test("segment tree clear resets all leaves and remains usable", () => {
     assert.equal(tree.queryAll(), 5);
     assert.equal(tree.query(0, 3), 5);
 
-    const text = new SegmentTree<string>({
+    const text: SegmentTree<string> = new SegmentTree<string>({
         size: 4,
         operation: concatenate,
         identity: "",
@@ -341,32 +361,32 @@ test("segment tree clear resets all leaves and remains usable", () => {
 });
 
 test("segment tree matches naive sum and min over 10,000 deterministic operations", () => {
-    const size = 23;
-    const random = createRandom(0x5eed);
+    const size: number = 23;
+    const random: () => number = createRandom(0x5eed);
     const values: number[] = [];
-    for (let index = 0; index < size; index += 1) {
+    for (let index: number = 0; index < size; index += 1) {
         values.push(Math.floor(random() * 41) - 20);
     }
 
-    const sumTree = new SegmentTree<number>({
+    const sumTree: SegmentTree<number> = new SegmentTree<number>({
         size,
         operation: sum,
         identity: 0,
         values,
     });
-    const minTree = new SegmentTree<number>({
+    const minTree: SegmentTree<number> = new SegmentTree<number>({
         size,
         operation: min,
         identity: Number.POSITIVE_INFINITY,
         values,
     });
 
-    for (let operation = 0; operation < 10_000; operation += 1) {
-        const choice = random();
-        const index = Math.floor(random() * size);
+    for (let operation: number = 0; operation < 10_000; operation += 1) {
+        const choice: number = random();
+        const index: number = Math.floor(random() * size);
 
         if (choice < 0.45) {
-            const value = Math.floor(random() * 41) - 20;
+            const value: number = Math.floor(random() * 41) - 20;
             values[index] = value;
             sumTree.set(index, value);
             minTree.set(index, value);
@@ -374,24 +394,24 @@ test("segment tree matches naive sum and min over 10,000 deterministic operation
         }
 
         if (choice < 0.75) {
-            const delta = Math.floor(random() * 11) - 5;
+            const delta: number = Math.floor(random() * 11) - 5;
             values[index] += delta;
             sumTree.update(index, (previous) => previous + delta);
             minTree.update(index, (previous) => previous + delta);
             continue;
         }
 
-        let left = Math.floor(random() * (size + 1));
-        let right = Math.floor(random() * (size + 1));
+        let left: number = Math.floor(random() * (size + 1));
+        let right: number = Math.floor(random() * (size + 1));
         if (left > right) {
-            const swap = left;
+            const swap: number = left;
             left = right;
             right = swap;
         }
 
-        let expectedSum = 0;
-        let expectedMin = Number.POSITIVE_INFINITY;
-        for (let cursor = left; cursor < right; cursor += 1) {
+        let expectedSum: number = 0;
+        let expectedMin: number = Number.POSITIVE_INFINITY;
+        for (let cursor: number = left; cursor < right; cursor += 1) {
             expectedSum += values[cursor];
             expectedMin = Math.min(expectedMin, values[cursor]);
         }
@@ -406,16 +426,20 @@ test("segment tree matches naive sum and min over 10,000 deterministic operation
 
 test("AST leaf and branch helpers build the documented shape", () => {
     const leafSpan: SourceSpan = { start: 2, end: 5, source: "input" };
-    const leaf = AbstractSyntaxTree.leaf("token", "value", leafSpan);
+    const leaf: AbstractSyntaxTree<string> = AbstractSyntaxTree.leaf("token", "value", leafSpan);
     assert.equal(leaf.root.kind, "token");
     assert.equal(leaf.root.value, "value");
     assert.deepEqual(leaf.root.children, []);
     assert.deepEqual(leaf.root.span, leafSpan);
     assert.equal(leaf.size, 1);
 
-    const left = AbstractSyntaxTree.leaf<number>("left", 1);
-    const right = AbstractSyntaxTree.leaf<number>("right", 2);
-    const branch = AbstractSyntaxTree.branch<number>("sum", new Set([left.root, right.root]), 10, { start: 0, end: 2, source: "input" });
+    const left: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("left", 1);
+    const right: AbstractSyntaxTree<number> = AbstractSyntaxTree.leaf<number>("right", 2);
+    const branch: AbstractSyntaxTree<number> = AbstractSyntaxTree.branch<number>("sum", new Set([left.root, right.root]), 10, {
+        start: 0,
+        end: 2,
+        source: "input",
+    });
     assert.equal(branch.root.kind, "sum");
     assert.equal(branch.root.value, 10);
     assert.deepEqual(branch.root.children, [left.root, right.root]);
@@ -425,30 +449,30 @@ test("AST leaf and branch helpers build the documented shape", () => {
         kind: "manual",
         children: [{ kind: "inner", children: [] }],
     };
-    const wrapped = new AbstractSyntaxTree(manual);
+    const wrapped: AbstractSyntaxTree<number> = new AbstractSyntaxTree(manual);
     assert.equal(wrapped.root, manual);
     assert.equal(wrapped.size, 2);
 });
 
 test("AST size, height, and leaves describe the tree", () => {
-    const tree = makeNumberTree();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
     assert.equal(tree.size, 6);
     assert.equal(tree.height, 3);
     assert.equal(tree.leaves, 4);
 
-    const leaf = AbstractSyntaxTree.leaf("only");
+    const leaf: AbstractSyntaxTree<unknown> = AbstractSyntaxTree.leaf("only");
     assert.equal(leaf.size, 1);
     assert.equal(leaf.height, 1);
     assert.equal(leaf.leaves, 1);
 
-    const empty = AbstractSyntaxTree.branch("empty", []);
+    const empty: AbstractSyntaxTree<unknown> = AbstractSyntaxTree.branch("empty", []);
     assert.equal(empty.size, 1);
     assert.equal(empty.height, 1);
     assert.equal(empty.leaves, 1);
 });
 
 test("AST walks preorder, postorder, and level order", () => {
-    const tree = makeNumberTree();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
     assert.deepEqual(nodeKinds(tree.walk()), PREORDER);
     assert.deepEqual(nodeKinds(tree.walk("preorder")), PREORDER);
     assert.deepEqual(nodeKinds(tree.walk("postorder")), POSTORDER);
@@ -456,8 +480,8 @@ test("AST walks preorder, postorder, and level order", () => {
 });
 
 test("AST find and findAll respect preorder", () => {
-    const tree = makeNumberTree();
-    const found = tree.find((node) => node.kind === "b1");
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
+    const found: AstNode<number> = tree.find((node) => node.kind === "b1");
     assert.ok(found);
     assert.equal(found.value, 2);
     assert.equal(
@@ -468,23 +492,23 @@ test("AST find and findAll respect preorder", () => {
 });
 
 test("AST map runs post-order with mapped children and does not mutate the original", () => {
-    const tree = makeNumberTree();
-    const snapshot = tree.toJSON();
-    const calls: Array<{ kind: string; childKinds: string[] }> = [];
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
+    const snapshot: AstNode<number> = tree.toJSON();
+    const calls: MappedCall[] = [];
 
-    const mapped = tree.map<number>((node, children) => {
+    const mapped: AbstractSyntaxTree<number> = tree.map<number>((node, children) => {
         calls.push({
             kind: node.kind,
             childKinds: children.map((child) => child.kind),
         });
-        const ownValue = node.value ?? 0;
-        const childTotal = children.reduce((total, child) => total + (child.value ?? 0), 0);
+        const ownValue: number = node.value ?? 0;
+        const childTotal: number = children.reduce((total, child) => total + (child.value ?? 0), 0);
         const result: AstNode<number> = {
             kind: `mapped:${node.kind}`,
             value: ownValue + childTotal,
             children,
         };
-        if (node.span !== undefined) {
+        if (node.span !== (void 0)) {
             result.span = { ...node.span };
         }
         return result;
@@ -509,8 +533,8 @@ test("AST map runs post-order with mapped children and does not mutate the origi
 });
 
 test("AST clone copies nodes and spans deeply while sharing values", () => {
-    const tree = makeNumberTree();
-    const clone = tree.clone();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
+    const clone: AbstractSyntaxTree<number> = tree.clone();
     assert.notEqual(clone.root, tree.root);
     assert.notEqual(clone.root.children, tree.root.children);
     assert.notEqual(clone.root.children[0], tree.root.children[0]);
@@ -519,8 +543,8 @@ test("AST clone copies nodes and spans deeply while sharing values", () => {
     assert.equal(clone.equals(tree), true);
     assert.deepEqual(clone.toJSON(), tree.toJSON());
 
-    const cloneSpan = clone.root.span;
-    const originalSpan = tree.root.span;
+    const cloneSpan: SourceSpan = clone.root.span;
+    const originalSpan: SourceSpan = tree.root.span;
     assert.ok(cloneSpan);
     assert.ok(originalSpan);
     cloneSpan.start = 99;
@@ -531,39 +555,39 @@ test("AST clone copies nodes and spans deeply while sharing values", () => {
     assert.equal(tree.root.children.length, 3);
     assert.equal(tree.size, 6);
 
-    const payload = { count: 1 };
-    const single = AbstractSyntaxTree.leaf("object", payload);
-    const payloadClone = single.clone();
+    const payload: CountPayload = { count: 1 };
+    const single: AbstractSyntaxTree<CountPayload> = AbstractSyntaxTree.leaf("object", payload);
+    const payloadClone: AbstractSyntaxTree<CountPayload> = single.clone();
     assert.equal(payloadClone.root.value, payload);
 });
 
 test("AST equals compares kind, value, span, and child order", () => {
-    const tree = makeNumberTree();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
     assert.equal(tree.equals(makeNumberTree()), true);
     assert.equal(tree.equals(tree.clone()), true);
 
-    const kindClone = tree.clone();
+    const kindClone: AbstractSyntaxTree<number> = tree.clone();
     kindClone.root.kind = "other";
     assert.equal(tree.equals(kindClone), false);
 
-    const valueClone = tree.clone();
+    const valueClone: AbstractSyntaxTree<number> = tree.clone();
     valueClone.root.value = 1;
     assert.equal(tree.equals(valueClone), false);
 
-    const spanClone = tree.clone();
-    const span = spanClone.root.span;
+    const spanClone: AbstractSyntaxTree<number> = tree.clone();
+    const span: SourceSpan = spanClone.root.span;
     assert.ok(span);
     span.end += 1;
     assert.equal(tree.equals(spanClone), false);
 
-    const reordered = tree.clone();
-    const children = reordered.root.children;
-    const first = children[0];
+    const reordered: AbstractSyntaxTree<number> = tree.clone();
+    const children: AstNode<number>[] = reordered.root.children;
+    const first: AstNode<number> = children[0];
     children[0] = children[1];
     children[1] = first;
     assert.equal(tree.equals(reordered), false);
 
-    const fewer = tree.clone();
+    const fewer: AbstractSyntaxTree<number> = tree.clone();
     fewer.root.children.pop();
     assert.equal(tree.equals(fewer), false);
 
@@ -572,15 +596,15 @@ test("AST equals compares kind, value, span, and child order", () => {
 });
 
 test("AST toJSON returns a plain deep copy with preserved spans", () => {
-    const tree = makeNumberTree();
-    const json = tree.toJSON();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
+    const json: AstNode<number> = tree.toJSON();
     assert.notEqual(json, tree.root);
     assert.notEqual(json.children, tree.root.children);
     assert.notEqual(json.span, tree.root.span);
     assert.notEqual(json.children[0], tree.root.children[0]);
     assert.deepEqual(json, tree.root);
     assert.equal(Object.getPrototypeOf(json), Object.prototype);
-    const jsonSpan = json.span;
+    const jsonSpan: SourceSpan = json.span;
     assert.ok(jsonSpan);
     assert.equal(Object.getPrototypeOf(jsonSpan), Object.prototype);
     assert.deepEqual(jsonSpan, tree.root.span);
@@ -588,15 +612,15 @@ test("AST toJSON returns a plain deep copy with preserved spans", () => {
 
     json.children.length = 0;
     assert.equal(tree.root.children.length, 3);
-    const roundTrip = JSON.parse(JSON.stringify(json)) as AstNode<number>;
+    const roundTrip: AstNode<number> = JSON.parse(JSON.stringify(json)) as AstNode<number>;
     assert.deepEqual(roundTrip, json);
 });
 
 test("AST traversal preserves every source span under clone and toJSON", () => {
-    const tree = makeNumberTree();
-    const originalSpans = [...tree.walk()].map((node) => node.span);
-    const clonedSpans = [...tree.clone().walk()].map((node) => node.span);
-    const jsonSpans = [...new AbstractSyntaxTree(tree.toJSON()).walk()].map((node) => node.span);
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
+    const originalSpans: (SourceSpan | undefined)[] = [...tree.walk()].map((node) => node.span);
+    const clonedSpans: (SourceSpan | undefined)[] = [...tree.clone().walk()].map((node) => node.span);
+    const jsonSpans: (SourceSpan | undefined)[] = [...new AbstractSyntaxTree(tree.toJSON()).walk()].map((node) => node.span);
     assert.deepEqual(clonedSpans, originalSpans);
     assert.deepEqual(jsonSpans, originalSpans);
 });
@@ -614,12 +638,12 @@ test("AST helpers reject empty kinds while the constructor stays permissive", ()
 });
 
 test("AST Symbol.iterator walks preorder", () => {
-    const tree = makeNumberTree();
+    const tree: AbstractSyntaxTree<number> = makeNumberTree();
     assert.deepEqual(nodeKinds(tree), PREORDER);
     assert.deepEqual(nodeKinds(tree), nodeKinds(tree.walk("preorder")));
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) {
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
     process.exitCode = 1;
 }

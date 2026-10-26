@@ -3,22 +3,26 @@ import type { Transport } from "./transport.ts";
 
 export interface HttpTransportOptions {
     url: string;
-    /** 2026-07-28 servers reject bodies whose envelope disagrees with the headers. */
+    /**
+     * 2026-07-28 servers reject bodies whose envelope disagrees with the headers.
+     */
     protocolVersion?: string;
     sessionId?: string;
     headers?: Record<string, string>;
     timeoutMs?: number;
 }
 
-function parseSse(text: string): JsonRpcResponse {
-    const data = text
+const parseSse: (text: string) => JsonRpcResponse = (text: string): JsonRpcResponse => {
+    const data: string = text
         .split(/\r?\n/)
         .filter((line) => line.startsWith("data:"))
         .map((line) => line.slice(5).trim())
         .join("");
-    if (!data) throw new Error("empty SSE response");
+    if (!data) {
+        throw new Error("empty SSE response");
+    }
     return JSON.parse(data) as JsonRpcResponse;
-}
+};
 
 /**
  * Streamable-HTTP transport.
@@ -29,7 +33,9 @@ function parseSse(text: string): JsonRpcResponse {
  */
 export class HttpTransport implements Transport {
     readonly url: string;
-    /** Mutable: legacy handshakes need 2025-06-18 before the version is negotiated. */
+    /**
+     * Mutable: legacy handshakes need 2025-06-18 before the version is negotiated.
+     */
     protocolVersion: string;
     readonly extraHeaders: Record<string, string>;
     readonly timeoutMs: number;
@@ -53,31 +59,37 @@ export class HttpTransport implements Transport {
             "mcp-method": request.method,
             ...this.extraHeaders,
         };
-        if (this.sessionId) headers["mcp-session-id"] = this.sessionId;
-        const toolName = request.params?.name;
+        if (this.sessionId) {
+            headers["mcp-session-id"] = this.sessionId;
+        }
+        const toolName: unknown = request.params?.name;
         if (request.method === "tools/call" && typeof(toolName) === "string") {
             headers["mcp-name"] = toolName;
         }
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        const controller: AbortController = new AbortController();
+        const timer: ReturnType<typeof setTimeout> = setTimeout(() => controller.abort(), this.timeoutMs);
         try {
-            const response = await fetch(this.url, {
+            const response: Response = await fetch(this.url, {
                 method: "POST",
                 headers,
                 body: JSON.stringify(request),
                 signal: controller.signal,
             });
-            const session = response.headers.get("mcp-session-id");
-            if (session) this.sessionId = session;
+            const session: string | null = response.headers.get("mcp-session-id");
+            if (session) {
+                this.sessionId = session;
+            }
 
-            const text = await response.text();
+            const text: string = await response.text();
             if (text.trim().length === 0) {
-                // Notifications (202 Accepted) carry no body.
+                /**
+                 * Notifications (202 Accepted) carry no body.
+                 */
                 return { jsonrpc: "2.0", id: request.id ?? 0, result: null };
             }
-            const contentType = response.headers.get("content-type") ?? "";
-            const payload = contentType.includes("text/event-stream") ? parseSse(text) : (JSON.parse(text) as JsonRpcResponse);
+            const contentType: string = response.headers.get("content-type") ?? "";
+            const payload: JsonRpcResponse = contentType.includes("text/event-stream") ? parseSse(text) : (JSON.parse(text) as JsonRpcResponse);
 
             if (!response.ok && !payload.error) {
                 throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);

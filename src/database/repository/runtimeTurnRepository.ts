@@ -11,9 +11,9 @@ export class RuntimeTurnRepository extends BaseRepository<RuntimeTurnRow, string
     }
 
     save(turn: RuntimeTurn): void {
-        const data = JSON.stringify(turn);
-        const existing = this.findById(turn.turnId);
-        if (existing === undefined) {
+        const data: string = JSON.stringify(turn);
+        const existing: RuntimeTurnRow | undefined = this.findById(turn.turnId);
+        if (existing === (void 0)) {
             this.queries.insert({
                 id: turn.turnId,
                 pid: turn.pid,
@@ -27,8 +27,8 @@ export class RuntimeTurnRepository extends BaseRepository<RuntimeTurnRow, string
     }
 
     get(turnId: string): RuntimeTurn | undefined {
-        const row = this.findById(turnId);
-        return row === undefined ? undefined : (JSON.parse(row.data) as RuntimeTurn);
+        const row: RuntimeTurnRow | undefined = this.findById(turnId);
+        return row === (void 0) ? undefined : (JSON.parse(row.data) as RuntimeTurn);
     }
 
     list(pid: number, limit = 100): RuntimeTurn[] {

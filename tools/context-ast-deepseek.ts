@@ -12,7 +12,7 @@ import { DeepSeekLlm } from "../src/module/llm/deepseek.ts";
 import type { LlmMessage, LlmResponse } from "../src/module/llm/llm.ts";
 
 const key = process.env.DEEPSEEK_API_KEY;
-if (key === undefined || key.trim().length === 0) {
+if (key === (void 0) || key.trim().length === 0) {
     console.error("DEEPSEEK_API_KEY is not set");
     process.exit(1);
 }
@@ -47,7 +47,7 @@ for (let layerIndex = 0; layerIndex < layers.length; layerIndex += 1) {
         const special = layer === "database" && probe === 3;
         const detail = special
             ? "pg_locks: blocking_pid=4711, blocked_pid=4820, lock_mode=ShareLock, wait_event=Lock, transaction_age=94s"
-            : `${layer} probe ${probe}: ` + "raw metric, stack sample, dependency span ".repeat(10);
+            : `${layer} probe ${probe}: ${"raw metric, stack sample, dependency span ".repeat(10)}`;
         const ref = details.put(id, detail);
         add({
             id,
@@ -63,7 +63,9 @@ for (let layerIndex = 0; layerIndex < layers.length; layerIndex += 1) {
         });
     }
 }
-for (let index = 0; index < layers.length - 1; index += 1) ast.link({ from: `layer.${layers[index]}`, to: `layer.${layers[index + 1]}`, kind: "before" });
+for (let index = 0; index < layers.length - 1; index += 1) {
+    ast.link({ from: `layer.${layers[index]}`, to: `layer.${layers[index + 1]}`, kind: "before" });
+}
 
 const view = ast.view(1800);
 const flat = ast.flat(details);
@@ -127,7 +129,7 @@ const toolBase: LlmMessage[] = [
 ];
 let toolResult: { response: LlmResponse; ms: number; toolCalls: string[] } | undefined;
 const first = await call(toolBase, true);
-if (first.response.toolCalls !== undefined && first.response.toolCalls.length > 0) {
+if (first.response.toolCalls !== (void 0) && first.response.toolCalls.length > 0) {
     const toolCall = first.response.toolCalls[0];
     let payload: { nodeId?: string } = {};
     try {
@@ -224,7 +226,7 @@ const report = {
     details: Object.fromEntries(
         ast
             .order()
-            .filter((node) => node.detailRef !== undefined)
+            .filter((node) => node.detailRef !== (void 0))
             .map((node) => [node.id, details.get(node.detailRef as string) ?? ""]),
     ),
 };

@@ -1,21 +1,11 @@
-import {
-    ESLintUtils,
-    type TSESLint,
-    type TSESTree,
-} from "@typescript-eslint/utils";
+import { ESLintUtils, type TSESLint, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator(
-    (name) =>
-        `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`,
-);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
 
 const LOWER_CAMEL_CASE = /^[a-z][a-zA-Z0-9]*$/;
 const PASCAL_CASE = /^[A-Z][a-zA-Z0-9]*$/;
 
-const FUNCTION_INITIALIZER_TYPES = new Set([
-    "ArrowFunctionExpression",
-    "FunctionExpression",
-]);
+const FUNCTION_INITIALIZER_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression"]);
 
 const FUNCTION_LIKE_NODE_TYPES = [
     "FunctionDeclaration",
@@ -41,12 +31,9 @@ type NodeWithParent = TSESTree.Node & {
     parent?: TSESTree.Node | null;
 };
 
-const getParent = (node: TSESTree.Node): TSESTree.Node | null =>
-    (node as NodeWithParent).parent ?? null;
+const getParent = (node: TSESTree.Node): TSESTree.Node | null => (node as NodeWithParent).parent ?? null;
 
-const isTopLevelDeclarator = (
-    declarator: TSESTree.VariableDeclarator,
-): boolean => {
+const isTopLevelDeclarator = (declarator: TSESTree.VariableDeclarator): boolean => {
     const declaration = getParent(declarator);
     const container = declaration ? getParent(declaration) : null;
 
@@ -58,36 +45,23 @@ const isTopLevelDeclarator = (
         return true;
     }
 
-    return (
-        (container.type === "ExportNamedDeclaration" ||
-            container.type === "ExportDefaultDeclaration") &&
-        getParent(container)?.type === "Program"
-    );
+    return (container.type === "ExportNamedDeclaration" || container.type === "ExportDefaultDeclaration") && getParent(container)?.type === "Program";
 };
 
-const isFunctionInitializer = (
-    declarator: TSESTree.VariableDeclarator,
-): boolean => {
+const isFunctionInitializer = (declarator: TSESTree.VariableDeclarator): boolean => {
     let initializer = declarator.init;
 
     while (
         initializer &&
-        (initializer.type === "TSAsExpression" ||
-            initializer.type === "TSSatisfiesExpression" ||
-            initializer.type === "TSNonNullExpression")
+        (initializer.type === "TSAsExpression" || initializer.type === "TSSatisfiesExpression" || initializer.type === "TSNonNullExpression")
     ) {
         initializer = initializer.expression;
     }
 
-    return Boolean(
-        initializer && FUNCTION_INITIALIZER_TYPES.has(initializer.type),
-    );
+    return Boolean(initializer && FUNCTION_INITIALIZER_TYPES.has(initializer.type));
 };
 
-const collectBindingIdentifiers = (
-    pattern: TSESTree.Node | null | undefined,
-    identifiers: TSESTree.Identifier[] = [],
-): TSESTree.Identifier[] => {
+const collectBindingIdentifiers = (pattern: TSESTree.Node | null | undefined, identifiers: TSESTree.Identifier[] = []): TSESTree.Identifier[] => {
     if (!pattern) {
         return identifiers;
     }
@@ -131,33 +105,22 @@ export const variableNaming = createRule({
     meta: {
         type: "suggestion",
         docs: {
-            description:
-                "Enforce lower camel case for locals/parameters and PascalCase for top-level data",
+            description: "Enforce lower camel case for locals/parameters and PascalCase for top-level data",
         },
         schema: [],
         messages: {
-            camel:
-                "变量名 '{{name}}' 必须使用小写开头的驼峰命名（lowerCamelCase）。",
-            pascal:
-                "顶层（全局）变量/对象名 '{{name}}' 必须使用大写开头的驼峰命名（PascalCase）。",
+            camel: "变量名 '{{name}}' 必须使用小写开头的驼峰命名（lowerCamelCase）。",
+            pascal: "顶层（全局）变量/对象名 '{{name}}' 必须使用大写开头的驼峰命名（PascalCase）。",
         },
     },
     defaultOptions: [],
     create(context) {
-        const checkIdentifier = (
-            identifier: TSESTree.Identifier | null | undefined,
-            naming: Naming,
-        ): void => {
-            if (
-                !identifier ||
-                identifier.type !== "Identifier" ||
-                identifier.name === "this"
-            ) {
+        const checkIdentifier = (identifier: TSESTree.Identifier | null | undefined, naming: Naming): void => {
+            if (!identifier || identifier.type !== "Identifier" || identifier.name === "this") {
                 return;
             }
 
-            const expected =
-                naming === "pascal" ? PASCAL_CASE : LOWER_CAMEL_CASE;
+            const expected = naming === "pascal" ? PASCAL_CASE : LOWER_CAMEL_CASE;
             const messageId = naming === "pascal" ? "pascal" : "camel";
 
             if (!expected.test(identifier.name)) {
@@ -181,15 +144,9 @@ export const variableNaming = createRule({
 
         const checkVariableDeclarator = (node: TSESTree.Node): void => {
             const declarator = node as TSESTree.VariableDeclarator;
-            const naming: Naming =
-                isTopLevelDeclarator(declarator) &&
-                !isFunctionInitializer(declarator)
-                    ? "pascal"
-                    : "camel";
+            const naming: Naming = isTopLevelDeclarator(declarator) && !isFunctionInitializer(declarator) ? "pascal" : "camel";
 
-            for (const identifier of collectBindingIdentifiers(
-                declarator.id,
-            )) {
+            for (const identifier of collectBindingIdentifiers(declarator.id)) {
                 checkIdentifier(identifier, naming);
             }
         };

@@ -17,7 +17,9 @@ import type { Id, Ref, RefKind } from "../types/common.ts";
 import { isId } from "./ids.ts";
 import { BoundaryRejection } from "../error/boundaryRejection.ts";
 
-/** Where a reference is expected to resolve. */
+/**
+ * Where a reference is expected to resolve.
+ */
 export type RefScope = "run" | "ledger" | "bundle";
 
 /**
@@ -68,9 +70,13 @@ export class RefTable {
     }
 
     resolve(ref: Ref): unknown | undefined {
-        if (!isId(ref.id)) return (void 0);
+        if (!isId(ref.id)) {
+            return (void 0);
+        }
         const direct: unknown = this.entries.get(canonicalId(ref.kind, ref.id));
-        if (direct !== (void 0)) return direct;
+        if (direct !== (void 0)) {
+            return direct;
+        }
         if (ref.kind === "tool") {
             return this.entries.get(`capability:${stripToolPrefix(ref.id)}`);
         }
@@ -104,8 +110,12 @@ export class RefTable {
      * every dangling reference at once.
      */
     check(ref: Ref): string | undefined {
-        if (this.opaqueKinds.has(ref.kind)) return (void 0);
-        if (this.resolve(ref) !== (void 0)) return (void 0);
+        if (this.opaqueKinds.has(ref.kind)) {
+            return (void 0);
+        }
+        if (this.resolve(ref) !== (void 0)) {
+            return (void 0);
+        }
         return `${ref.kind}:${ref.id} is not present in scope ${this.scope}`;
     }
 

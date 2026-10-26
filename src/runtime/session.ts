@@ -16,7 +16,7 @@ import { ScopedPriors } from "../bayes/scopedPriors.ts";
 import type { ScenarioMix } from "../scenario/scenario.ts";
 import type { InteractionMix } from "../interaction/interaction.ts";
 import type { TelemetrySample } from "./telemetry.ts";
-import type { BehaviorPlan } from "./behavior.ts";
+import type { BehaviorConflict, BehaviorPlan } from "./behavior.ts";
 import type { ActionRecord } from "./action.ts";
 import type { ApprovalRecord, OperationRecord } from "./operation.ts";
 import type { DiagnosticFrame } from "../diagnosis/index.ts";
@@ -30,7 +30,9 @@ export interface SessionAttentionState extends CognitiveState {
 export interface SessionTurnRecord {
     turnId: string;
     at: string;
-    /** Prior scope for this turn, e.g. "session:engineering". */
+    /**
+     * Prior scope for this turn, e.g. "session:engineering".
+     */
     scope?: string;
     user: UserScore;
     answerScore?: AnswerScore;
@@ -49,7 +51,9 @@ export interface SessionTurnRecord {
 export interface TurnFeedback {
     helpful?: boolean;
     correction?: string;
-    /** Optional ground truth for answer quality; updates source reliability. */
+    /**
+     * Optional ground truth for answer quality; updates source reliability.
+     */
     actualCorrect?: boolean;
 }
 
@@ -59,23 +63,40 @@ export interface SessionSnapshot {
     state: SessionAttentionState;
     priors: Record<Dimension, BetaBelief>;
     history: SessionTurnRecord[];
-    /** Monotonic turn counter so IDs survive runtime restarts. */
+    /**
+     * Monotonic turn counter so IDs survive runtime restarts.
+     */
     turnCounter?: number;
-    /** Monotonic session mutation version. */
+    /**
+     * Monotonic session mutation version.
+     */
     version?: number;
-    /** Behavior arbitration counts, e.g. "affect<-clarify": 3. */
+    /**
+     * Behavior arbitration counts, e.g. "affect<-clarify": 3.
+     */
     behaviorConflicts?: Record<string, number>;
-    /** Learned source reliability (Beta beliefs). */
+    /**
+     * Learned source reliability (Beta beliefs).
+     */
     sourceReliability?: Record<string, ReliabilityBelief>;
-    /** Scope-level priors (global + local counts). */
-    scopedPriors?: { global: Record<Dimension, BetaBelief>; scopes: Record<string, Record<Dimension, BetaBelief>> };
-    /** Set when the agent is archived but the snapshot is retained. */
+    /**
+     * Scope-level priors (global + local counts).
+     */
+    scopedPriors?: {
+        global: Record<Dimension, BetaBelief>;
+        scopes: Record<string, Record<Dimension, BetaBelief>>;
+    };
+    /**
+     * Set when the agent is archived but the snapshot is retained.
+     */
     archivedAt?: string;
 }
 
 export interface RuntimeSessionOptions {
     id?: string;
-    /** Prior scope, e.g. task/scenario id. */
+    /**
+     * Prior scope, e.g. task/scenario id.
+     */
     scope?: string;
     initial?: SessionAttentionState;
     bayes?: BayesianEngine;
@@ -84,7 +105,7 @@ export interface RuntimeSessionOptions {
     maxHistory?: number;
 }
 
-const defaultState = (): SessionAttentionState => ({
+const defaultState: () => SessionAttentionState = (): SessionAttentionState => ({
     load: 0.3,
     vigilance: 0.8,
     arousal: 0.2,
@@ -100,7 +121,7 @@ const defaultState = (): SessionAttentionState => ({
     recoveryDebt: 0.1,
 });
 
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const clamp01: (value: number) => number = (value: number): number => Math.max(0, Math.min(1, value));
 
 export class RuntimeSession {
     readonly id: string;
@@ -127,30 +148,38 @@ export class RuntimeSession {
         this.maxHistory = options.maxHistory ?? 100;
     }
 
-    /** Allocate a stable turn id; survives serialization/restore. */
+    /**
+     * Allocate a stable turn id; survives serialization/restore.
+     */
     nextTurnId(): string {
         this.turnCounter += 1;
         return `rt.${this.turnCounter}`;
     }
 
-    /** Engine with this scope's priors + learned source weights. */
+    /**
+     * Engine with this scope's priors + learned source weights.
+     */
     engineFor(scope: string = this.scope): BayesianEngine {
-        const engine = this.scopedPriors.engineFor(scope);
+        const engine: BayesianEngine = this.scopedPriors.engineFor(scope);
         engine.setSourceWeights(this.reliability.weights());
         return engine;
     }
 
-    /** Record a completed turn and update attention + priors from evidence. */
+    /**
+     * Record a completed turn and update attention + priors from evidence.
+     */
     record(turn: SessionTurnRecord): void {
-        const quality = turn.answerScore?.overall ?? 0.5;
-        const toolErrors = turn.toolErrors ?? 0;
-        const latencyPressure = (turn.latencyMs ?? 0) > 5000 ? 0.2 : 0;
-        const systemLoad = clamp01(turn.telemetry?.systemLoad ?? 0);
-        const loopLag = turn.telemetry?.eventLoopLagMs ?? 0;
-        const errorRate = clamp01(turn.telemetry?.errorRate ?? 0);
-        const pressure = clamp01(turn.attention.pressure + latencyPressure + toolErrors * 0.1 + systemLoad * 0.1 + (loopLag > 50 ? 0.2 : 0) + errorRate * 0.2);
-        const effectiveUtilization = clamp01(Math.max(turn.attention.utilization, (turn.tokens ?? 0) / 4000, systemLoad * 0.5));
-        const vigilance = 0.9 * this.state.vigilance + 0.1 * (quality > 0.55 ? 0.85 : 0.4) - toolErrors * 0.02 - errorRate * 0.05;
+        const quality: number = turn.answerScore?.overall ?? 0.5;
+        const toolErrors: number = turn.toolErrors ?? 0;
+        const latencyPressure: number = (turn.latencyMs ?? 0) > 5000 ? 0.2 : 0;
+        const systemLoad: number = clamp01(turn.telemetry?.systemLoad ?? 0);
+        const loopLag: number = turn.telemetry?.eventLoopLagMs ?? 0;
+        const errorRate: number = clamp01(turn.telemetry?.errorRate ?? 0);
+        const pressure: number = clamp01(
+            turn.attention.pressure + latencyPressure + toolErrors * 0.1 + systemLoad * 0.1 + (loopLag > 50 ? 0.2 : 0) + errorRate * 0.2,
+        );
+        const effectiveUtilization: number = clamp01(Math.max(turn.attention.utilization, (turn.tokens ?? 0) / 4000, systemLoad * 0.5));
+        const vigilance: number = 0.9 * this.state.vigilance + 0.1 * (quality > 0.55 ? 0.85 : 0.4) - toolErrors * 0.02 - errorRate * 0.05;
         this.state = {
             ...this.state,
             load: clamp01(0.7 * this.state.load + 0.3 * effectiveUtilization),
@@ -162,23 +191,35 @@ export class RuntimeSession {
             recoveryDebt: clamp01(0.7 * this.state.recoveryDebt + 0.3 * (1 - quality)),
             pLapse: clamp01(1 - vigilance),
         };
-        if (turn.answerScore !== undefined) this.bayes.learn(turn.answerScore.evidence);
-        if (turn.answerScore !== undefined) this.scopedPriors.observe(turn.scope ?? this.scope, turn.answerScore.evidence);
-        for (const conflict of turn.behavior?.conflicts ?? []) {
-            const key = `${conflict.winner}<-${conflict.loser}`;
+        if (turn.answerScore !== (void 0)) {
+            this.bayes.learn(turn.answerScore.evidence);
+        }
+        if (turn.answerScore !== (void 0)) {
+            this.scopedPriors.observe(turn.scope ?? this.scope, turn.answerScore.evidence);
+        }
+        const conflicts: BehaviorConflict[] = turn.behavior?.conflicts ?? [];
+        for (let i: number = 0; i < conflicts.length; i += 1) {
+            const conflict: BehaviorConflict = conflicts[i];
+            const key: string = `${conflict.winner}<-${conflict.loser}`;
             this.behaviorConflicts[key] = (this.behaviorConflicts[key] ?? 0) + 1;
         }
         this.history.push(turn);
-        if (this.history.length > this.maxHistory) this.history.splice(0, this.history.length - this.maxHistory);
+        if (this.history.length > this.maxHistory) {
+            this.history.splice(0, this.history.length - this.maxHistory);
+        }
         this.version += 1;
     }
 
-    /** User feedback becomes evidence, not a direct score overwrite. */
+    /**
+     * User feedback becomes evidence, not a direct score overwrite.
+     */
     feedback(turnId: string, feedback: TurnFeedback): Evidence[] {
-        const turn = this.history.find((entry) => entry.turnId === turnId);
-        if (turn === undefined) throw new Error(`unknown turn ${turnId}`);
+        const turn: SessionTurnRecord | undefined = this.history.find((entry) => entry.turnId === turnId);
+        if (turn === (void 0)) {
+            throw new Error(`unknown turn ${turnId}`);
+        }
         const evidence: Evidence[] = [];
-        if (feedback.helpful !== undefined) {
+        if (feedback.helpful !== (void 0)) {
             evidence.push({
                 dimension: "helpfulness",
                 positive: feedback.helpful ? 4 : 0,
@@ -187,7 +228,7 @@ export class RuntimeSession {
                 source: "user-feedback",
             });
         }
-        if (feedback.correction !== undefined && feedback.correction.trim().length > 0) {
+        if (feedback.correction !== (void 0) && feedback.correction.trim().length > 0) {
             evidence.push({
                 dimension: "correctness",
                 positive: 0,
@@ -197,7 +238,7 @@ export class RuntimeSession {
                 note: feedback.correction.slice(0, 200),
             });
         }
-        if (feedback.actualCorrect !== undefined) {
+        if (feedback.actualCorrect !== (void 0)) {
             evidence.push({
                 dimension: "correctness",
                 positive: feedback.actualCorrect ? 4 : 0,
@@ -205,15 +246,23 @@ export class RuntimeSession {
                 reliability: 0.95,
                 source: "user-feedback",
             });
-            for (const item of turn.answerScore?.evidence ?? []) {
-                if (item.positive <= 0 && item.negative <= 0) continue;
-                const predictedPositive = item.positive >= item.negative;
+            const sourceEvidence: Evidence[] = turn.answerScore?.evidence ?? [];
+            for (let i: number = 0; i < sourceEvidence.length; i += 1) {
+                const item: Evidence = sourceEvidence[i];
+                if (item.positive <= 0 && item.negative <= 0) {
+                    continue;
+                }
+                const predictedPositive: boolean = item.positive >= item.negative;
                 this.reliability.observe(item.source, predictedPositive === feedback.actualCorrect, Math.max(0.1, item.reliability));
             }
             this.bayes.setSourceWeights(this.reliability.weights());
         }
-        if (evidence.length > 0) this.bayes.learn(evidence);
-        if (evidence.length > 0) this.scopedPriors.observe(turn.scope ?? this.scope, evidence);
+        if (evidence.length > 0) {
+            this.bayes.learn(evidence);
+        }
+        if (evidence.length > 0) {
+            this.scopedPriors.observe(turn.scope ?? this.scope, evidence);
+        }
         this.state = {
             ...this.state,
             vigilance: clamp01(this.state.vigilance + (feedback.helpful === true ? 0.02 : -0.02)),
@@ -240,7 +289,10 @@ export class RuntimeSession {
         turns: number;
         behaviorConflicts: Record<string, number>;
         sourceReliability: Record<string, ReliabilityBelief>;
-        scopedPriors: { global: Record<Dimension, BetaBelief>; scopes: Record<string, Record<Dimension, BetaBelief>> };
+        scopedPriors: {
+            global: Record<Dimension, BetaBelief>;
+            scopes: Record<string, Record<Dimension, BetaBelief>>;
+        };
     } {
         return {
             state: { ...this.state },
@@ -268,7 +320,7 @@ export class RuntimeSession {
     }
 
     static restore(snapshot: SessionSnapshot, options: Omit<RuntimeSessionOptions, "bayes" | "initial"> = {}): RuntimeSession {
-        const session = new RuntimeSession({
+        const session: RuntimeSession = new RuntimeSession({
             ...options,
             id: snapshot.id ?? options.id,
             scope: snapshot.scope ?? options.scope,
@@ -280,7 +332,9 @@ export class RuntimeSession {
         session.version = snapshot.version ?? 0;
         Object.assign(session.behaviorConflicts, snapshot.behaviorConflicts ?? {});
         session.reliability.load(snapshot.sourceReliability ?? {});
-        if (snapshot.scopedPriors !== undefined) session.scopedPriors.load(snapshot.scopedPriors);
+        if (snapshot.scopedPriors !== (void 0)) {
+            session.scopedPriors.load(snapshot.scopedPriors);
+        }
         session.bayes.setSourceWeights(session.reliability.weights());
         return session;
     }

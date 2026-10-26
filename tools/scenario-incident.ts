@@ -18,7 +18,7 @@ import { DemoServer } from "../src/module/mcp/server.ts";
 import { MemoryTransport } from "../src/module/mcp/transport.ts";
 import type { AttentionRequest } from "../src/types/index.ts";
 
-const goal = "sha256:" + "a".repeat(64);
+const goal = `sha256:${"a".repeat(64)}`;
 const startMs = Date.parse("2026-10-24T10:00:00Z");
 let tick = 0;
 const now = () => new Date(startMs + ++tick * 1000).toISOString();

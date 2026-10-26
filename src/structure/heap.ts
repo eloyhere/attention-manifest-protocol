@@ -79,11 +79,12 @@ export class BinaryHeap<T> implements Iterable<T> {
     constructor(options?: HeapOptions<T>) {
         const base: Comparator<T> = options?.compare ?? compareNatural;
         this.compareFn = options?.order === "max" ? reverseComparator(base) : base;
-        if (options?.values === undefined) {
+        if (options?.values === (void 0)) {
             return;
         }
-        for (const value of options.values) {
-            this.values.push(value);
+        const initialValues: T[] = [...options.values];
+        for (let index: number = 0; index < initialValues.length; index += 1) {
+            this.values.push(initialValues[index]);
         }
         this.heapify();
     }
@@ -97,10 +98,10 @@ export class BinaryHeap<T> implements Iterable<T> {
      */
     static from<T>(values: Iterable<T>, options?: Omit<HeapOptions<T>, "values">): BinaryHeap<T> {
         const heapOptions: HeapOptions<T> = { values };
-        if (options?.compare !== undefined) {
+        if (options?.compare !== (void 0)) {
             heapOptions.compare = options.compare;
         }
-        if (options?.order !== undefined) {
+        if (options?.order !== (void 0)) {
             heapOptions.order = options.order;
         }
         return new BinaryHeap<T>(heapOptions);
@@ -141,8 +142,8 @@ export class BinaryHeap<T> implements Iterable<T> {
         if (this.values.length === 0) {
             return undefined;
         }
-        const root = this.values[0];
-        const last = this.values.pop() as T;
+        const root: T = this.values[0];
+        const last: T = this.values.pop() as T;
         if (this.values.length > 0) {
             this.values[0] = last;
             this.siftDown(0);
@@ -176,7 +177,7 @@ export class BinaryHeap<T> implements Iterable<T> {
             this.values.push(value);
             return undefined;
         }
-        const previousRoot = this.values[0];
+        const previousRoot: T = this.values[0];
         this.values[0] = value;
         this.siftDown(0);
         return previousRoot;
@@ -213,7 +214,7 @@ export class BinaryHeap<T> implements Iterable<T> {
      * Restore the heap property bottom-up in O(n).
      */
     private heapify(): void {
-        for (let index = Math.floor(this.values.length / 2) - 1; index >= 0; index -= 1) {
+        for (let index: number = Math.floor(this.values.length / 2) - 1; index >= 0; index -= 1) {
             this.siftDown(index);
         }
     }
@@ -222,9 +223,9 @@ export class BinaryHeap<T> implements Iterable<T> {
      * Move a value toward the root until its parent has priority.
      */
     private siftUp(index: number): void {
-        let child = index;
+        let child: number = index;
         while (child > 0) {
-            const parent = Math.floor((child - 1) / 2);
+            const parent: number = Math.floor((child - 1) / 2);
             if (this.compareFn(this.values[child], this.values[parent]) >= 0) {
                 return;
             }
@@ -237,14 +238,14 @@ export class BinaryHeap<T> implements Iterable<T> {
      * Move a value toward the leaves until both children have lower priority.
      */
     private siftDown(index: number): void {
-        let parent = index;
+        let parent: number = index;
         while (true) {
-            const left = parent * 2 + 1;
+            const left: number = parent * 2 + 1;
             if (left >= this.values.length) {
                 return;
             }
-            const right = left + 1;
-            let first = left;
+            const right: number = left + 1;
+            let first: number = left;
             if (right < this.values.length && this.compareFn(this.values[right], this.values[left]) < 0) {
                 first = right;
             }
@@ -260,7 +261,7 @@ export class BinaryHeap<T> implements Iterable<T> {
      * Exchange two values in the backing array.
      */
     private swap(a: number, b: number): void {
-        const temporary = this.values[a];
+        const temporary: T = this.values[a];
         this.values[a] = this.values[b];
         this.values[b] = temporary;
     }

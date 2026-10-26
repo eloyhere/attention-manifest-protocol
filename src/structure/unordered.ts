@@ -15,10 +15,10 @@
  * not invalidate iterators.
  */
 
-import { HASH_MASK, hashKey, sameKey } from "./hash.ts";
+import { HashMask, hashKey, sameKey } from "./hash.ts";
 import type { Hash, KeyStrategy } from "./hash.ts";
 
-const INITIAL_CAPACITY = 16;
+const InitialCapacity: number = 16;
 
 /**
  * One bucket-chain entry.
@@ -31,18 +31,28 @@ interface ChainNode<K, V> {
 }
 
 /**
+ * The node a lookup found, the node before it in its chain, and its bucket
+ * index.
+ */
+type ChainHit<K, V> = {
+    node: ChainNode<K, V>;
+    previous: ChainNode<K, V> | null;
+    index: number;
+};
+
+/**
  * A clear, uniform error for the fail-fast iteration contract.
  */
-function concurrentModification(label: string): Error {
+const concurrentModification: (label: string) => Error = (label: string): Error => {
     return new Error(`${label}: collection was mutated during iteration`);
-}
+};
 
 /**
  * Shared power-of-two, separate-chaining table behind both public classes.
  */
 class HashTable<K, V> {
-    private buckets: Array<ChainNode<K, V> | null> = new Array<ChainNode<K, V> | null>(INITIAL_CAPACITY).fill(null);
-    private indexMask: bigint = BigInt(INITIAL_CAPACITY - 1);
+    private buckets: Array<ChainNode<K, V> | null> = new Array<ChainNode<K, V> | null>(InitialCapacity).fill(null);
+    private indexMask: bigint = BigInt(InitialCapacity - 1);
     private readonly hashFn: (key: K) => Hash;
     private readonly equalsFn: (a: K, b: K) => boolean;
     private readonly label: string;
@@ -60,16 +70,16 @@ class HashTable<K, V> {
     }
 
     private hashOf(key: K): Hash {
-        return this.hashFn(key) & HASH_MASK;
+        return this.hashFn(key) & HashMask;
     }
 
     /**
      * Find a node, the node before it in its chain, and its bucket index.
      */
-    private find(key: K, hash: Hash): { node: ChainNode<K, V>; previous: ChainNode<K, V> | null; index: number } | null {
-        const index = Number(hash & this.indexMask);
+    private find(key: K, hash: Hash): ChainHit<K, V> | null {
+        const index: number = Number(hash & this.indexMask);
         let previous: ChainNode<K, V> | null = null;
-        let node = this.buckets[index];
+        let node: ChainNode<K, V> | null = this.buckets[index];
         while (node !== null) {
             if (this.equalsFn(key, node.key)) {
                 return { node, previous, index };
@@ -85,7 +95,7 @@ class HashTable<K, V> {
     }
 
     get(key: K): V | undefined {
-        const hit = this.find(key, this.hashOf(key));
+        const hit: ChainHit<K, V> | null = this.find(key, this.hashOf(key));
         return hit === null ? undefined : hit.node.value;
     }
 
@@ -93,7 +103,7 @@ class HashTable<K, V> {
      * Add a key that must not exist yet; returns whether a node was created.
      */
     add(key: K, value: V): boolean {
-        const hash = this.hashOf(key);
+        const hash: Hash = this.hashOf(key);
         if (this.find(key, hash) !== null) {
             return false;
         }
@@ -105,8 +115,8 @@ class HashTable<K, V> {
      * Insert or update; returns whether a node was created.
      */
     set(key: K, value: V): boolean {
-        const hash = this.hashOf(key);
-        const hit = this.find(key, hash);
+        const hash: Hash = this.hashOf(key);
+        const hit: ChainHit<K, V> | null = this.find(key, hash);
         if (hit !== null) {
             hit.node.value = value;
             return false;
@@ -119,7 +129,7 @@ class HashTable<K, V> {
         if (this.count + 1 > (this.buckets.length * 3) / 4) {
             this.grow();
         }
-        const index = Number(hash & this.indexMask);
+        const index: number = Number(hash & this.indexMask);
         const node: ChainNode<K, V> = { key, value, hash, next: this.buckets[index] };
         this.buckets[index] = node;
         this.count += 1;
@@ -130,14 +140,14 @@ class HashTable<K, V> {
      * Double the bucket array and relink every live node exactly once.
      */
     private grow(): void {
-        const previousBuckets = this.buckets;
-        const nextBuckets = new Array<ChainNode<K, V> | null>(previousBuckets.length * 2).fill(null);
-        const nextMask = BigInt(nextBuckets.length - 1);
-        for (const head of previousBuckets) {
-            let node = head;
+        const previousBuckets: Array<ChainNode<K, V> | null> = this.buckets;
+        const nextBuckets: Array<ChainNode<K, V> | null> = new Array<ChainNode<K, V> | null>(previousBuckets.length * 2).fill(null);
+        const nextMask: bigint = BigInt(nextBuckets.length - 1);
+        for (let headIndex: number = 0; headIndex < previousBuckets.length; headIndex += 1) {
+            let node: ChainNode<K, V> | null = previousBuckets[headIndex];
             while (node !== null) {
-                const next = node.next;
-                const index = Number(node.hash & nextMask);
+                const next: ChainNode<K, V> | null = node.next;
+                const index: number = Number(node.hash & nextMask);
                 node.next = nextBuckets[index];
                 nextBuckets[index] = node;
                 node = next;
@@ -148,11 +158,11 @@ class HashTable<K, V> {
     }
 
     delete(key: K): boolean {
-        const hit = this.find(key, this.hashOf(key));
+        const hit: ChainHit<K, V> | null = this.find(key, this.hashOf(key));
         if (hit === null) {
             return false;
         }
-        const { node, previous, index } = hit;
+        const { node, previous, index }: ChainHit<K, V> = hit;
         if (previous === null) {
             this.buckets[index] = node.next;
         } else {
@@ -168,8 +178,8 @@ class HashTable<K, V> {
         if (this.count === 0) {
             return;
         }
-        this.buckets = new Array<ChainNode<K, V> | null>(INITIAL_CAPACITY).fill(null);
-        this.indexMask = BigInt(INITIAL_CAPACITY - 1);
+        this.buckets = new Array<ChainNode<K, V> | null>(InitialCapacity).fill(null);
+        this.indexMask = BigInt(InitialCapacity - 1);
         this.count = 0;
         this.version += 1;
     }
@@ -179,13 +189,13 @@ class HashTable<K, V> {
      * the iterator is requested, not on the first `next()` call.
      */
     private *iterate<T>(expectedVersion: number, select: (node: ChainNode<K, V>) => T): Generator<T> {
-        for (let index = 0; index < this.buckets.length; index += 1) {
-            let node = this.buckets[index];
+        for (let index: number = 0; index < this.buckets.length; index += 1) {
+            let node: ChainNode<K, V> | null = this.buckets[index];
             while (node !== null) {
                 if (expectedVersion !== this.version) {
                     throw concurrentModification(this.label);
                 }
-                const value = select(node);
+                const value: T = select(node);
                 yield value;
                 if (expectedVersion !== this.version) {
                     throw concurrentModification(this.label);
@@ -234,11 +244,12 @@ export class UnorderedSet<T> implements Iterable<T> {
 
     constructor(values?: Iterable<T>, options?: KeyStrategy<T>) {
         this.table = new HashTable("UnorderedSet", options);
-        if (values === undefined) {
+        if (values === (void 0)) {
             return;
         }
-        for (const value of values) {
-            this.table.add(value, undefined);
+        const initialValues: T[] = [...values];
+        for (let valueIndex: number = 0; valueIndex < initialValues.length; valueIndex += 1) {
+            this.table.add(initialValues[valueIndex], undefined);
         }
     }
 
@@ -285,13 +296,20 @@ export class UnorderedSet<T> implements Iterable<T> {
     /**
      * Call `callback` for each value; order is unspecified.
      *
+     * The table generator is driven by hand so that the fail-fast version check
+     * keeps throwing between callback invocations, exactly as a `for…of` loop
+     * over `keys()` would.
+     *
      * @param callback - Receives the value twice (matching the native `Set`
      * shape) and the set itself.
      * @param thisArg - Value used as `this` when invoking `callback`.
      */
     forEach(callback: (value: T, value2: T, set: this) => void, thisArg?: unknown): void {
-        for (const value of this.table.keys()) {
-            callback.call(thisArg, value, value, this);
+        const iterator: Generator<T> = this.table.keys();
+        let step: IteratorResult<T> = iterator.next();
+        while (!step.done) {
+            callback.call(thisArg, step.value, step.value, this);
+            step = iterator.next();
         }
     }
 }
@@ -316,10 +334,12 @@ export class UnorderedMap<K, V> implements Iterable<[K, V]> {
 
     constructor(entries?: Iterable<readonly [K, V]>, options?: KeyStrategy<K>) {
         this.table = new HashTable("UnorderedMap", options);
-        if (entries === undefined) {
+        if (entries === (void 0)) {
             return;
         }
-        for (const [key, value] of entries) {
+        const initialEntries: Array<readonly [K, V]> = [...entries];
+        for (let entryIndex: number = 0; entryIndex < initialEntries.length; entryIndex += 1) {
+            const [key, value]: readonly [K, V] = initialEntries[entryIndex];
             this.table.set(key, value);
         }
     }
@@ -368,12 +388,20 @@ export class UnorderedMap<K, V> implements Iterable<[K, V]> {
     /**
      * Call `callback` for each entry; order is unspecified.
      *
+     * The table generator is driven by hand so that the fail-fast version check
+     * keeps throwing between callback invocations, exactly as a `for…of` loop
+     * over `entries()` would.
+     *
      * @param callback - Receives the value, the key, and the map itself.
      * @param thisArg - Value used as `this` when invoking `callback`.
      */
     forEach(callback: (value: V, key: K, map: this) => void, thisArg?: unknown): void {
-        for (const [key, value] of this.table.entries()) {
+        const iterator: Generator<[K, V]> = this.table.entries();
+        let step: IteratorResult<[K, V]> = iterator.next();
+        while (!step.done) {
+            const [key, value]: [K, V] = step.value;
             callback.call(thisArg, value, key, this);
+            step = iterator.next();
         }
     }
 }

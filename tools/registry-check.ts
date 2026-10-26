@@ -23,40 +23,62 @@ import {
     verifyModuleContent,
     verifyRegistry,
 } from "../src/registry/index.ts";
-import type { ConceptLinkRole, ModuleKind } from "../src/registry/index.ts";
+import type { AttestationResult, ConceptLinkRole, DeclarationResult, ModuleKind } from "../src/registry/index.ts";
+import type { ConceptEntity, ModuleEntity } from "../src/database/entity/registry.ts";
+
+type Verdict = {
+    ok: boolean;
+    reasons: string[];
+};
+
+type TestCase = () => void | Promise<void>;
 
 const At: string = "2026-10-24T00:00:00.000Z";
 
-let passed: number = 0;
-let failed: number = 0;
-const tasks: Array<() => Promise<void>> = [];
+let Passed: number = 0;
+let Failed: number = 0;
+const Tasks: Array<() => Promise<void>> = [];
 
-const test = (name: string, fn: () => void | Promise<void>): void => {
-    tasks.push(async (): Promise<void> => {
+const test: (name: string, fn: TestCase) => void = (name: string, fn: TestCase): void => {
+    Tasks.push(async (): Promise<void> => {
         try {
             await fn();
-            passed += 1;
+            Passed += 1;
             console.log(`\x1b[32m✓\x1b[0m ${name}`);
         } catch (error) {
-            failed += 1;
+            Failed += 1;
             const message: string = error instanceof Error ? error.message : `${error}`;
             console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${message}`);
         }
     });
 };
 
-const kindFor = (name: string): ModuleKind => {
-    if (name === "kernel") return "kernel";
-    if (name === "database" || name === "store") return "database";
-    if (name === "module") return "module";
-    if (name === "protocol") return "protocol";
-    if (name === "structure") return "structure";
-    if (name === "registry") return "tool";
-    if (name === "boundary") return "boundary";
+const kindFor: (name: string) => ModuleKind = (name: string): ModuleKind => {
+    if (name === "kernel") {
+        return "kernel";
+    }
+    if (name === "database" || name === "store") {
+        return "database";
+    }
+    if (name === "module") {
+        return "module";
+    }
+    if (name === "protocol") {
+        return "protocol";
+    }
+    if (name === "structure") {
+        return "structure";
+    }
+    if (name === "registry") {
+        return "tool";
+    }
+    if (name === "boundary") {
+        return "boundary";
+    }
     return "domain";
 };
 
-const concepts = [
+const Concepts: ReadonlyArray<readonly [string, string, string]> = [
     ["process", "进程", "persistent agent: owns budget, memory, capabilities and a parent"],
     ["thread", "线程", "task or goal scheduled by an agent; one running task per agent"],
     ["capability", "能力", "不可伪造、可衰减、可撤销的句柄"],
@@ -84,7 +106,7 @@ const concepts = [
     ["database", "数据库", "实体、仓库、服务、SQL 与存储"],
 ] as const;
 
-const links: Array<[string, string, ConceptLinkRole]> = [
+const Links: Array<[string, string, ConceptLinkRole]> = [
     ["process", "process", "owns"],
     ["thread", "thread", "owns"],
     ["authz", "permission", "owns"],
@@ -111,41 +133,59 @@ const links: Array<[string, string, ConceptLinkRole]> = [
     ["database", "database", "owns"],
 ];
 
-const dirs: string[] = readdirSync("src", { withFileTypes: true })
+const Dirs: string[] = readdirSync("src", { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
-const digests = new Map<string, string>();
-for (const dir of dirs) digests.set(dir, await digestDirectory(`src/${dir}`));
+const Digests: Map<string, string> = new Map<string, string>();
+for (let index: number = 0; index < Dirs.length; index += 1) {
+    const dir: string = Dirs[index];
+    Digests.set(dir, await digestDirectory(`src/${dir}`));
+}
 
-const declareAll = (db: Database): void => {
-    for (const dir of dirs) {
-        declareModule(db.db, { id: dir, kind: kindFor(dir), entry: `src/${dir}`, description: `module ${dir}`, contentDigest: digests.get(dir) ?? "" }, At);
+const declareAll: (db: Database) => void = (db: Database): void => {
+    for (let index: number = 0; index < Dirs.length; index += 1) {
+        const dir: string = Dirs[index];
+        declareModule(db.db, { id: dir, kind: kindFor(dir), entry: `src/${dir}`, description: `module ${dir}`, contentDigest: Digests.get(dir) ?? "" }, At);
     }
-    for (const [id, label, definition] of concepts) declareConcept(db.db, { id, label, definition }, At);
-    for (const [moduleId, conceptId, role] of links) linkConcept(db.db, moduleId, conceptId, role);
+    for (let index: number = 0; index < Concepts.length; index += 1) {
+        const concept: readonly [string, string, string] = Concepts[index];
+        declareConcept(db.db, { id: concept[0], label: concept[1], definition: concept[2] }, At);
+    }
+    for (let index: number = 0; index < Links.length; index += 1) {
+        const link: [string, string, ConceptLinkRole] = Links[index];
+        linkConcept(db.db, link[0], link[1], link[2]);
+    }
 };
 
 test("every source directory is a module with a content digest", async () => {
-    const db = new Database(":memory:");
+    const db: Database = new Database(":memory:");
     declareAll(db);
-    const rows = db.moduleService.list();
-    assert.equal(rows.length, dirs.length);
-    for (const dir of dirs) assert.ok(db.moduleService.byPublicId(dir), `missing module ${dir}`);
-    for (const row of rows) {
+    const rows: ModuleEntity[] = db.moduleService.list();
+    assert.equal(rows.length, Dirs.length);
+    for (let index: number = 0; index < Dirs.length; index += 1) {
+        const dir: string = Dirs[index];
+        assert.ok(db.moduleService.byPublicId(dir), `missing module ${dir}`);
+    }
+    for (let index: number = 0; index < rows.length; index += 1) {
+        const row: ModuleEntity = rows[index];
         assert.notEqual(row.object_seq, null, `module ${row.id} has no declaration object`);
         assert.notEqual(row.content_digest, null, `module ${row.id} has no content digest`);
     }
-    const verdict = await verifyModuleContent(db.db, digestDirectory);
+    const verdict: Verdict = await verifyModuleContent(db.db, digestDirectory);
     assert.equal(verdict.ok, true, verdict.reasons.join("; "));
     db.close();
 });
 
 test("concepts are rows and redeclaration creates a new version", () => {
-    const db = new Database(":memory:");
+    const db: Database = new Database(":memory:");
     declareAll(db);
-    const first = db.conceptService.byPublicId("process");
+    const first: ConceptEntity | undefined = db.conceptService.byPublicId("process");
     assert.ok(first);
-    const second = declareConcept(db.db, { id: "process", label: "Process", definition: "mission as a resource container" }, At);
+    const second: DeclarationResult<ConceptEntity> = declareConcept(
+        db.db,
+        { id: "process", label: "Process", definition: "mission as a resource container" },
+        At,
+    );
     assert.equal(second.row.version, 2);
     assert.equal(second.objectId, "concept.process.v2");
     assert.notEqual(second.hash, first.digest === null ? "" : first.digest);
@@ -153,7 +193,7 @@ test("concepts are rows and redeclaration creates a new version", () => {
 });
 
 test("dependency links reject cycles and are queryable", () => {
-    const db = new Database(":memory:");
+    const db: Database = new Database(":memory:");
     declareAll(db);
     assert.equal(linkDependency(db.db, "kernel", "database", "owns the store"), true);
     assert.equal(linkDependency(db.db, "database", "store", "uses the store"), true);
@@ -165,13 +205,13 @@ test("dependency links reject cycles and are queryable", () => {
 });
 
 test("attestations point into the evidence chain and verify", () => {
-    const db = new Database(":memory:");
+    const db: Database = new Database(":memory:");
     declareAll(db);
     db.objectService.put("claim", "cl.registry.1", { statement: "the kernel owns process scheduling" }, At);
-    const attestation = attest(db.db, "module", "kernel", "cl.registry.1", At);
+    const attestation: AttestationResult = attest(db.db, "module", "kernel", "cl.registry.1", At);
     assert.ok(attestation.aid > 0);
     assert.equal(db.attestationService.forSubject("module", "kernel").length, 1);
-    const verdict = verifyRegistry(db.db);
+    const verdict: Verdict = verifyRegistry(db.db);
     assert.equal(verdict.ok, true, verdict.reasons.join("; "));
     db.close();
 });
@@ -181,12 +221,12 @@ test("content drift after declaration is detected", async () => {
     try {
         await writeFile(join(dir, "a.ts"), "export const value = 1;\n", "utf8");
         const digest: string = await digestDirectory(dir);
-        const db = new Database(":memory:");
+        const db: Database = new Database(":memory:");
         declareModule(db.db, { id: "temp.module", kind: "domain", entry: dir, description: "temporary module", contentDigest: digest }, At);
-        const before = await verifyModuleContent(db.db, digestDirectory);
+        const before: Verdict = await verifyModuleContent(db.db, digestDirectory);
         assert.equal(before.ok, true, before.reasons.join("; "));
         await writeFile(join(dir, "a.ts"), "export const value = 2;\n", "utf8");
-        const after = await verifyModuleContent(db.db, digestDirectory);
+        const after: Verdict = await verifyModuleContent(db.db, digestDirectory);
         assert.equal(after.ok, false);
         db.close();
     } finally {
@@ -195,13 +235,18 @@ test("content drift after declaration is detected", async () => {
 });
 
 test("tampering with a declaration object is detected", () => {
-    const db = new Database(":memory:");
+    const db: Database = new Database(":memory:");
     declareAll(db);
     db.db.exec("UPDATE objects SET body = '{}' WHERE kind = 'concept'");
     assert.equal(verifyRegistry(db.db).ok, false);
     db.close();
 });
 
-for (const task of tasks) await task();
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+for (let index: number = 0; index < Tasks.length; index += 1) {
+    const task: () => Promise<void> = Tasks[index];
+    await task();
+}
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
+    process.exitCode = 1;
+}

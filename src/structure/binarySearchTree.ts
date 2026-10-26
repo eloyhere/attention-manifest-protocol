@@ -35,6 +35,14 @@ interface SearchNode<T> {
 }
 
 /**
+ * One frame of the iterative height walk.
+ */
+interface HeightFrame<T> {
+    node: SearchNode<T>;
+    depth: number;
+}
+
+/**
  * An unbalanced binary search tree.
  *
  * In-order iteration is sorted according to the configured comparator. The
@@ -72,11 +80,11 @@ export class BinarySearchTree<T> implements Iterable<T> {
         if (this.rootNode === null) {
             return 0;
         }
-        let maximum = 0;
-        const stack: Array<{ node: SearchNode<T>; depth: number }> = [{ node: this.rootNode, depth: 1 }];
+        let maximum: number = 0;
+        const stack: HeightFrame<T>[] = [{ node: this.rootNode, depth: 1 }];
         while (stack.length > 0) {
-            const frame = stack.pop();
-            if (frame === undefined) {
+            const frame: HeightFrame<T> | undefined = stack.pop();
+            if (frame === (void 0)) {
                 break;
             }
             if (frame.depth > maximum) {
@@ -114,9 +122,9 @@ export class BinarySearchTree<T> implements Iterable<T> {
             this.count = 1;
             return true;
         }
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         while (true) {
-            const order = this.compare(value, node.value);
+            const order: number = this.compare(value, node.value);
             if (order === 0) {
                 return false;
             }
@@ -144,9 +152,9 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * @param value - Value to look up.
      */
     has(value: T): boolean {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         while (node !== null) {
-            const order = this.compare(value, node.value);
+            const order: number = this.compare(value, node.value);
             if (order === 0) {
                 return true;
             }
@@ -165,10 +173,10 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * @returns `true` if a value was removed, `false` when none is equivalent.
      */
     delete(value: T): boolean {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         let parent: SearchNode<T> | null = null;
         while (node !== null) {
-            const order = this.compare(value, node.value);
+            const order: number = this.compare(value, node.value);
             if (order === 0) {
                 break;
             }
@@ -179,11 +187,11 @@ export class BinarySearchTree<T> implements Iterable<T> {
             return false;
         }
 
-        let target = node;
-        let targetParent = parent;
+        let target: SearchNode<T> = node;
+        let targetParent: SearchNode<T> | null = parent;
         if (target.left !== null && target.right !== null) {
-            let successorParent = target;
-            let successor = target.right;
+            let successorParent: SearchNode<T> = target;
+            let successor: SearchNode<T> | null = target.right;
             while (successor.left !== null) {
                 successorParent = successor;
                 successor = successor.left;
@@ -193,7 +201,7 @@ export class BinarySearchTree<T> implements Iterable<T> {
             targetParent = successorParent;
         }
 
-        const child = target.left !== null ? target.left : target.right;
+        const child: SearchNode<T> | null = target.left !== null ? target.left : target.right;
         if (targetParent === null) {
             this.rootNode = child;
         } else if (targetParent.left === target) {
@@ -211,7 +219,7 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * empty.
      */
     min(): T | undefined {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         if (node === null) {
             return undefined;
         }
@@ -226,7 +234,7 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * empty.
      */
     max(): T | undefined {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         if (node === null) {
             return undefined;
         }
@@ -241,10 +249,10 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * order, or `undefined` when there is none.
      */
     floor(value: T): T | undefined {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         let result: T | undefined;
         while (node !== null) {
-            const order = this.compare(node.value, value);
+            const order: number = this.compare(node.value, value);
             if (order === 0) {
                 return node.value;
             }
@@ -263,10 +271,10 @@ export class BinarySearchTree<T> implements Iterable<T> {
      * order, or `undefined` when there is none.
      */
     ceil(value: T): T | undefined {
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         let result: T | undefined;
         while (node !== null) {
-            const order = this.compare(node.value, value);
+            const order: number = this.compare(node.value, value);
             if (order === 0) {
                 return node.value;
             }
@@ -313,11 +321,11 @@ export class BinarySearchTree<T> implements Iterable<T> {
      */
     validate(): string[] {
         const errors: string[] = [];
-        const values = this.toArray();
+        const values: T[] = this.toArray();
         if (values.length !== this.count) {
             errors.push(`size mismatch: expected ${this.count}, traversed ${values.length}`);
         }
-        for (let index = 1; index < values.length; index += 1) {
+        for (let index: number = 1; index < values.length; index += 1) {
             if (this.compare(values[index - 1], values[index]) >= 0) {
                 errors.push(`ordering violation between in-order positions ${index - 1} and ${index}`);
             }
@@ -327,14 +335,14 @@ export class BinarySearchTree<T> implements Iterable<T> {
 
     private *inorderValues(): Generator<T> {
         const stack: SearchNode<T>[] = [];
-        let node = this.rootNode;
+        let node: SearchNode<T> | null = this.rootNode;
         while (node !== null || stack.length > 0) {
             while (node !== null) {
                 stack.push(node);
                 node = node.left;
             }
-            const current = stack.pop();
-            if (current === undefined) {
+            const current: SearchNode<T> | undefined = stack.pop();
+            if (current === (void 0)) {
                 break;
             }
             yield current.value;

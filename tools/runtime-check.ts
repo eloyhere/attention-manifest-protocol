@@ -9,26 +9,27 @@ import { sha256Hex } from "../src/semantic/sha256.ts";
 import { canonical, digestOf } from "../src/semantic/canonical.ts";
 import { Dispatcher, BudgetExceeded } from "../src/attention/budget.ts";
 import { HandleStore } from "../src/execution/handles.ts";
+import type { HandlePage } from "../src/execution/handles.ts";
 import { canAuthorizeEffect, deriveConfidence, validateClaim, validateHypothesis } from "../src/warrant/warrant.ts";
 import { respectsMonotonicity, salience, selectFocus } from "../src/attention/attention.ts";
-import type { Claim, EvidenceItem, Hypothesis } from "../src/types/index.ts";
-import type { Candidate } from "../src/attention/attention.ts";
+import type { Claim, EvidenceItem, Handle, Hypothesis } from "../src/types/index.ts";
+import type { Candidate, Selection } from "../src/attention/attention.ts";
 
-let passed = 0;
-let failed = 0;
+let Passed: number = 0;
+let Failed: number = 0;
 
-function test(name, fn) {
+const test: (name: string, fn: () => void) => void = (name: string, fn: () => void): void => {
     try {
         fn();
-        passed++;
+        Passed++;
         console.log(`\x1b[32m✓\x1b[0m ${name}`);
     } catch (err) {
-        failed++;
+        Failed++;
         console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${err.message}`);
     }
-}
+};
 
-const evidence = (over: Partial<EvidenceItem> = {}): EvidenceItem => ({
+const evidence: (over?: Partial<EvidenceItem>) => EvidenceItem = (over: Partial<EvidenceItem> = {}): EvidenceItem => ({
     id: "ev.1",
     kind: "observation",
     trust: "self",
@@ -39,7 +40,7 @@ const evidence = (over: Partial<EvidenceItem> = {}): EvidenceItem => ({
     ...over,
 });
 
-const claim = (over: Partial<Claim> = {}): Claim => ({
+const claim: (over?: Partial<Claim>) => Claim = (over: Partial<Claim> = {}): Claim => ({
     amp: "0.1",
     kind: "claim",
     id: "cl.1",
@@ -63,7 +64,7 @@ test("canonical JSON is key-order independent", () => {
 });
 
 test("nested calls hit the same budget counter", () => {
-    const dispatcher = new Dispatcher({ calls: 2 });
+    const dispatcher: Dispatcher = new Dispatcher({ calls: 2 });
     dispatcher.run(() => undefined, {});
     dispatcher.run(() => undefined, {});
     assert.throws(() => dispatcher.run(() => undefined, {}), BudgetExceeded);
@@ -71,21 +72,23 @@ test("nested calls hit the same budget counter", () => {
 });
 
 test("handles page deterministically", () => {
-    const store = new HandleStore();
-    const handle = store.put("x".repeat(1000), "text", 250);
-    const page1 = store.read(handle.id, 0, 100);
+    const store: HandleStore = new HandleStore();
+    const handle: Handle = store.put("x".repeat(1000), "text", 250);
+    const page1: HandlePage = store.read(handle.id, 0, 100);
     assert.equal(page1.text.length, 400);
     assert.equal(page1.next, 400);
-    const page2 = store.read(handle.id, page1.next, 100);
+    const page2: HandlePage = store.read(handle.id, page1.next, 100);
     assert.equal(page2.text.length, 400);
     assert.equal(store.read(handle.id, 0, 100).text, page1.text);
 });
 
 test("confidence is derived from tier and capped by the weakest source", () => {
-    const t0 = deriveConfidence({ tier: "T0", warrant: { evidence: [], inference: "abduction", strength: 0.5 } });
+    const t0: number = deriveConfidence({ tier: "T0", warrant: { evidence: [], inference: "abduction", strength: 0.5 } });
     assert.ok(t0 <= 0.6, `T0 derived ${t0}`);
 
-    const external = deriveConfidence(claim({ tier: "T1", warrant: { evidence: [evidence({ trust: "external" })], inference: "testimony", strength: 0.5 } }));
+    const external: number = deriveConfidence(
+        claim({ tier: "T1", warrant: { evidence: [evidence({ trust: "external" })], inference: "testimony", strength: 0.5 } }),
+    );
     assert.ok(external <= 0.5, `external trust cap violated: ${external}`);
 });
 
@@ -134,7 +137,7 @@ test("salience respects its monotonicity contract", () => {
 });
 
 test("nothing above threshold produces STUCK with an ignored list", () => {
-    const selection = selectFocus(
+    const selection: Selection = selectFocus(
         [
             {
                 target: { kind: "tool", id: "a" },
@@ -156,5 +159,7 @@ test("nothing above threshold produces STUCK with an ignored list", () => {
     assert.equal(selection.ignored.length, 1);
 });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+console.log(`\n${Passed} passed, ${Failed} failed`);
+if (Failed > 0) {
+    process.exitCode = 1;
+}

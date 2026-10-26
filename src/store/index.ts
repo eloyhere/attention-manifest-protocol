@@ -1,9 +1,9 @@
 export { configureStore, database, shutdownStore } from "./context.ts";
 export { EntityCache } from "./cache.ts";
 export type { CacheStats, EntityCacheOptions } from "./cache.ts";
-export { processStore } from "./processStore.ts";
-export { threadStore } from "./threadStore.ts";
-export { handleStore } from "./handleStore.ts";
-export { messageStore } from "./messageStore.ts";
-export { windowStore } from "./windowStore.ts";
-export { objectStore } from "./objectStore.ts";
+export { ProcessStore } from "./processStore.ts";
+export { ThreadStore } from "./threadStore.ts";
+export { HandleStore } from "./handleStore.ts";
+export { MessageStore } from "./messageStore.ts";
+export { WindowStore } from "./windowStore.ts";
+export { ObjectStore } from "./objectStore.ts";

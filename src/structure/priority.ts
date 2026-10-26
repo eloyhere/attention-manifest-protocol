@@ -57,7 +57,7 @@ interface Bucket<T> {
  * Sign multiplier that turns a comparator into the serving order of a heap:
  * the smallest result is served first, so `'max'` inverts the comparator.
  */
-const servingDirection = (order: HeapOrder): number => {
+const servingDirection: (order: HeapOrder) => number = (order: HeapOrder): number => {
     return order === "max" ? -1 : 1;
 };
 
@@ -65,7 +65,7 @@ const servingDirection = (order: HeapOrder): number => {
  * Sign multiplier for "better than": a positive result means the left value is
  * better, so `'max'` keeps the comparator as it is.
  */
-const qualityDirection = (order: HeapOrder): number => {
+const qualityDirection: (order: HeapOrder) => number = (order: HeapOrder): number => {
     return order === "max" ? 1 : -1;
 };
 
@@ -77,7 +77,9 @@ const qualityDirection = (order: HeapOrder): number => {
  * earlier sequence first, which is what makes every queue in this module
  * stable.
  */
-const entryComparator = <T>(compare: Comparator<T>, direction: number): Comparator<Sequenced<T>> => {
+type EntryComparator = <T>(compare: Comparator<T>, direction: number) => Comparator<Sequenced<T>>;
+
+const entryComparator: EntryComparator = <T>(compare: Comparator<T>, direction: number): Comparator<Sequenced<T>> => {
     return (left: Sequenced<T>, right: Sequenced<T>): number => {
         const byPriority: number = direction * compare(left.value, right.value);
         if (byPriority !== 0) {
@@ -90,7 +92,7 @@ const entryComparator = <T>(compare: Comparator<T>, direction: number): Comparat
 /**
  * Reject a capacity that cannot bound a container.
  */
-const requireCapacity = (capacity: number): void => {
+const requireCapacity: (capacity: number) => void = (capacity: number): void => {
     if (!Number.isSafeInteger(capacity) || capacity <= 0) {
         throw new RangeError("capacity must be a positive safe integer");
     }
@@ -155,7 +157,7 @@ export class PriorityQueue<T> implements Iterable<T> {
         const order: HeapOrder = options?.order ?? "max";
         this.compareFn = entryComparator<T>(compare, servingDirection(order));
         this.heap = new BinaryHeap<Sequenced<T>>({ compare: this.compareFn });
-        if (options?.values !== undefined) {
+        if (options?.values !== (void 0)) {
             this.enqueueAll(options.values);
         }
     }
@@ -169,10 +171,10 @@ export class PriorityQueue<T> implements Iterable<T> {
      */
     static from<T>(values: Iterable<T>, options?: Omit<PriorityQueueOptions<T>, "values">): PriorityQueue<T> {
         const queueOptions: PriorityQueueOptions<T> = { values };
-        if (options?.compare !== undefined) {
+        if (options?.compare !== (void 0)) {
             queueOptions.compare = options.compare;
         }
-        if (options?.order !== undefined) {
+        if (options?.order !== (void 0)) {
             queueOptions.order = options.order;
         }
         return new PriorityQueue<T>(queueOptions);
@@ -212,8 +214,9 @@ export class PriorityQueue<T> implements Iterable<T> {
      * @returns This queue, for chaining.
      */
     enqueueAll(values: Iterable<T>): this {
-        for (const value of values) {
-            this.enqueue(value);
+        const items: T[] = [...values];
+        for (let index: number = 0; index < items.length; index += 1) {
+            this.enqueue(items[index]);
         }
         return this;
     }
@@ -225,7 +228,7 @@ export class PriorityQueue<T> implements Iterable<T> {
      */
     dequeue(): T | undefined {
         const entry: Sequenced<T> | undefined = this.heap.pop();
-        return entry === undefined ? undefined : entry.value;
+        return entry === (void 0) ? undefined : entry.value;
     }
 
     /**
@@ -235,7 +238,7 @@ export class PriorityQueue<T> implements Iterable<T> {
      */
     peek(): T | undefined {
         const entry: Sequenced<T> | undefined = this.heap.peek();
-        return entry === undefined ? undefined : entry.value;
+        return entry === (void 0) ? undefined : entry.value;
     }
 
     /**
@@ -269,7 +272,7 @@ export class PriorityQueue<T> implements Iterable<T> {
         const values: T[] = [];
         while (!this.heap.isEmpty) {
             const entry: Sequenced<T> | undefined = this.heap.pop();
-            if (entry !== undefined) {
+            if (entry !== (void 0)) {
                 values.push(entry.value);
             }
         }
@@ -385,7 +388,7 @@ export class IndexedPriorityQueue<K, T> implements Iterable<T> {
     set(value: T): this {
         const key: K = this.keyOf(value);
         const index: number | undefined = this.positions.get(key);
-        if (index === undefined) {
+        if (index === (void 0)) {
             const entry: KeyedEntry<K, T> = { key, value, sequence: this.sequence };
             this.sequence += 1;
             this.positions.set(key, this.entries.length);
@@ -408,7 +411,7 @@ export class IndexedPriorityQueue<K, T> implements Iterable<T> {
      */
     delete(key: K): boolean {
         const index: number | undefined = this.positions.get(key);
-        if (index === undefined) {
+        if (index === (void 0)) {
             return false;
         }
         this.removeAt(index);
@@ -423,7 +426,7 @@ export class IndexedPriorityQueue<K, T> implements Iterable<T> {
      */
     get(key: K): T | undefined {
         const index: number | undefined = this.positions.get(key);
-        return index === undefined ? undefined : this.entries[index].value;
+        return index === (void 0) ? undefined : this.entries[index].value;
     }
 
     /**
@@ -657,7 +660,7 @@ export class BucketQueue<T> implements Iterable<T> {
             throw new RangeError("priority must be a safe integer");
         }
         let bucket: Bucket<T> | undefined = this.buckets.get(priority);
-        if (bucket === undefined) {
+        if (bucket === (void 0)) {
             bucket = { values: [], head: 0 };
             this.buckets.set(priority, bucket);
             this.active.push(priority);
@@ -674,11 +677,11 @@ export class BucketQueue<T> implements Iterable<T> {
      */
     dequeue(): T | undefined {
         const priority: number | undefined = this.peekPriority();
-        if (priority === undefined) {
+        if (priority === (void 0)) {
             return undefined;
         }
         const bucket: Bucket<T> | undefined = this.buckets.get(priority);
-        if (bucket === undefined) {
+        if (bucket === (void 0)) {
             return undefined;
         }
         const value: T = bucket.values[bucket.head];
@@ -701,11 +704,11 @@ export class BucketQueue<T> implements Iterable<T> {
      */
     peek(): T | undefined {
         const priority: number | undefined = this.peekPriority();
-        if (priority === undefined) {
+        if (priority === (void 0)) {
             return undefined;
         }
         const bucket: Bucket<T> | undefined = this.buckets.get(priority);
-        return bucket === undefined ? undefined : bucket.values[bucket.head];
+        return bucket === (void 0) ? undefined : bucket.values[bucket.head];
     }
 
     /**
@@ -716,7 +719,7 @@ export class BucketQueue<T> implements Iterable<T> {
     peekPriority(): number | undefined {
         while (!this.active.isEmpty) {
             const priority: number | undefined = this.active.peek();
-            if (priority !== undefined && this.buckets.has(priority)) {
+            if (priority !== (void 0) && this.buckets.has(priority)) {
                 return priority;
             }
             this.active.pop();
@@ -744,9 +747,10 @@ export class BucketQueue<T> implements Iterable<T> {
             return this.order === "max" ? right - left : left - right;
         });
         const values: T[] = [];
-        for (const priority of priorities) {
+        for (let priorityIndex: number = 0; priorityIndex < priorities.length; priorityIndex += 1) {
+            const priority: number = priorities[priorityIndex];
             const bucket: Bucket<T> | undefined = this.buckets.get(priority);
-            if (bucket === undefined) {
+            if (bucket === (void 0)) {
                 continue;
             }
             for (let index: number = bucket.head; index < bucket.values.length; index += 1) {
@@ -866,7 +870,7 @@ export class TopK<T> implements Iterable<T> {
             return true;
         }
         const worst: T | undefined = this.retained.peek();
-        if (worst === undefined) {
+        if (worst === (void 0)) {
             return false;
         }
         if (this.signedCompare(value, worst) <= 0) {

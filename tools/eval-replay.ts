@@ -13,6 +13,7 @@ import { InMemorySocialStore } from "../src/ipc/index.ts";
 import { ScriptedLlm } from "../src/module/llm/llm.ts";
 import type { LlmResponse } from "../src/module/llm/llm.ts";
 import { CognitiveRuntime } from "../src/runtime/cognitiveRuntime.ts";
+import type { RuntimeTurn } from "../src/runtime/cognitiveRuntime.ts";
 import { agreementRate, cohenKappa } from "../src/evaluation/agreement.ts";
 
 interface ReplayCase {
@@ -24,43 +25,79 @@ interface ReplayCase {
     humanLabel: "correct" | "incorrect";
 }
 
-const At = "2026-10-24T00:00:00.000Z";
-const cases = JSON.parse(readFileSync("docs/eval/replay-cases.json", "utf8")) as ReplayCase[];
-const labelsB = JSON.parse(readFileSync("docs/eval/replay-labels-b.json", "utf8")) as Array<{ id: string; label: string }>;
-const labelB = new Map(labelsB.map((entry) => [entry.id, entry.label]));
-assert.ok(cases.length >= 10);
+type LabelRow = {
+    id: string;
+    label: string;
+};
+
+type ReplayResult = {
+    id: string;
+    category: string;
+    actual: boolean;
+    humanLabel: "correct" | "incorrect";
+    labelAgrees: boolean;
+    predictedCorrectness: number;
+    answer: string;
+};
+
+type ReplayMetrics = {
+    total: number;
+    accuracy: number;
+    humanLabeled: number;
+    humanLabelAgreement: number;
+    annotatorAgreement: number;
+    cohenKappa: number;
+    brier: number;
+};
+
+type ReplayReport = {
+    generatedAt: string;
+    kind: string;
+    note: string;
+    cases: ReplayResult[];
+    metrics: ReplayMetrics;
+};
+
+type CheckFn = (answer: string, expected: string) => boolean;
+
+const At: string = "2026-10-24T00:00:00.000Z";
+const Cases: ReplayCase[] = JSON.parse(readFileSync("docs/eval/replay-cases.json", "utf8")) as ReplayCase[];
+const LabelsB: LabelRow[] = JSON.parse(readFileSync("docs/eval/replay-labels-b.json", "utf8")) as LabelRow[];
+const LabelB: Map<string, string> = new Map(LabelsB.map((entry) => [entry.id, entry.label]));
+assert.ok(Cases.length >= 10);
 assert.equal(
-    cases.every((entry) => entry.humanLabel === "correct" || entry.humanLabel === "incorrect"),
+    Cases.every((entry) => entry.humanLabel === "correct" || entry.humanLabel === "incorrect"),
     true,
 );
 assert.equal(
-    cases.every((entry) => labelB.has(entry.id)),
+    Cases.every((entry) => LabelB.has(entry.id)),
     true,
 );
 
-const escape = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const check = (answer: string, expected: string): boolean => new RegExp(`\\b${escape(expected)}\\b`, "i").test(answer);
+const escape: (value: string) => string = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const check: CheckFn = (answer: string, expected: string): boolean => new RegExp(`\\b${escape(expected)}\\b`, "i").test(answer);
 
-const service = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
-service.createAgent({ pid: 1, id: "a.replay", name: "Replay Agent", at: At });
-const responses: LlmResponse[] = cases.map((entry) => ({
+const Service: AgentService = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
+Service.createAgent({ pid: 1, id: "a.replay", name: "Replay Agent", at: At });
+const Responses: LlmResponse[] = Cases.map((entry) => ({
     text: entry.answer,
     usage: { inputTokens: 10, outputTokens: 3 },
     finishReason: "stop",
 }));
-const runtime = new CognitiveRuntime({
+const Runtime: CognitiveRuntime = new CognitiveRuntime({
     pid: 1,
-    agent: service.agents,
-    social: service.social,
-    llm: new ScriptedLlm(responses),
+    agent: Service.agents,
+    social: Service.social,
+    llm: new ScriptedLlm(Responses),
     now: () => At,
 });
 
-const results = [];
-for (const entry of cases) {
-    const turn = await runtime.respond(entry.input, { interactionMix: { think: 1 } });
-    const actual = check(turn.answer, entry.expected);
-    results.push({
+const Results: ReplayResult[] = [];
+for (let caseIndex: number = 0; caseIndex < Cases.length; caseIndex += 1) {
+    const entry: ReplayCase = Cases[caseIndex];
+    const turn: RuntimeTurn = await Runtime.respond(entry.input, { interactionMix: { think: 1 } });
+    const actual: boolean = check(turn.answer, entry.expected);
+    Results.push({
         id: entry.id,
         category: entry.category,
         actual,
@@ -71,32 +108,32 @@ for (const entry of cases) {
     });
 }
 
-const labelAgreement = results.filter((result) => result.labelAgrees).length / results.length;
-const accuracy = results.filter((result) => result.actual).length / results.length;
-const brier = results.reduce((sum, result) => sum + (result.predictedCorrectness - (result.actual ? 1 : 0)) ** 2, 0) / results.length;
-const labelsA = results.map((result) => result.humanLabel);
-const labelsBRows = results.map((result) => labelB.get(result.id) ?? result.humanLabel);
-const annotatorAgreement = agreementRate(labelsA, labelsBRows);
-const kappa = cohenKappa(labelsA, labelsBRows);
-const report = {
+const LabelAgreement: number = Results.filter((result) => result.labelAgrees).length / Results.length;
+const Accuracy: number = Results.filter((result) => result.actual).length / Results.length;
+const Brier: number = Results.reduce((sum, result) => sum + (result.predictedCorrectness - (result.actual ? 1 : 0)) ** 2, 0) / Results.length;
+const LabelsA: string[] = Results.map((result) => result.humanLabel);
+const LabelsBRows: string[] = Results.map((result) => LabelB.get(result.id) ?? result.humanLabel);
+const AnnotatorAgreement: number = agreementRate(LabelsA, LabelsBRows);
+const Kappa: number = cohenKappa(LabelsA, LabelsBRows);
+const Report: ReplayReport = {
     generatedAt: new Date().toISOString(),
     kind: "eval-replay",
     note: "fixture labels, not a human study",
-    cases: results,
+    cases: Results,
     metrics: {
-        total: results.length,
-        accuracy,
-        humanLabeled: results.length,
-        humanLabelAgreement: labelAgreement,
-        annotatorAgreement,
-        cohenKappa: kappa,
-        brier,
+        total: Results.length,
+        accuracy: Accuracy,
+        humanLabeled: Results.length,
+        humanLabelAgreement: LabelAgreement,
+        annotatorAgreement: AnnotatorAgreement,
+        cohenKappa: Kappa,
+        brier: Brier,
     },
 };
-writeFileSync("docs/probes/eval-replay.json", `${JSON.stringify(report, null, 2)}\n`, "utf8");
-assert.equal(labelAgreement, 1);
+writeFileSync("docs/probes/eval-replay.json", `${JSON.stringify(Report, null, 2)}\n`, "utf8");
+assert.equal(LabelAgreement, 1);
 
 console.log(
-    `cases=${results.length} accuracy=${(accuracy * 100).toFixed(0)}% labelAgreement=${(labelAgreement * 100).toFixed(0)}% annotatorAgreement=${(annotatorAgreement * 100).toFixed(0)}% kappa=${kappa.toFixed(3)} brier=${brier.toFixed(3)}`,
+    `cases=${Results.length} accuracy=${(Accuracy * 100).toFixed(0)}% labelAgreement=${(LabelAgreement * 100).toFixed(0)}% annotatorAgreement=${(AnnotatorAgreement * 100).toFixed(0)}% kappa=${Kappa.toFixed(3)} brier=${Brier.toFixed(3)}`,
 );
 console.log("wrote docs/probes/eval-replay.json");

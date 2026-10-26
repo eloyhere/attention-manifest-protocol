@@ -7,6 +7,7 @@
  * still has no SQL/database dependency.
  */
 import type { Kernel, StepReport } from "../kernel/index.ts";
+import type { ApprovalRecord } from "./operation.ts";
 import type { CognitiveRuntime, RuntimeTurn } from "./cognitiveRuntime.ts";
 
 export interface KernelRuntimeTurn {
@@ -22,7 +23,16 @@ export interface KernelRuntimeOptions {
     onTurn?: (result: KernelRuntimeTurn) => void;
 }
 
-const mean = (value: { mean: number }): number => value.mean;
+type MeanValue = {
+    mean: number;
+};
+
+type RuntimeEvent = {
+    topic: string;
+    payload: Record<string, unknown>;
+};
+
+const mean: (value: MeanValue) => number = (value: MeanValue): number => value.mean;
 
 export class KernelRuntime {
     private readonly kernel: Kernel;
@@ -36,17 +46,19 @@ export class KernelRuntime {
         this.onTurn = options.onTurn;
     }
 
-    /** Run one exact task (not "next ready") through an async model turn. */
+    /**
+     * Run one exact task (not "next ready") through an async model turn.
+     */
     async runTask(tid: number, input: string): Promise<KernelRuntimeTurn | undefined> {
         let turn: RuntimeTurn | undefined;
         let objectId: string | undefined;
-        const report = await this.kernel.stepAsync(async (context) => {
+        const report: StepReport | undefined = await this.kernel.stepAsync(async (context) => {
             turn = await this.cognitive.respond(input);
             objectId = `runtime.turn.${context.task.tid}.${++this.counter}`;
-            const events: Array<{ topic: string; payload: Record<string, unknown> }> = [
-                { topic: "runtime.receipt", payload: { task: context.task.tid, ...this.serialize(turn) } },
-            ];
-            for (const approval of turn.approvals ?? []) {
+            const events: RuntimeEvent[] = [{ topic: "runtime.receipt", payload: { task: context.task.tid, ...this.serialize(turn) } }];
+            const approvals: ApprovalRecord[] = turn.approvals ?? [];
+            for (let index: number = 0; index < approvals.length; index += 1) {
+                const approval: ApprovalRecord = approvals[index];
                 events.push({ topic: "runtime.approval", payload: { task: context.task.tid, pid: turn.pid, turnId: turn.turnId, ...approval } });
             }
             return {
@@ -56,7 +68,9 @@ export class KernelRuntime {
                 events,
             };
         }, tid);
-        if (report === undefined || turn === undefined || objectId === undefined) return undefined;
+        if (report === (void 0) || turn === (void 0) || objectId === (void 0)) {
+            return undefined;
+        }
         const result: KernelRuntimeTurn = { report, turn, objectId, receiptId: report.receiptId };
         this.onTurn?.(result);
         return result;
@@ -103,7 +117,7 @@ export class KernelRuntime {
             },
             answer: turn.answer,
             answerScore:
-                turn.answerScore === undefined
+                turn.answerScore === (void 0)
                     ? undefined
                     : {
                           overall: turn.answerScore.overall,

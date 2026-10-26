@@ -32,7 +32,9 @@ export class ToolRegistry {
     private readonly tools: UnorderedMap<string, ToolDescriptor> = new UnorderedMap<string, ToolDescriptor>();
 
     register(descriptor: ToolDescriptor): this {
-        if (this.tools.has(descriptor.name)) throw new Error(`duplicate tool ${descriptor.name}`);
+        if (this.tools.has(descriptor.name)) {
+            throw new Error(`duplicate tool ${descriptor.name}`);
+        }
         this.tools.set(descriptor.name, descriptor);
         return this;
     }

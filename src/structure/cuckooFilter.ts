@@ -104,7 +104,7 @@ export class CuckooFilter {
      * size, a negative kick limit, or a bucket array too large to index safely.
      */
     constructor(options: CuckooFilterOptions) {
-        if (options === null || typeof options !== "object") {
+        if (options === null || typeof(options) !== "object") {
             throw new TypeError("options must be an object");
         }
         if (!Number.isSafeInteger(options.capacity) || options.capacity <= 0) {
@@ -156,8 +156,8 @@ export class CuckooFilter {
     add(key: FilterKey): boolean {
         assertFilterKey(key);
         const { index, fingerprint } = this.locate(key);
-        let first = index;
-        let second = this.alternate(first, fingerprint);
+        const first = index;
+        const second = this.alternate(first, fingerprint);
         let currentFingerprint = fingerprint;
         let currentIndex = this.pickBucket(first, second);
         const history: KickRecord[] = [];
@@ -187,7 +187,7 @@ export class CuckooFilter {
          */
         for (let index_ = history.length - 1; index_ >= 0; index_ -= 1) {
             const record = history[index_];
-            if (record === undefined) {
+            if (record === (void 0)) {
                 continue;
             }
             this.buckets[record.bucket][record.slot] = record.displaced;
@@ -317,7 +317,7 @@ export class CuckooFilter {
             return false;
         }
         const last = bucket.pop();
-        if (slot < bucket.length && last !== undefined) {
+        if (slot < bucket.length && last !== (void 0)) {
             bucket[slot] = last;
         }
         return true;

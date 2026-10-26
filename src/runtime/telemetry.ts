@@ -6,7 +6,9 @@ import os from "node:os";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 
 export interface TelemetrySample {
-    /** 0–1, normalized by CPU count. */
+    /**
+     * 0–1, normalized by CPU count.
+     */
     systemLoad?: number;
     eventLoopLagMs?: number;
     memoryMb?: number;

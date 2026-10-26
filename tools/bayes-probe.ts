@@ -53,11 +53,13 @@ const affect = resolveInteraction({ affect: 1 });
 
 const runs = source.runs.map((run) => {
     const task = taskById.get(run.task);
-    if (task === undefined) throw new Error(`missing task ${run.task}`);
+    if (task === (void 0)) {
+        throw new Error(`missing task ${run.task}`);
+    }
     const user = engine.scoreUser(task.prompt);
     const answer = engine.scoreAnswer(run.answer, { correct: run.correct, targetTokens: 64 });
     const attention =
-        run.attention === undefined
+        run.attention === (void 0)
             ? null
             : engine.scoreAttention({
                   utilization: run.attention.utilization,

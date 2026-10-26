@@ -13,6 +13,6 @@ export interface Page {
     content?: unknown;
 }
 
-export const pageKey = (kind: string, id: string): string => `${kind}:${id}`;
+export const pageKey: (kind: string, id: string) => string = (kind: string, id: string): string => `${kind}:${id}`;
 
-export const pageIdFor = (kind: string, id: string): string => `pg.${kind}.${id}`;
+export const pageIdFor: (kind: string, id: string) => string = (kind: string, id: string): string => `pg.${kind}.${id}`;

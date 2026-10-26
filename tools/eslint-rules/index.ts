@@ -18,8 +18,7 @@ export default {
         "no-multiline-parameters": noMultilineParameters,
         "no-multiline-type-parameters": noMultilineTypeParameters,
         "no-undefined-comparison": noUndefinedComparison,
-        "prefer-template-for-string-conversion":
-            preferTemplateForStringConversion,
+        "prefer-template-for-string-conversion": preferTemplateForStringConversion,
         "require-typeof-parentheses": requireTypeofParentheses,
         "require-variable-type": requireVariableType,
         "variable-naming": variableNaming,

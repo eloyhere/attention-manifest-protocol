@@ -19,13 +19,19 @@ export { canThreadTransition } from "./transitions.ts";
 export type ThreadState = "ready" | "running" | "blocked" | "done" | "failed" | "abandoned";
 
 export interface ThreadSpec {
-    /** Defaults to `t.<pid>.<n>`; must satisfy the AMP id grammar. */
+    /**
+     * Defaults to `t.<pid>.<n>`; must satisfy the AMP id grammar.
+     */
     id?: Id;
     pid: number;
-    /** Goal this task serves. */
+    /**
+     * Goal this task serves.
+     */
     goal: Id;
     statement: string;
-    /** At least one observable completion criterion. */
+    /**
+     * At least one observable completion criterion.
+     */
     success: Criterion[];
     priority?: number;
     budget?: Budget;
@@ -63,7 +69,9 @@ export interface ThreadPatch {
     exitNote?: string;
 }
 
-/** Task lifecycle. `done`, `failed` and `abandoned` are terminal. */
+/**
+ * Task lifecycle. `done`, `failed` and `abandoned` are terminal.
+ */
 export const getThread = (db: DatabaseSync, tid: number): ThreadRecord => new ExecutionRepository(db).getTask(tid);
 
 export const findThread = (db: DatabaseSync, id: Id): ThreadRecord | undefined => new ExecutionRepository(db).findTaskByExternalId(id);
@@ -75,8 +83,12 @@ export const spawnThread = (db: DatabaseSync, spec: ThreadSpec, at: string): Thr
     if (!["created", "idle", "running"].includes(agent.state)) {
         throw new KernelError("invalid_transition", [`agent ${agent.id} is ${agent.state}`]);
     }
-    if (!isId(spec.goal)) throw new KernelError("invalid_thread", [`goal ${spec.goal} is not a valid AMP id`]);
-    if (spec.statement.trim().length === 0) throw new KernelError("invalid_thread", ["statement is empty"]);
+    if (!isId(spec.goal)) {
+        throw new KernelError("invalid_thread", [`goal ${spec.goal} is not a valid AMP id`]);
+    }
+    if (spec.statement.trim().length === 0) {
+        throw new KernelError("invalid_thread", ["statement is empty"]);
+    }
     if (!Array.isArray(spec.success) || spec.success.length === 0) {
         throw new KernelError("invalid_thread", ["success must contain at least one criterion"]);
     }
@@ -87,12 +99,14 @@ export const spawnThread = (db: DatabaseSync, spec: ThreadSpec, at: string): Thr
     }
     const repository = new ExecutionRepository(db);
     const duplicate = repository.findActiveTaskByGoal(spec.pid, spec.goal);
-    if (duplicate !== undefined) {
+    if (duplicate !== (void 0)) {
         throw new KernelError("duplicate_task", [`goal ${spec.goal} already has active task ${duplicate.tid}`]);
     }
     const count = repository.countTasks(spec.pid);
     const id: Id = spec.id ?? `t.${spec.pid}.${count + 1}`;
-    if (!isId(id)) throw new KernelError("invalid_thread", [`id ${id} is not a valid AMP id`]);
+    if (!isId(id)) {
+        throw new KernelError("invalid_thread", [`id ${id} is not a valid AMP id`]);
+    }
     return repository.createTask({
         id,
         pid: spec.pid,
@@ -106,7 +120,9 @@ export const spawnThread = (db: DatabaseSync, spec: ThreadSpec, at: string): Thr
     });
 };
 
-/** Oldest highest-priority task whose agent may run it. */
+/**
+ * Oldest highest-priority task whose agent may run it.
+ */
 export const nextReadyThread = (db: DatabaseSync): ThreadRecord | undefined => new ExecutionRepository(db).nextReadyTask();
 
 export const transitionThread = (
@@ -124,23 +140,33 @@ export interface ThreadClaim {
     workerId: string;
 }
 
-/** Atomically move a ready task to running; the lease is the fencing token. */
+/**
+ * Atomically move a ready task to running; the lease is the fencing token.
+ */
 export const claimThread = (db: DatabaseSync, tid: number, workerId: string): ThreadClaim => new ExecutionRepository(db).claimTask(tid, workerId);
 
 export const releaseThread = (db: DatabaseSync, tid: number, workerId: string, lease: number): boolean =>
     new ExecutionRepository(db).releaseTask(tid, workerId, lease);
 
-/** Charge the task's own slice. Exhaustion fails the task, not the agent. */
+/**
+ * Charge the task's own slice. Exhaustion fails the task, not the agent.
+ */
 export const chargeThread = (db: DatabaseSync, tid: number, usage: Budget, at: string): { ok: boolean; exceeded: string[] } =>
     new ExecutionRepository(db).chargeTask(tid, usage, at);
 
-/** Wake every thread blocked on one condition (mailbox, object, handle). */
+/**
+ * Wake every thread blocked on one condition (mailbox, object, handle).
+ */
 export const notifyCondition = (db: DatabaseSync, condition: string): number => new ExecutionRepository(db).notify(condition);
 
-/** Promote sleeping tasks whose `wake_at` has passed. */
+/**
+ * Promote sleeping tasks whose `wake_at` has passed.
+ */
 export const wakeSleeping = (db: DatabaseSync, at: string): number => new ExecutionRepository(db).wake(at);
 
-/** Crash recovery: requeue running tasks owned by a dead worker; agents go idle. */
+/**
+ * Crash recovery: requeue running tasks owned by a dead worker; agents go idle.
+ */
 export const recoverThreads = (db: DatabaseSync, workerId?: string): { threads: number; processes: number } => new ExecutionRepository(db).recover(workerId);
 
 export const liveThreadCount = (db: DatabaseSync, pid: number): number => new ExecutionRepository(db).liveTaskCount(pid);

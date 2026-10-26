@@ -43,7 +43,7 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
         console.log(`\x1b[32m✓\x1b[0m ${name}`);
     } catch (error) {
         failed++;
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : `${error}`;
         console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${message}`);
     }
 }
@@ -384,4 +384,6 @@ await test("guard: rate limiting stops the next dispatch before it runs", () => 
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

@@ -65,13 +65,13 @@ export class SegmentTree<T> {
      */
     constructor(options: SegmentTreeOptions<T>) {
         const input: SegmentTreeOptions<T> | null | undefined = options;
-        if (input === null || typeof input !== "object") {
+        if (input === null || typeof(input) !== "object") {
             throw new TypeError("options must be an object");
         }
         if (!Number.isSafeInteger(input.size) || input.size < 0) {
-            throw new RangeError(`size must be a non-negative safe integer, received ${String(input.size)}`);
+            throw new RangeError(`size must be a non-negative safe integer, received ${`${input.size}`}`);
         }
-        if (typeof input.operation !== "function") {
+        if (typeof(input.operation) !== "function") {
             throw new TypeError("operation must be a function");
         }
         if (!("identity" in input)) {
@@ -89,7 +89,7 @@ export class SegmentTree<T> {
         this.base = base;
 
         const tree = new Array<T>(base * 2).fill(this.identity);
-        if (input.values !== undefined) {
+        if (input.values !== (void 0)) {
             let index = 0;
             for (const value of input.values) {
                 if (index === this.count) {
@@ -233,7 +233,7 @@ export class SegmentTree<T> {
      */
     private assertIndex(index: number): void {
         if (!Number.isSafeInteger(index) || index < 0 || index >= this.count) {
-            throw new RangeError(`index must be a safe integer in [0, ${this.count}), received ${String(index)}`);
+            throw new RangeError(`index must be a safe integer in [0, ${this.count}), received ${`${index}`}`);
         }
     }
 
@@ -242,7 +242,7 @@ export class SegmentTree<T> {
      */
     private assertRange(left: number, right: number): void {
         if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right) || left < 0 || right > this.count || left > right) {
-            throw new RangeError(`query range must satisfy 0 <= left <= right <= ${this.count}, received [${String(left)}, ${String(right)})`);
+            throw new RangeError(`query range must satisfy 0 <= left <= right <= ${this.count}, received [${`${left}`}, ${`${right}`})`);
         }
     }
 }

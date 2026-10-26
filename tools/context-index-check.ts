@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-/** ContextIndex: exact map + content-addressed detail + LRU, no eager filters. */
+/**
+ * ContextIndex: exact map + content-addressed detail + LRU, no eager filters.
+ */
 import assert from "node:assert/strict";
 
+import type { ContextAstView } from "../src/context/ast.ts";
 import { ContextIndex } from "../src/context/contextIndex.ts";
+import type { ContextIndexStats } from "../src/context/contextIndex.ts";
 import { MemoryContentStore } from "../src/context/contentStore.ts";
 
-const store = new MemoryContentStore();
-const index = new ContextIndex(undefined, { store, cacheEntries: 4 });
-index.add({ id: "root", kind: "goal", summary: "incident root", order: 0, salience: 1 });
-for (let node = 0; node < 24; node += 1) {
-    const layer = node % 3 === 0 ? "database" : node % 3 === 1 ? "connection_pool" : "queue";
-    index.add(
+const Store: MemoryContentStore = new MemoryContentStore();
+const Index: ContextIndex = new ContextIndex(undefined, { store: Store, cacheEntries: 4 });
+Index.add({ id: "root", kind: "goal", summary: "incident root", order: 0, salience: 1 });
+for (let node: number = 0; node < 24; node += 1) {
+    const layer: string = node % 3 === 0 ? "database" : node % 3 === 1 ? "connection_pool" : "queue";
+    Index.add(
         {
             id: `probe.${node}`,
             parentId: "root",
@@ -23,22 +27,22 @@ for (let node = 0; node < 24; node += 1) {
     );
 }
 
-assert.equal(index.stats().nodes, 25);
-assert.equal(store.size() < 24, true);
-assert.equal(index.getDetail("probe.0"), "shared detail");
-assert.equal(index.getDetail("probe.0"), "shared detail");
-assert.ok(index.stats().hits >= 1);
-assert.equal(index.getDetail("root"), undefined);
+assert.equal(Index.stats().nodes, 25);
+assert.equal(Store.size() < 24, true);
+assert.equal(Index.getDetail("probe.0"), "shared detail");
+assert.equal(Index.getDetail("probe.0"), "shared detail");
+assert.ok(Index.stats().hits >= 1);
+assert.equal(Index.getDetail("root"), undefined);
 
-const view = index.view(300);
-assert.ok(view.tokens <= 300);
-assert.ok(view.refs.length > 0);
-assert.match(view.text, /database|connection_pool|queue/);
+const View: ContextAstView = Index.view(300);
+assert.ok(View.tokens <= 300);
+assert.ok(View.refs.length > 0);
+assert.match(View.text, /database|connection_pool|queue/);
 
-const before = index.stats();
-index.getDetail("probe.23");
-assert.ok(index.stats().misses >= before.misses);
+const Before: ContextIndexStats = Index.stats();
+Index.getDetail("probe.23");
+assert.ok(Index.stats().misses >= Before.misses);
 
-console.log(`nodes=${index.stats().nodes} uniqueDetails=${store.size()} hits=${index.stats().hits} misses=${index.stats().misses} viewTokens=${view.tokens}`);
+console.log(`nodes=${Index.stats().nodes} uniqueDetails=${Store.size()} hits=${Index.stats().hits} misses=${Index.stats().misses} viewTokens=${View.tokens}`);
 console.log("\x1b[32m✓\x1b[0m ContextIndex dedupes details, caches via LRU and keeps the view budget");
 console.log("\n1 passed, 0 failed");

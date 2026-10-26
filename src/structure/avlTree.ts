@@ -235,7 +235,7 @@ export class AVLTree<T> implements Iterable<T> {
         let seen = 0;
         while (stack.length > 0) {
             const frame = stack.pop();
-            if (frame === undefined) {
+            if (frame === (void 0)) {
                 break;
             }
             if (!frame.visited) {
@@ -253,7 +253,7 @@ export class AVLTree<T> implements Iterable<T> {
             const node = frame.node;
             const leftHeight = node.left === null ? 0 : actualHeights.get(node.left);
             const rightHeight = node.right === null ? 0 : actualHeights.get(node.right);
-            if (leftHeight === undefined || rightHeight === undefined) {
+            if (leftHeight === (void 0) || rightHeight === (void 0)) {
                 errors.push("height metadata is missing for a child subtree");
                 actualHeights.set(node, 1);
                 continue;
@@ -398,7 +398,7 @@ export class AVLTree<T> implements Iterable<T> {
                 node = node.left;
             }
             const current = stack.pop();
-            if (current === undefined) {
+            if (current === (void 0)) {
                 break;
             }
             yield current.value;

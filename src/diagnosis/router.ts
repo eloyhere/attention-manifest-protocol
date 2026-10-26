@@ -5,7 +5,7 @@
  * runtime still wraps it in an Action/Operation and approval policy.
  */
 import { selectHypothesis } from "./frame.ts";
-import type { DiagnosticFrame, DiagnosticLayer } from "./types.ts";
+import type { DiagnosticFrame, DiagnosticLayer, HypothesisAssessment } from "./types.ts";
 
 export type ToolIntent = "inspect" | "discriminate" | "confirm" | "refute";
 
@@ -39,12 +39,14 @@ export const DefaultToolBindings: readonly ToolBinding[] = [
     { layer: "release", tool: "version_diff", intent: "inspect", readOnly: true, produces: "log" },
 ];
 
-export const routeTool = (frame: DiagnosticFrame, bindings: readonly ToolBinding[] = DefaultToolBindings, minConfidence = 0.5): ToolRoute | undefined => {
-    const top = selectHypothesis(frame);
+type ToolRouter = (frame: DiagnosticFrame, bindings?: readonly ToolBinding[], minConfidence?: number) => ToolRoute | undefined;
+
+export const routeTool: ToolRouter = (frame: DiagnosticFrame, bindings: readonly ToolBinding[] = DefaultToolBindings, minConfidence = 0.5) => {
+    const top: HypothesisAssessment | undefined = selectHypothesis(frame);
     if (top !== (void 0) && top.confidence >= minConfidence) {
-        const exact = bindings.filter((binding) => binding.layer === top.hypothesis.layer && binding.hypothesisId === top.hypothesis.id);
-        const layer = bindings.filter((binding) => binding.layer === top.hypothesis.layer && binding.hypothesisId === (void 0));
-        const selected = exact[0] ?? layer[0];
+        const exact: ToolBinding[] = bindings.filter((binding) => binding.layer === top.hypothesis.layer && binding.hypothesisId === top.hypothesis.id);
+        const layer: ToolBinding[] = bindings.filter((binding) => binding.layer === top.hypothesis.layer && binding.hypothesisId === (void 0));
+        const selected: ToolBinding | undefined = exact[0] ?? layer[0];
         if (selected !== (void 0)) {
             return {
                 tool: selected.tool,
@@ -56,7 +58,7 @@ export const routeTool = (frame: DiagnosticFrame, bindings: readonly ToolBinding
             };
         }
     }
-    const fallback = bindings.find((binding) => binding.layer === "thread_pool") ?? bindings[0];
+    const fallback: ToolBinding | undefined = bindings.find((binding) => binding.layer === "thread_pool") ?? bindings[0];
     if (fallback === (void 0)) {
         return undefined;
     }
