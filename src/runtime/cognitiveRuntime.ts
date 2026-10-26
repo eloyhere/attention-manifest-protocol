@@ -13,6 +13,7 @@ import type { AgentReader } from "../process/agent.ts";
 import type { SocialReader } from "../ipc/social.ts";
 import type { AgentContext } from "../context/agentContext.ts";
 import { assembleAgentContext } from "../context/agentContext.ts";
+import { agentContextToAst } from "../context/projections.ts";
 import type { ScenarioMix, ScenarioPlan } from "../scenario/scenario.ts";
 import { resolveScenario } from "../scenario/scenario.ts";
 import type { InteractionMix, InteractionPlan } from "../interaction/interaction.ts";
@@ -34,7 +35,7 @@ import { RuntimeSession as RuntimeSessionClass } from "./session.ts";
 import type { SessionStore } from "./sessionStore.ts";
 import type { TelemetrySample, TelemetrySource } from "./telemetry.ts";
 import type { EscalationSink } from "./escalation.ts";
-import { CRISIS_RESOURCES } from "./escalation.ts";
+import { CrisisResources } from "./escalation.ts";
 import type { BehaviorPlan } from "./behavior.ts";
 import { BehaviorRegistry } from "./behavior.ts";
 import { BehaviorTuningController } from "./behaviorTuning.ts";
@@ -132,23 +133,35 @@ export interface CognitiveRuntimeOptions {
     receiptSink?: ReceiptSink;
     now?: () => string;
     useContext?: boolean;
+    /**
+     * Opt-in: render AgentContext through the AST summary view.
+     */
+    contextAst?: boolean;
     session?: RuntimeSession;
     sessionStore?: SessionStore;
     turnStore?: TurnStore;
     telemetry?: TelemetrySource;
     escalationSink?: EscalationSink;
     behaviors?: BehaviorRegistry;
-    /** Opt-in: attach a read-only diagnostic frame to engineering turns. */
+    /**
+     * Opt-in: attach a read-only diagnostic frame to engineering turns.
+     */
     diagnosis?: boolean;
-    /** Opt-in: apply bounded priority suggestions after each turn. Default false. */
+    /**
+     * Opt-in: apply bounded priority suggestions after each turn. Default false.
+     */
     autoTuneBehavior?: boolean;
     actionPlanner?: ActionPlanner;
-    /** Continue a truncated answer at most this many times. Defaults to 1. */
+    /**
+     * Continue a truncated answer at most this many times. Defaults to 1.
+     */
     maxContinuations?: number;
     tools?: ToolRegistry;
     toolExecutor?: ToolExecutor;
     toolPolicy?: ToolPolicy;
-    /** Maximum tool rounds per turn. Defaults to 4. */
+    /**
+     * Maximum tool rounds per turn. Defaults to 4.
+     */
     maxToolRounds?: number;
 }
 
@@ -160,7 +173,9 @@ export interface TurnOverride {
     correct?: boolean;
     safe?: boolean;
     helpful?: boolean;
-    /** Explicit prior scope; otherwise derived from session + primary scenario. */
+    /**
+     * Explicit prior scope; otherwise derived from session + primary scenario.
+     */
     scope?: string;
 }
 
@@ -195,18 +210,21 @@ const systemPrompt = (
     behavior: BehaviorPlan,
     useContext: boolean,
     diagnosisText?: string,
+    contextAstText?: string,
 ): string => {
     const contextText =
-        useContext && context !== undefined && context.segments.length > 0
-            ? `Relevant self-context:\n${context.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n")}`
-            : "";
+        contextAstText !== (void 0) && contextAstText.length > 0
+            ? `Relevant self-context (AST):\n${contextAstText}`
+            : useContext && context !== (void 0) && context.segments.length > 0
+              ? `Relevant self-context:\n${context.segments.map((segment) => `[${segment.kind}] ${segment.text}`).join("\n")}`
+              : "";
     return [
         STABLE_SYSTEM_PREFIX,
         `Scenario: ${scenario.rationale}`,
         `Interaction: ${interaction.rationale}`,
         `Attention: ${attention.process.effectiveSlots} slots; foreground ${attention.foreground?.slots ?? 0}; reserve ${attention.process.reserveSlots}; rest=${attention.rest}.`,
         ...(contextText.length > 0 ? [contextText] : []),
-        ...(diagnosisText === undefined || diagnosisText.length === 0 ? [] : [`Diagnostic context (summaries only):\n${diagnosisText}`]),
+        ...(diagnosisText === (void 0) || diagnosisText.length === 0 ? [] : [`Diagnostic context (summaries only):\n${diagnosisText}`]),
         ...interaction.guardrails,
         ...behavior.guardrails,
         "Answer the user's request directly. Mark uncertainty where it exists. Do not manipulate or induce dependency.",
@@ -235,8 +253,8 @@ export class CognitiveRuntime {
         const stored = options.sessionStore?.load(options.pid);
         this.session =
             options.session ??
-            (stored === undefined
-                ? options.sessionStore === undefined
+            (stored === (void 0)
+                ? options.sessionStore === (void 0)
                     ? undefined
                     : new RuntimeSessionClass({ id: `session.${options.pid}` })
                 : RuntimeSessionClass.restore(stored));
@@ -256,12 +274,14 @@ export class CognitiveRuntime {
         const turnId = this.session?.nextTurnId() ?? `rt.${++this.turnCounter}`;
         const trace: string[] = [];
         const sessionScope = this.session?.scope;
-        const userEngine = sessionScope === undefined ? this.bayes : (this.session?.engineFor(sessionScope) ?? this.bayes);
+        const userEngine = sessionScope === (void 0) ? this.bayes : (this.session?.engineFor(sessionScope) ?? this.bayes);
         const user = userEngine.scoreUser(input);
         const scenario = resolveScenario(override.scenarioMix ?? this.options.scenarioMix ?? inferScenarioMix(input));
-        const scope = override.scope ?? (this.session === undefined ? undefined : `${this.session.scope}:${scenario.active[0] ?? "mixed"}`);
-        const engine = scope === undefined || this.session === undefined ? this.bayes : this.session.engineFor(scope);
-        if (scope !== undefined) trace.push(`scope=${scope}`);
+        const scope = override.scope ?? (this.session === (void 0) ? undefined : `${this.session.scope}:${scenario.active[0] ?? "mixed"}`);
+        const engine = scope === (void 0) || this.session === (void 0) ? this.bayes : this.session.engineFor(scope);
+        if (scope !== (void 0)) {
+            trace.push(`scope=${scope}`);
+        }
         const interaction = resolveInteraction(override.interactionMix ?? this.options.interactionMix ?? inferInteractionMix(user));
         const state = override.attentionState ?? this.session?.state ?? this.baseState;
         const attention = planAttention(processAttention(this.options.pid, state), [
@@ -279,10 +299,13 @@ export class CognitiveRuntime {
             this.options.diagnosis === true && scenario.active.includes("engineering")
                 ? buildDiagnosisFrame({ id: turnId, summary: input, symptoms: [] })
                 : undefined;
-        const diagnosisContext = diagnosis === undefined ? undefined : toContextAst(diagnosis, 800);
-        if (diagnosis !== undefined) trace.push(`diagnosis=${diagnosis.id} scope=${diagnosisContext?.top?.hypothesis.layer ?? "open"}`);
-        const diagnosisAction = diagnosis === undefined ? undefined : toActionPlan(diagnosis);
-        const planned = diagnosisAction === undefined ? await this.actionPlanner.plan({ turnId, text: input, behavior, scenario, interaction }) : [diagnosisAction];
+        const diagnosisContext = diagnosis === (void 0) ? undefined : toContextAst(diagnosis, 800);
+        if (diagnosis !== (void 0)) {
+            trace.push(`diagnosis=${diagnosis.id} scope=${diagnosisContext?.top?.hypothesis.layer ?? "open"}`);
+        }
+        const diagnosisAction = diagnosis === (void 0) ? undefined : toActionPlan(diagnosis);
+        const planned =
+            diagnosisAction === (void 0) ? await this.actionPlanner.plan({ turnId, text: input, behavior, scenario, interaction }) : [diagnosisAction];
         const actions: ActionRecord[] = planned.slice(0, behavior.maxActionsPerTurn).map((action, index) => ({
             id: `act.${turnId}.${index + 1}`,
             turnId,
@@ -295,12 +318,16 @@ export class CognitiveRuntime {
             status: "planned",
             operationIds: [],
         }));
-        if (actions.length > 0) trace.push(`actions=${actions.map((action) => action.intent).join(",")}`);
+        if (actions.length > 0) {
+            trace.push(`actions=${actions.map((action) => action.intent).join(",")}`);
+        }
         const actionId = actions[0]?.id;
         const operations: OperationRecord[] = [];
         const approvals: ApprovalRecord[] = [];
         const restSuggested = this.session?.shouldRest() ?? attention.rest;
-        if (restSuggested) trace.push("rest suggested by attention/session policy");
+        if (restSuggested) {
+            trace.push("rest suggested by attention/session policy");
+        }
 
         const preSafety = checkSafety(input, interaction);
         if (preSafety.action === "escalate") {
@@ -310,14 +337,16 @@ export class CognitiveRuntime {
                 turnId,
                 at,
                 reason: preSafety.reasons.join("; "),
-                resources: [...CRISIS_RESOURCES],
+                resources: [...CrisisResources],
             });
-            trace.push(`safety=escalate; no LLM call${escalationId === undefined ? "" : `; escalation=${escalationId}`}`);
-            for (const action of actions) action.status = "abandoned";
+            trace.push(`safety=escalate; no LLM call${escalationId === (void 0) ? "" : `; escalation=${escalationId}`}`);
+            for (const action of actions) {
+                action.status = "abandoned";
+            }
             const turn: RuntimeTurn = {
                 turnId,
                 sessionId: this.session?.id,
-                ...(scope === undefined ? {} : { scope }),
+                ...(scope === (void 0) ? {} : { scope }),
                 pid: this.options.pid,
                 input,
                 at,
@@ -329,7 +358,7 @@ export class CognitiveRuntime {
                 restSuggested,
                 latencyMs: Date.now() - startedAt,
                 telemetry,
-                ...(escalationId === undefined ? {} : { escalationId }),
+                ...(escalationId === (void 0) ? {} : { escalationId }),
                 behavior,
                 actions,
                 operations,
@@ -341,7 +370,9 @@ export class CognitiveRuntime {
             this.turnStore?.save(turn);
             return turn;
         }
-        for (const action of actions) action.status = "running";
+        for (const action of actions) {
+            action.status = "running";
+        }
 
         const useContext = override.useContext ?? this.options.useContext ?? true;
         const context = assembleAgentContext(
@@ -352,13 +383,18 @@ export class CognitiveRuntime {
             { scenario, interaction },
         );
         trace.push(`context tokens=${context.tokens} mode=${scenario.mode}`);
+        const contextAstView = this.options.contextAst === true && useContext ? agentContextToAst(context).ast.view(800) : undefined;
+        if (contextAstView !== undefined) trace.push(`context ast tokens=${contextAstView.tokens} nodes=${contextAstView.nodes.length}`);
         const tools: LlmToolDefinition[] | undefined = this.options.tools?.list().map((tool) => ({
             name: tool.name,
             description: tool.description,
             inputSchema: tool.inputSchema,
         }));
         const messages: LlmMessage[] = [
-            { role: "system", content: systemPrompt(context, scenario, interaction, attention, behavior, useContext, diagnosisContext?.view.text) },
+            {
+                role: "system",
+                content: systemPrompt(context, scenario, interaction, attention, behavior, useContext, diagnosisContext?.view.text, contextAstView?.text),
+            },
             { role: "user", content: input },
         ];
         const baseRequest = {
@@ -366,7 +402,7 @@ export class CognitiveRuntime {
             messages,
             maxTokens: this.options.maxOutputTokens ?? 512,
             temperature: 0,
-            ...(tools === undefined ? {} : { tools }),
+            ...(tools === (void 0) ? {} : { tools }),
         };
         let response = await this.options.llm.complete(baseRequest);
         let usage: LlmUsage = { ...response.usage };
@@ -379,11 +415,11 @@ export class CognitiveRuntime {
             for (const call of response.toolCalls ?? []) {
                 const execution = await this.runTool(call);
                 const content = redactSecrets(execution.result.content);
-                const error = execution.result.error === undefined ? undefined : redactSecrets(execution.result.error);
+                const error = execution.result.error === (void 0) ? undefined : redactSecrets(execution.result.error);
                 const safeResult: ToolResult = {
                     ok: execution.result.ok,
                     content: content.text,
-                    ...(error === undefined ? {} : { error: error.text }),
+                    ...(error === (void 0) ? {} : { error: error.text }),
                 };
                 const operation: OperationRecord = {
                     id: `op.${turnId}.tool.${operations.length + 1}`,
@@ -394,11 +430,11 @@ export class CognitiveRuntime {
                     sideEffect: (execution.risk ?? "read") as SideEffect,
                     idempotencyKey: call.id,
                     status: safeResult.ok ? "ok" : "error",
-                    result: { content: safeResult.content.slice(0, 4000), ...(safeResult.error === undefined ? {} : { error: safeResult.error }) },
+                    result: { content: safeResult.content.slice(0, 4000), ...(safeResult.error === (void 0) ? {} : { error: safeResult.error }) },
                 };
                 operations.push(operation);
                 const risk = (execution.risk ?? "read") as SideEffect;
-                if (risk === "destructive" || (execution.decision !== undefined && execution.decision !== "allowed")) {
+                if (risk === "destructive" || (execution.decision !== (void 0) && execution.decision !== "allowed")) {
                     approvals.push({
                         operationId: operation.id,
                         tool: call.name,
@@ -415,12 +451,14 @@ export class CognitiveRuntime {
                     arguments: call.arguments,
                     ok: safeResult.ok,
                     content: safeResult.content.slice(0, 4000),
-                    ...(safeResult.error === undefined ? {} : { error: safeResult.error }),
-                    ...(execution.risk === undefined ? {} : { risk: execution.risk }),
-                    ...(execution.decision === undefined ? {} : { decision: execution.decision }),
+                    ...(safeResult.error === (void 0) ? {} : { error: safeResult.error }),
+                    ...(execution.risk === (void 0) ? {} : { risk: execution.risk }),
+                    ...(execution.decision === (void 0) ? {} : { decision: execution.decision }),
                     redacted: content.redacted || (error?.redacted ?? false),
                 });
-                if (actionId !== undefined) actions[0]?.operationIds.push(operation.id);
+                if (actionId !== (void 0)) {
+                    actions[0]?.operationIds.push(operation.id);
+                }
                 messages.push({
                     role: "tool",
                     content: JSON.stringify(safeResult).slice(0, 4000),
@@ -431,7 +469,9 @@ export class CognitiveRuntime {
             response = await this.options.llm.complete({ ...baseRequest, messages });
             usage = mergeUsage(usage, response.usage);
         }
-        if (toolCalls.length > 0) trace.push(`tools=${toolCalls.map((call) => `${call.name}:${call.ok ? "ok" : "error"}`).join(",")}`);
+        if (toolCalls.length > 0) {
+            trace.push(`tools=${toolCalls.map((call) => `${call.name}:${call.ok ? "ok" : "error"}`).join(",")}`);
+        }
 
         let text = response.text;
         let finishReason = response.finishReason;
@@ -475,25 +515,29 @@ export class CognitiveRuntime {
             result: { finishReason, toolRounds, continuations, usage },
         };
         operations.push(llmOperation);
-        if (actionId !== undefined) actions[0]?.operationIds.push(llmOperation.id);
+        if (actionId !== (void 0)) {
+            actions[0]?.operationIds.push(llmOperation.id);
+        }
         trace.push(`operations=${operations.map((operation) => `${operation.kind}:${operation.status}`).join(",")}`);
         const postSafety = checkSafety(input, interaction, text);
         const answer = postSafety.action === "allow" ? text : safetyFallback(postSafety.action);
         const answerScore = engine.scoreAnswer(answer, {
-            ...(override.correct === undefined ? {} : { correct: override.correct }),
-            ...(override.safe === undefined ? {} : { safe: override.safe }),
-            ...(override.helpful === undefined ? {} : { helpful: override.helpful }),
+            ...(override.correct === (void 0) ? {} : { correct: override.correct }),
+            ...(override.safe === (void 0) ? {} : { safe: override.safe }),
+            ...(override.helpful === (void 0) ? {} : { helpful: override.helpful }),
             targetTokens: (this.options.maxOutputTokens ?? 512) * (1 + continuations),
         });
         trace.push(`answer overall=${answerScore.overall.toFixed(2)} correctness=${answerScore.dimensions.correctness.mean.toFixed(2)}`);
         const latencyMs = Date.now() - startedAt;
         const toolErrors = toolCalls.filter((call) => !call.ok).length;
-        for (const action of actions) action.status = "done";
-        if (this.session !== undefined) {
+        for (const action of actions) {
+            action.status = "done";
+        }
+        if (this.session !== (void 0)) {
             this.session.record({
                 turnId,
                 at,
-                ...(scope === undefined ? {} : { scope }),
+                ...(scope === (void 0) ? {} : { scope }),
                 user,
                 answerScore,
                 attention,
@@ -505,12 +549,14 @@ export class CognitiveRuntime {
                 actions,
                 operations,
                 approvals,
-                ...(diagnosis === undefined ? {} : { diagnosis }),
+                ...(diagnosis === (void 0) ? {} : { diagnosis }),
             });
             this.sessionStore?.save(this.options.pid, this.session.serialize(), at);
             if (this.options.autoTuneBehavior === true) {
                 const tuned = this.behaviorTuning.autoApply(this.session.behaviorConflicts, { enabled: true });
-                if (tuned.applied > 0) trace.push(`behavior tuning v${tuned.version}: ${tuned.applied} priorities`);
+                if (tuned.applied > 0) {
+                    trace.push(`behavior tuning v${tuned.version}: ${tuned.applied} priorities`);
+                }
             }
             trace.push(`session turns=${this.session.history.length} recoveryDebt=${this.session.state.recoveryDebt.toFixed(2)}`);
         }
@@ -527,7 +573,7 @@ export class CognitiveRuntime {
         const turn: RuntimeTurn = {
             turnId,
             sessionId: this.session?.id,
-            ...(scope === undefined ? {} : { scope }),
+            ...(scope === (void 0) ? {} : { scope }),
             pid: this.options.pid,
             input,
             at,
@@ -549,7 +595,7 @@ export class CognitiveRuntime {
             ...(actions.length === 0 ? {} : { actions }),
             ...(operations.length === 0 ? {} : { operations }),
             ...(approvals.length === 0 ? {} : { approvals }),
-            ...(diagnosis === undefined ? {} : { diagnosis }),
+            ...(diagnosis === (void 0) ? {} : { diagnosis }),
             safety: postSafety,
             receiptId: receipt.id,
             trace,
@@ -558,18 +604,22 @@ export class CognitiveRuntime {
         return turn;
     }
 
-    /** Retain persisted session state but mark it archived. */
+    /**
+     * Retain persisted session state but mark it archived.
+     */
     archiveSession(at: string): boolean {
         return this.sessionStore?.archive(this.options.pid, at) ?? false;
     }
 
-    /** Remove persisted session state when the agent is deleted/archived. */
+    /**
+     * Remove persisted session state when the agent is deleted/archived.
+     */
     deleteSession(): boolean {
         return this.sessionStore?.delete(this.options.pid) ?? false;
     }
 
     private async runTool(call: { name: string; arguments: string }): Promise<ToolExecution> {
-        if (this.options.toolExecutor === undefined) {
+        if (this.options.toolExecutor === (void 0)) {
             return { result: { ok: false, content: "", error: "no tool executor configured" } };
         }
         let args: Record<string, unknown>;
@@ -579,9 +629,11 @@ export class CognitiveRuntime {
             return { result: { ok: false, content: "", error: `invalid tool arguments: ${error instanceof Error ? error.message : `${error}`}` } };
         }
         const descriptor = this.options.tools?.get(call.name);
-        if (descriptor === undefined) return { result: { ok: false, content: "", error: `unknown tool ${call.name}` } };
+        if (descriptor === (void 0)) {
+            return { result: { ok: false, content: "", error: `unknown tool ${call.name}` } };
+        }
         let decision = "allowed";
-        if (this.options.toolPolicy !== undefined) {
+        if (this.options.toolPolicy !== (void 0)) {
             const verdict = await this.options.toolPolicy.check({ tool: call.name, args }, descriptor);
             decision = verdict.allowed ? "allowed" : (verdict.reason ?? `tool ${call.name} denied`);
             if (!verdict.allowed) {

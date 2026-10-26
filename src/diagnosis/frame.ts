@@ -1,4 +1,4 @@
-import { LAYER_ORDER, clamp01 } from "./types.ts";
+import { LayerOrder, clamp01 } from "./types.ts";
 import type {
     DiagnosticFrame,
     DiagnosticLayer,
@@ -13,7 +13,7 @@ import { stepsFor } from "./checklist.ts";
 import type { PlanTask } from "../goal/plan.ts";
 import type { ActionPlan } from "../runtime/action.ts";
 
-export const DEFAULT_HYPOTHESES: readonly Hypothesis[] = [
+export const DefaultHypotheses: readonly Hypothesis[] = [
     {
         id: "thread_pool_exhaustion",
         cause: "worker threads are exhausted or blocked",
@@ -152,18 +152,20 @@ export const assessHypotheses = (frame: DiagnosticFrame): HypothesisAssessment[]
 export const selectHypothesis = (frame: DiagnosticFrame): HypothesisAssessment | undefined => assessHypotheses(frame)[0];
 
 export const buildDiagnosisFrame = (incident: IncidentInput): DiagnosticFrame => {
-    const layers = incident.layers ?? LAYER_ORDER;
+    const layers = incident.layers ?? LayerOrder;
     return {
         id: `diag.${incident.id}`,
         incident,
         layers: [...layers],
-        hypotheses: DEFAULT_HYPOTHESES.map((hypothesis) => ({ ...hypothesis })),
+        hypotheses: DefaultHypotheses.map((hypothesis) => ({ ...hypothesis })),
         steps: stepsFor(layers),
         phase: (incident.signals?.length ?? 0) > 0 ? "observing" : "framing",
     };
 };
 
-/** Add an observation without mutating the original frame. */
+/**
+ * Add an observation without mutating the original frame.
+ */
 export const observe = (frame: DiagnosticFrame, signal: DiagnosticSignal): DiagnosticFrame => ({
     ...frame,
     incident: { ...frame.incident, signals: [...(frame.incident.signals ?? []), signal] },
@@ -210,7 +212,9 @@ export const validateDiagnosisFrame = (frame: DiagnosticFrame): string[] => {
     return problems;
 };
 
-/** Render the next diagnostic step as a bounded, read-only ActionPlan. */
+/**
+ * Render the next diagnostic step as a bounded, read-only ActionPlan.
+ */
 export const toActionPlan = (frame: DiagnosticFrame): ActionPlan | undefined => {
     const step = routeStep(frame);
     if (step === (void 0)) {
@@ -226,7 +230,9 @@ export const toActionPlan = (frame: DiagnosticFrame): ActionPlan | undefined => 
     };
 };
 
-/** Render diagnostic steps as existing PlanTasks (all irreversibility 0). */
+/**
+ * Render diagnostic steps as existing PlanTasks (all irreversibility 0).
+ */
 export const toPlanTasks = (frame: DiagnosticFrame): PlanTask[] =>
     frame.steps.map((step, index) => ({
         id: step.id,
@@ -238,7 +244,9 @@ export const toPlanTasks = (frame: DiagnosticFrame): PlanTask[] =>
         status: "pending",
     }));
 
-/** Select the layer that best explains the current evidence, with an explicit reason. */
+/**
+ * Select the layer that best explains the current evidence, with an explicit reason.
+ */
 export const selectLayer = (frame: DiagnosticFrame): { layer: DiagnosticLayer | null; reason: string } => {
     const top = selectHypothesis(frame);
     if (top === (void 0)) {

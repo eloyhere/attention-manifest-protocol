@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Diagnostic frame: layer checklist, hypothesis discrimination, PlanTask bridge. */
+/**
+ * Diagnostic frame: layer checklist, hypothesis discrimination, PlanTask bridge.
+ */
 import assert from "node:assert/strict";
 
 import {

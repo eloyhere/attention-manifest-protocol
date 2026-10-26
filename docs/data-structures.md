@@ -187,10 +187,32 @@ nodes=25 uniqueDetails=13 hits=1 misses=2 viewTokens=289
 
 Bloom/Cuckoo 暂不默认接入：当前规模下 exact map 已经够，负查询成本没有 profile 证据。
 
-## 10. 下一步
+## 10. 投影与路由验证
 
-1. 把 `ContextAst` 接进 `AgentContext` 渲染；
-2. 把 `DiagnosticFrame` 存到 `RuntimeTurn`/`Session`；
+`AgentContext` / `ContextWindow` 已能投影到同一 AST 形状：
+
+```text
+agentNodes=12 windowNodes=3
+agentView=177 windowView=40
+```
+
+Runtime 增加显式 `contextAst: true` 开关：通用 turn 的 self/role/memory 也通过 AST summary view 进入 system prompt；默认仍走旧渲染。
+
+诊断工具路由按 top hypothesis，而不是静态层顺序：
+
+```text
+payment -> pg_stat_statements
+lock-only -> pg_locks
+queue -> queue_lag
+cold/unknown -> thread_dump (read-only fallback)
+```
+
+这修正了之前 `toActionPlan` 固定返回 `thread_pool` 的问题。
+
+## 11. 下一步
+
+1. 把 `ContextAst` 接进 `AgentContext` 渲染（投影已就绪，默认路径还未切换）；
+2. 把 `DiagnosticFrame` 存到 `RuntimeTurn`/`Session`（已接）；
 3. 把 `PlanTask` 接到 runtime 的 `ActionPlanner`；
 4. 用 `ObjectRepository` 替换 `FileContentStore` 的生产路径；
 5. 增加 `supports/contradicts` edge，从 evidence 自动生成；

@@ -121,7 +121,9 @@ export const agentContextToAst = (context: AgentContext, details: DetailStore = 
     return { ast, details };
 };
 
-/** Project a paged window; page content is the summary, page id is the ref. */
+/**
+ * Project a paged window; page content is the summary, page id is the ref.
+ */
 export const windowToAst = (window: ContextWindow): ContextAst => {
     const ast = new ContextAst();
     ast.add({

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** AgentContext/ContextWindow -> ContextAst projections. */
+/**
+ * AgentContext/ContextWindow -> ContextAst projections.
+ */
 import assert from "node:assert/strict";
 
 import { MemoryDetailStore } from "../src/context/ast.ts";

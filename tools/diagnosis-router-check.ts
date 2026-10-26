@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-/** Evidence-aware tool routing, not static checklist order. */
+/**
+ * Evidence-aware tool routing, not static checklist order.
+ */
 import assert from "node:assert/strict";
 
 import { buildDiagnosisFrame, routeTool } from "../src/diagnosis/index.ts";

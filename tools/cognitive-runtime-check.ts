@@ -40,7 +40,9 @@ class RecordingLlm implements LlmClient {
     async complete(request: LlmRequest): Promise<LlmResponse> {
         this.requests.push(request);
         const response = this.responses.shift();
-        if (response === undefined) throw new Error("recording LLM has no response left");
+        if (response === (void 0)) {
+            throw new Error("recording LLM has no response left");
+        }
         return response;
     }
 }
@@ -102,12 +104,12 @@ test("emotional turn goes through affect context, LLM and answer scoring", async
         true,
     );
     assert.equal(turn.actions?.[0].intent, "acknowledge_then_converge");
-    assert.equal(turn.context === undefined, false);
+    assert.equal(turn.context === (void 0), false);
     assert.equal((turn.context?.tokens ?? 0) <= 600, true);
     assert.equal(llm.requests.length, 1);
     assert.equal(llm.requests[0].messages[0].content.includes("Scenario:"), true);
     assert.equal(llm.requests[0].messages[0].content.includes("Interaction:"), true);
-    assert.equal(turn.answerScore?.overall !== undefined, true);
+    assert.equal(turn.answerScore?.overall !== (void 0), true);
     assert.equal(turn.safety.action, "allow");
     assert.equal(turn.receiptId, "rc.runtime.1");
     assert.equal(sink.receipts.length, 1);
@@ -180,10 +182,10 @@ test("technical turn selects an engineering scenario and uses context", async ()
     assert.equal(turn.scenario.active.includes("engineering"), true);
     assert.equal(turn.interaction.primary, "think");
     assert.equal(turn.actions?.[0].intent, "respond");
-    assert.equal(turn.context === undefined, false);
+    assert.equal(turn.context === (void 0), false);
     assert.equal(llm.requests[0].messages[0].content.includes("Relevant self-context"), true);
     assert.equal(llm.requests[0].messages[0].content.startsWith("You are an AI agent modeled as a person."), true);
-    assert.equal(turn.answerScore?.dimensions.correctness.mean !== undefined, true);
+    assert.equal(turn.answerScore?.dimensions.correctness.mean !== (void 0), true);
 });
 
 test("crisis text is escalated without calling the model", async () => {
@@ -225,7 +227,7 @@ test("diagnosis language is refused when the interaction forbids it", async () =
     const turn = await runtime.respond("I feel low. What is wrong with me?", { interactionMix: { affect: 1 } });
     assert.equal(turn.safety.action, "refuse");
     assert.equal(turn.answer.includes("cannot help with that framing"), true);
-    assert.equal(turn.answerScore !== undefined, true);
+    assert.equal(turn.answerScore !== (void 0), true);
 });
 
 test("useContext=false removes self-context from the prompt", async () => {
@@ -434,7 +436,7 @@ test("tool result secrets are redacted before the second model call", async () =
     assert.equal(
         turn.operations?.some(
             (operation) =>
-                operation.kind === "tool.call" && String((operation.result as { content?: string }).content ?? "").includes("sk-abcdefghijklmnop123456"),
+                operation.kind === "tool.call" && `${(operation.result as { content?: string }).content ?? ""}`.includes("sk-abcdefghijklmnop123456"),
         ),
         false,
     );
@@ -489,6 +491,23 @@ test("destructive tool is blocked without approval", async () => {
     assert.match(turn.toolCalls?.[0].error ?? "", /requires approval/);
     assert.equal(turn.approvals?.[0]?.risk, "destructive");
     assert.equal(turn.approvals?.[0]?.status, "denied");
+});
+
+test("contextAst opt-in renders AgentContext through the AST summary view", async () => {
+    const service = setup();
+    const llm = new RecordingLlm([response("answer")]);
+    const runtime = new CognitiveRuntime({
+        pid: 1,
+        agent: service.agents,
+        social: service.social,
+        llm,
+        now: () => At,
+        contextAst: true,
+    });
+    await runtime.respond("What matters here?", { interactionMix: { think: 1 } });
+    const system = llm.requests[0].messages[0].content;
+    assert.match(system, /Relevant self-context \(AST\)/);
+    assert.match(system, /agent\.context/);
 });
 
 test("session suggests rest and reset clears the cycle counter", async () => {
@@ -570,4 +589,6 @@ for (const [name, fn] of tests) {
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) process.exitCode = 1;
+if (failed > 0) {
+    process.exitCode = 1;
+}

@@ -226,7 +226,7 @@ const llm = DeepSeekLlm.fromEnv();
 
 ## 5. 测试
 
-- `tools/cognitive-runtime-check.ts`：**16/16**
+- `tools/cognitive-runtime-check.ts`：**18/18**
   - 情感/技术回合、context、安全；
   - behavior activation + action intent；
   - session 记录 + feedback 更新先验；

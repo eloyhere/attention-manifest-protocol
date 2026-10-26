@@ -27,7 +27,7 @@ export interface ToolRoute {
     reason: string;
 }
 
-export const DEFAULT_TOOL_BINDINGS: readonly ToolBinding[] = [
+export const DefaultToolBindings: readonly ToolBinding[] = [
     { layer: "thread_pool", tool: "thread_dump", intent: "inspect", readOnly: true, produces: "profile" },
     { layer: "connection_pool", tool: "pool_stats", intent: "inspect", readOnly: true, produces: "metric" },
     { layer: "connect", tool: "connect_stats", intent: "inspect", readOnly: true, produces: "metric" },
@@ -39,7 +39,7 @@ export const DEFAULT_TOOL_BINDINGS: readonly ToolBinding[] = [
     { layer: "release", tool: "version_diff", intent: "inspect", readOnly: true, produces: "log" },
 ];
 
-export const routeTool = (frame: DiagnosticFrame, bindings: readonly ToolBinding[] = DEFAULT_TOOL_BINDINGS, minConfidence = 0.5): ToolRoute | undefined => {
+export const routeTool = (frame: DiagnosticFrame, bindings: readonly ToolBinding[] = DefaultToolBindings, minConfidence = 0.5): ToolRoute | undefined => {
     const top = selectHypothesis(frame);
     if (top !== (void 0) && top.confidence >= minConfidence) {
         const exact = bindings.filter((binding) => binding.layer === top.hypothesis.layer && binding.hypothesisId === top.hypothesis.id);
