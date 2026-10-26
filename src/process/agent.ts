@@ -24,6 +24,7 @@ export type AgentErrorCode =
     | "memory_not_found"
     | "invalid_memory"
     | "invalid_affect"
+    | "relationship_not_found"
     | "institution_not_found";
 
 /** Summary of the current person; the narrative version is stored separately. */

@@ -98,6 +98,9 @@ Node 的事件循环是单线程的，但 `worker_threads` 可以共享同一个
 - **wiring**：`Kernel.step` 在 handler 前从 `window_pages` 恢复窗口，handler 之后在同一事务里写回；handler 可通过 `StepContext.window` 访问。寻址空间方面，`attachObject` 映射对象，`readProcessObject` 对 `mapped` 页检查 capability，`forkProcess` 只继承只读视图，`joinProcess` 合并子进程自己的对象。
 - **mailbox**：`Mailbox.send` 要求接收方 mailbox 的 `send` 能力，容量满时抛 `mailbox_full`；`receive` 写 `read` 回执并唤醒 `mailbox:<pid>` 条件。
 - **agent facets**：`process` 就是 agent/person；`src/process/agent.ts` 拥有 profile、self narrative、roles、memories、affect、background、life events，`src/context/agentContext.ts` 按预算装配。`Kernel.step` 通过 `KernelOptions.agentContext` 注入 `StepContext.agentContext`，不依赖具体存储；`src/ipc/social.ts` 拥有 relationship/institution/membership。
+- **execution port**：`Kernel` 只依赖 `ExecutionStore`（`src/process/executionStore.ts`）；默认 `ProcessExecutionStore` 适配现有 process/thread 状态机。kernel 已无 `.prepare`，下一阶段把适配器内部换成 `TableSql`。
+- **async step**：`Kernel.stepAsync(handler, taskId?)` 允许 handler await 模型/工具，也可精确指定 task；认领与提交各自短事务，等待期间只发 worker heartbeat，不持有 `BEGIN IMMEDIATE`。
+- **attention**：`KernelOptions.attention` 注入 `AttentionPlan`（`src/attention/resource.ts`）；`StepContext.attention` 携带进程容量、线程分配、reserve 与 rest。内核暴露计划但不强制休息，详见 `docs/attention.md`。
 
 ## 8. 注册表：概念与模块即数据
 

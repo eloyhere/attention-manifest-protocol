@@ -372,4 +372,47 @@ CREATE TABLE IF NOT EXISTS life_events (
     narrative_version INTEGER
 );
 CREATE INDEX IF NOT EXISTS life_events_pid ON life_events(pid, at DESC);
+
+/* Transactional outbox for runtime receipts/events. Rows are written by the
+   application transaction and dispatched later; this keeps the runtime sink
+   observable without making the domain depend on SQLite. */
+CREATE TABLE IF NOT EXISTS outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    dispatched_at TEXT
+);
+CREATE INDEX IF NOT EXISTS outbox_pending ON outbox(dispatched_at, id);
+
+/* Runtime session snapshots (attention state + priors + history). */
+CREATE TABLE IF NOT EXISTS runtime_sessions (
+    pid INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+/* Queryable turn snapshots (JSON includes actions/operations/behavior). */
+CREATE TABLE IF NOT EXISTS runtime_turns (
+    id TEXT PRIMARY KEY,
+    pid INTEGER NOT NULL,
+    session_id TEXT,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS runtime_turns_pid ON runtime_turns(pid, created_at DESC);
+
+/* Independent approval audit rows; the outbox carries the dispatch copy. */
+CREATE TABLE IF NOT EXISTS runtime_approvals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pid INTEGER NOT NULL,
+    turn_id TEXT NOT NULL,
+    operation_id TEXT NOT NULL,
+    tool TEXT NOT NULL,
+    risk TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS runtime_approvals_pid ON runtime_approvals(pid, id DESC);
 `;

@@ -1,0 +1,4230 @@
+{
+  "generatedAt": "2026-10-26T19:03:51.999Z",
+  "kind": "runtime-eval",
+  "model": "ScriptedLlm",
+  "cases": [
+    {
+      "id": "arith-0",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "3",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-1",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "10",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-2",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "5",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-3",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "13",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-4",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "8",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-5",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "16",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-6",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "11",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-7",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-8",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "14",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-9",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "22",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-10",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "18",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-11",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "25",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-12",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "20",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-13",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "15",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-14",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "23",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-15",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "18",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-16",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "26",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-17",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "21",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-18",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-19",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-20",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "33",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-21",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "27",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-22",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "35",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-23",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "30",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-24",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "38",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-25",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "33",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-26",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "28",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-27",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "36",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-28",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "31",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-29",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "39",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-30",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "35",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-31",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "42",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-32",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "37",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-33",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "45",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-34",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "40",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-35",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "48",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-36",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "43",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-37",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "51",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-38",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "46",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-39",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "41",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-40",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "50",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-41",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-42",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "52",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-43",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "47",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-44",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "55",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-45",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "50",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-46",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "58",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-47",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "53",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-48",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "61",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "arith-49",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "56",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-0",
+      "category": "unique-rows",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "20",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-1",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-2",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-3",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-4",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-5",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-6",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-7",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-8",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-9",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-10",
+      "category": "unique-rows",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "30",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-11",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-12",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-13",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-14",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-15",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "34",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-16",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "34",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-17",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "34",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-18",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "34",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-19",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "34",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-20",
+      "category": "unique-rows",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "40",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-21",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "39",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-22",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "39",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-23",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "39",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-24",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "39",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-25",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-26",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-27",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-28",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-29",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "44",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-30",
+      "category": "unique-rows",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "50",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-31",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "49",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-32",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "49",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-33",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "49",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-34",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "49",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-35",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "54",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-36",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "54",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-37",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "54",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-38",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "54",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "unique-39",
+      "category": "unique-rows",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "54",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-0",
+      "category": "syllogism",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "yes",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-1",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-2",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-3",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-4",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-5",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-6",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-7",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-8",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-9",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-10",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-11",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-12",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-13",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-14",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-15",
+      "category": "syllogism",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "yes",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-16",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-17",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-18",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-19",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-20",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-21",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-22",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-23",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-24",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-25",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-26",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-27",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-28",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "syllogism-29",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "no",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5035382723871261,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-0",
+      "category": "memory",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "code-1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-1",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-2",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-2",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-3",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-3",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-4",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-4",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-5",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-5",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-6",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-6",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-7",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-7",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-8",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-8",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-9",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-9",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-10",
+      "category": "memory",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "code-11",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-11",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-11",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-12",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-12",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-13",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-13",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-14",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-14",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-15",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-15",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-16",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-16",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-17",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-17",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-18",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-18",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-19",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-19",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-20",
+      "category": "memory",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "code-21",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-21",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-21",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-22",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-22",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-23",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-23",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-24",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-24",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-25",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-25",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-26",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-26",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-27",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-27",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-28",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-28",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "memory-29",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "code-29",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 12,
+      "rest": false,
+      "scenario": [
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-0",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-1",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-2",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-3",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-4",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-5",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-6",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-7",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-8",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-9",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-10",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-11",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-12",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-13",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-14",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-15",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-16",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-17",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-18",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-19",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-20",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-21",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-22",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-23",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-24",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-25",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-26",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-27",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-28",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "role-29",
+      "category": "role",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "Analyst; ground claims in evidence",
+      "predictedCorrectness": 0.5085995085995085,
+      "answerOverall": 0.5072594599164431,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-0",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-1",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-2",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-3",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-4",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-5",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-6",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-7",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-8",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-9",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-10",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-11",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-12",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-13",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-14",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-15",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-16",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-17",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-18",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "attention-19",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "2 foreground slots; safety floor 1",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.512225694417802,
+      "tokens": 19,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-0",
+      "category": "bayes",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "8.3%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-1",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-2",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-3",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-4",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-5",
+      "category": "bayes",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "8.3%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-6",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-7",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-8",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-9",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-10",
+      "category": "bayes",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "8.3%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-11",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-12",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-13",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-14",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-15",
+      "category": "bayes",
+      "actual": false,
+      "humanLabel": null,
+      "answer": "8.3%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-16",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-17",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-18",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    },
+    {
+      "id": "bayes-19",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": null,
+      "answer": "7.5%",
+      "predictedCorrectness": 0.51278928136419,
+      "answerOverall": 0.5065686319907432,
+      "tokens": 11,
+      "rest": false,
+      "scenario": [
+        "chat",
+        "writing",
+        "office",
+        "collaboration",
+        "engineering"
+      ],
+      "interaction": "think"
+    }
+  ],
+  "metrics": {
+    "totalCases": 220,
+    "accuracy": 0.9181818181818182,
+    "ece": 0.4065352021170867,
+    "brier": 0.24050912323431942,
+    "oracleEce": 0.22222222222222549,
+    "oracleBrier": 0.049382716049382894,
+    "totalTokens": 2850,
+    "averageTokens": 12.954545454545455,
+    "approximateCostUsd": 0.00042749999999999993,
+    "restRate": 0,
+    "averageAnswerOverall": 0.5067638833462151,
+    "humanLabeled": 0,
+    "humanLabelAccuracy": null
+  },
+  "categories": [
+    {
+      "category": "arithmetic",
+      "total": 50,
+      "accuracy": 0.9,
+      "ece": 0.38721071863581036
+    },
+    {
+      "category": "unique-rows",
+      "total": 40,
+      "accuracy": 0.9,
+      "ece": 0.38721071863581014
+    },
+    {
+      "category": "syllogism",
+      "total": 30,
+      "accuracy": 0.9333333333333333,
+      "ece": 0.42473382473382437
+    },
+    {
+      "category": "memory",
+      "total": 30,
+      "accuracy": 0.9,
+      "ece": 0.3872107186358098
+    },
+    {
+      "category": "role",
+      "total": 30,
+      "accuracy": 1,
+      "ece": 0.491400491400491
+    },
+    {
+      "category": "attention",
+      "total": 20,
+      "accuracy": 1,
+      "ece": 0.4872107186358099
+    },
+    {
+      "category": "bayes",
+      "total": 20,
+      "accuracy": 0.8,
+      "ece": 0.28721071863580994
+    }
+  ],
+  "textBins": [
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 220,
+      "confidence": 112.56225553424092,
+      "accuracy": 202
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    }
+  ],
+  "oracleBins": [
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 18,
+      "confidence": 4.000000000000001,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 202,
+      "confidence": 157.1111111111104,
+      "accuracy": 202
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    },
+    {
+      "n": 0,
+      "confidence": 0,
+      "accuracy": 0
+    }
+  ]
+}

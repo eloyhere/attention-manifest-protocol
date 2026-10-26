@@ -1,3 +1,7 @@
 export * from "./llm/llm.ts";
+export * from "./llm/deepseek.ts";
 export * from "./tool/tool.ts";
+export * from "./tool/policy.ts";
+export * from "./tool/redact.ts";
+export * from "./tool/mcpExecutor.ts";
 export * from "./sandbox/sandbox.ts";

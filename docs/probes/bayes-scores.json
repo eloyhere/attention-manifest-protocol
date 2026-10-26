@@ -1,0 +1,1452 @@
+{
+  "source": "2026-10-26T14:53:23.277Z",
+  "model": "deepseek-flash",
+  "runs": [
+    {
+      "task": "unique-rows",
+      "suite": "objective",
+      "condition": "bare",
+      "correct": true,
+      "tokens": 46,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5438996579247434,
+        "context": 0.5154451847365233,
+        "emotion": 0.50336757602558,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5446395418224402
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8168863479647814,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "syllogism",
+      "suite": "objective",
+      "condition": "bare",
+      "correct": true,
+      "tokens": 44,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5154451847365233,
+        "emotion": 0.5189003436426117,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5353064288542742
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8013356438171537,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "array-expression",
+      "suite": "objective",
+      "condition": "bare",
+      "correct": true,
+      "tokens": 62,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.574468085106383,
+        "context": 0.5158850226928896,
+        "emotion": 0.5109416445623343,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5539640132616603
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747064987996912
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8275989051300864,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "incident-minutes",
+      "suite": "objective",
+      "condition": "bare",
+      "correct": true,
+      "tokens": 53,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5712754555198285,
+        "context": 0.5167623074599819,
+        "emotion": 0.5028614370772877,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5533132740541762
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8279378947924738,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "bayes",
+      "suite": "objective",
+      "condition": "bare",
+      "correct": false,
+      "tokens": 66,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5580110497237568,
+        "context": 0.5198079231692677,
+        "emotion": 0.5036669382917254,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5503999178136048
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.4339268672052512
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8224710322311577,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "memory-penalty",
+      "suite": "context",
+      "condition": "bare",
+      "correct": false,
+      "tokens": 44,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5020799193243415,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5,
+        "coherence": 0.48015780923648177,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.4320345577282153
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.7995840161351317,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "role-obligation",
+      "suite": "context",
+      "condition": "bare",
+      "correct": false,
+      "tokens": 60,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5023460827527371,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5,
+        "coherence": 0.5105458058283691,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.43583305730220123
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.7995307834494526,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "attention-slots",
+      "suite": "context",
+      "condition": "bare",
+      "correct": false,
+      "tokens": 59,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5158850226928896,
+        "emotion": 0.501889385091034,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5354603721390024
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5,
+        "coherence": 0.5120761161258844,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.4360243460893906
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8047378355274692,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "stress-level",
+      "suite": "context",
+      "condition": "bare",
+      "correct": false,
+      "tokens": 34,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5118974984746797,
+        "emotion": 0.5034861609972533,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5340647386626289
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.4339268672052512
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8044184803462253,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "fabrication",
+      "suite": "context",
+      "condition": "bare",
+      "correct": true,
+      "tokens": 38,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5249406175771971,
+        "context": 0.5198079231692677,
+        "emotion": 0.5027349577324713,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5404787881696369
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8094292554843846,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "unique-rows",
+      "suite": "objective",
+      "condition": "person",
+      "correct": true,
+      "tokens": 239,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5438996579247434,
+        "context": 0.5154451847365233,
+        "emotion": 0.50336757602558,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5446395418224402
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8168863479647814,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "syllogism",
+      "suite": "objective",
+      "condition": "person",
+      "correct": true,
+      "tokens": 237,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5154451847365233,
+        "emotion": 0.5189003436426117,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5353064288542742
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8013356438171537,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "array-expression",
+      "suite": "objective",
+      "condition": "person",
+      "correct": true,
+      "tokens": 255,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.574468085106383,
+        "context": 0.5158850226928896,
+        "emotion": 0.5109416445623343,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5539640132616603
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747064987996912
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8275989051300864,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "incident-minutes",
+      "suite": "objective",
+      "condition": "person",
+      "correct": true,
+      "tokens": 246,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5712754555198285,
+        "context": 0.5167623074599819,
+        "emotion": 0.5028614370772877,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5533132740541762
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8279378947924738,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "bayes",
+      "suite": "objective",
+      "condition": "person",
+      "correct": false,
+      "tokens": 259,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5580110497237568,
+        "context": 0.5198079231692677,
+        "emotion": 0.5036669382917254,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5503999178136048
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.4339268672052512
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8224710322311577,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "memory-penalty",
+      "suite": "context",
+      "condition": "person",
+      "correct": true,
+      "tokens": 240,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5020799193243415,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.48015780923648177,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5709234466171044
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.7995840161351317,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "role-obligation",
+      "suite": "context",
+      "condition": "person",
+      "correct": true,
+      "tokens": 249,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5023460827527371,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.508185397527112,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.574426895153433
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.7995307834494526,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "attention-slots",
+      "suite": "context",
+      "condition": "person",
+      "correct": false,
+      "tokens": 243,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5158850226928896,
+        "emotion": 0.501889385091034,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5354603721390024
+      },
+      "answer": {
+        "correctness": 0.2222222222222222,
+        "grounding": 0.5,
+        "coherence": 0.5092024539877301,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.43566513832212134
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8047378355274692,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "stress-level",
+      "suite": "context",
+      "condition": "person",
+      "correct": true,
+      "tokens": 229,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5118974984746797,
+        "emotion": 0.5034861609972533,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5340647386626289
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8044184803462253,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "fabrication",
+      "suite": "context",
+      "condition": "person",
+      "correct": true,
+      "tokens": 231,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5249406175771971,
+        "context": 0.5198079231692677,
+        "emotion": 0.5027349577324713,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5404787881696369
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": null,
+      "fit": {
+        "think": 0.8094292554843846,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "unique-rows",
+      "suite": "objective",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 310,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5438996579247434,
+        "context": 0.5154451847365233,
+        "emotion": 0.50336757602558,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5446395418224402
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8168863479647814,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "syllogism",
+      "suite": "objective",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 308,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5154451847365233,
+        "emotion": 0.5189003436426117,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5353064288542742
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8013356438171537,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "array-expression",
+      "suite": "objective",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 326,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.574468085106383,
+        "context": 0.5158850226928896,
+        "emotion": 0.5109416445623343,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5539640132616603
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747064987996912
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8275989051300864,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "incident-minutes",
+      "suite": "objective",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 317,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5712754555198285,
+        "context": 0.5167623074599819,
+        "emotion": 0.5028614370772877,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5533132740541762
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8279378947924738,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "bayes",
+      "suite": "objective",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 330,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5580110497237568,
+        "context": 0.5198079231692677,
+        "emotion": 0.5036669382917254,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5503999178136048
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8224710322311577,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "memory-penalty",
+      "suite": "context",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 311,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5020799193243415,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.48015780923648177,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5709234466171044
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.7995840161351317,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "role-obligation",
+      "suite": "context",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 320,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5023460827527371,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.508185397527112,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.574426895153433
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.7995307834494526,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "attention-slots",
+      "suite": "context",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 310,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5158850226928896,
+        "emotion": 0.501889385091034,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5354603721390024
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.47979563399907105,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747518338304256
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8047378355274692,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "stress-level",
+      "suite": "context",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 300,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5118974984746797,
+        "emotion": 0.5034861609972533,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5340647386626289
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8044184803462253,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "fabrication",
+      "suite": "context",
+      "condition": "person+attention",
+      "correct": true,
+      "tokens": 302,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5249406175771971,
+        "context": 0.5198079231692677,
+        "emotion": 0.5027349577324713,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5404787881696369
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8094292554843846,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "unique-rows",
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 282,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5438996579247434,
+        "context": 0.5154451847365233,
+        "emotion": 0.50336757602558,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5446395418224402
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8168863479647814,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "syllogism",
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 280,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5154451847365233,
+        "emotion": 0.5189003436426117,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5353064288542742
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8013356438171537,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "array-expression",
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 298,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.574468085106383,
+        "context": 0.5158850226928896,
+        "emotion": 0.5109416445623343,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5539640132616603
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747064987996912
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8275989051300864,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "incident-minutes",
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 289,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5712754555198285,
+        "context": 0.5167623074599819,
+        "emotion": 0.5028614370772877,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5533132740541762
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8279378947924738,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "bayes",
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 302,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5580110497237568,
+        "context": 0.5198079231692677,
+        "emotion": 0.5036669382917254,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5503999178136048
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8224710322311577,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "memory-penalty",
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 283,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5020799193243415,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.48015780923648177,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5709234466171044
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.7995840161351317,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "role-obligation",
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 292,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5,
+        "context": 0.5073891625615763,
+        "emotion": 0.5023460827527371,
+        "urgency": 0.5,
+        "openness": 0.5,
+        "quality": 0.5286500366837857
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.508185397527112,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.574426895153433
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.7995307834494526,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "attention-slots",
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 282,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5158850226928896,
+        "emotion": 0.501889385091034,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5354603721390024
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5232419547079856,
+        "coherence": 0.47979563399907105,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5747518338304256
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8047378355274692,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "stress-level",
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 272,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.51278928136419,
+        "context": 0.5118974984746797,
+        "emotion": 0.5034861609972533,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5340647386626289
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5118974984746797,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5728157560941401
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8044184803462253,
+        "affect": 0.5
+      }
+    },
+    {
+      "task": "fabrication",
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "correct": true,
+      "tokens": 274,
+      "user": {
+        "clarity": 0.574468085106383,
+        "specificity": 0.5249406175771971,
+        "context": 0.5198079231692677,
+        "emotion": 0.5027349577324713,
+        "urgency": 0.5,
+        "openness": 0.48989589712186166,
+        "quality": 0.5404787881696369
+      },
+      "answer": {
+        "correctness": 0.7777777777777778,
+        "grounding": 0.5,
+        "coherence": 0.4794329537531954,
+        "conciseness": 0.5475113122171945,
+        "calibration": 0.5,
+        "safety": 0.5,
+        "actionability": 0.5,
+        "overall": 0.5708328396816935
+      },
+      "attention": {
+        "health": 0.7831520537392537,
+        "load": 0.48192771084337344,
+        "stress": 0.4347826086956522,
+        "fatigue": 0.464
+      },
+      "fit": {
+        "think": 0.8094292554843846,
+        "affect": 0.5
+      }
+    }
+  ],
+  "summary": [
+    {
+      "suite": "objective",
+      "condition": "bare",
+      "runs": 5,
+      "accuracy": 0.8,
+      "answerOverall": 0.5450195435749833,
+      "correctness": 0.6666666666666667,
+      "grounding": 0.5117868900264049,
+      "calibration": 0.5,
+      "attentionHealth": null,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 54.2
+    },
+    {
+      "suite": "context",
+      "condition": "bare",
+      "runs": 5,
+      "accuracy": 0.2,
+      "answerOverall": 0.4617303336013504,
+      "correctness": 0.3333333333333333,
+      "grounding": 0.5023794996949359,
+      "calibration": 0.5,
+      "attentionHealth": null,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 47
+    },
+    {
+      "suite": "objective",
+      "condition": "person",
+      "runs": 5,
+      "accuracy": 0.8,
+      "answerOverall": 0.5450195435749833,
+      "correctness": 0.6666666666666667,
+      "grounding": 0.5117868900264049,
+      "calibration": 0.5,
+      "attentionHealth": null,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 247.2
+    },
+    {
+      "suite": "context",
+      "condition": "person",
+      "runs": 5,
+      "accuracy": 0.8,
+      "answerOverall": 0.5449328151736985,
+      "correctness": 0.6666666666666666,
+      "grounding": 0.5023794996949359,
+      "calibration": 0.5,
+      "attentionHealth": null,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 238.4
+    },
+    {
+      "suite": "objective",
+      "condition": "person+attention",
+      "runs": 5,
+      "accuracy": 1,
+      "answerOverall": 0.5727973213527611,
+      "correctness": 0.7777777777777778,
+      "grounding": 0.5117868900264049,
+      "calibration": 0.5,
+      "attentionHealth": 0.7831520537392537,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 318.2
+    },
+    {
+      "suite": "context",
+      "condition": "person+attention",
+      "runs": 5,
+      "accuracy": 1,
+      "answerOverall": 0.5727501542753594,
+      "correctness": 0.7777777777777778,
+      "grounding": 0.5070278906365331,
+      "calibration": 0.5,
+      "attentionHealth": 0.7831520537392537,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 308.6
+    },
+    {
+      "suite": "objective",
+      "condition": "person+attention+scenario",
+      "runs": 5,
+      "accuracy": 1,
+      "answerOverall": 0.5727973213527611,
+      "correctness": 0.7777777777777778,
+      "grounding": 0.5117868900264049,
+      "calibration": 0.5,
+      "attentionHealth": 0.7831520537392537,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 290.2
+    },
+    {
+      "suite": "context",
+      "condition": "person+attention+scenario",
+      "runs": 5,
+      "accuracy": 1,
+      "answerOverall": 0.5727501542753594,
+      "correctness": 0.7777777777777778,
+      "grounding": 0.5070278906365331,
+      "calibration": 0.5,
+      "attentionHealth": 0.7831520537392537,
+      "userClarity": 0.574468085106383,
+      "avgTokens": 280.6
+    }
+  ]
+}

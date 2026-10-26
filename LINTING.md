@@ -93,7 +93,7 @@ class Service<TEntity extends object, TKey extends PrimaryKey>  // 而不是每�
 
 如果刚修改过 `prettier.config.mts` 或 `tools/prettier-plugin/index.mts`，请执行一次 “Developer: Reload Window”：Prettier 扩展会缓存配置和 printer 模块，仅重新加载配置不会重新导入已修改的插件。
 
-如需保存时自动格式化，在 `.vscode/settings.json` 中加上 `"editor.formatOnSave": true`。
+保存时自动格式化已开启（`editor.formatOnSave: true`）；保存历史文件时会按 Prettier 规则重排整个文件，这是预期行为。
 
 ## 清理旧 JavaScript 配置文件
 

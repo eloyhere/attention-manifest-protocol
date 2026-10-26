@@ -206,4 +206,3 @@ export class AgentService implements AgentContextAssembler {
         return this.social;
     }
 }
-

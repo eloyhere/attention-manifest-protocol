@@ -199,5 +199,3 @@ test("creating an agent without a pid or execution port is rejected", () => {
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
-
-

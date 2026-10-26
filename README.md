@@ -52,7 +52,9 @@ A controller trades between them: a finite amount of attention, spent to buy the
 | [`docs/trust-chain.md`](docs/trust-chain.md) | Trust chain: discovery → card signature → bundle keys → endorsement → scope policy |
 | [`docs/federation.md`](docs/federation.md) | Cross-domain bundles and third-party attestation |
 | [`docs/compaction.md`](docs/compaction.md) | Context economy: pruning as an explicit view, compaction as a committed checkpoint, concept budgets |
-| [`docs/research/`](docs/research/) | Nine research briefs, including a real-endpoint compatibility matrix and citation conventions |
+| [`docs/attention-upgrade.md`](docs/attention-upgrade.md) | Proposal: ten diagnoses of the current allocation path, seven new invariants, acceptance vectors V16–V24 |
+| [`docs/cognitive-model.md`](docs/cognitive-model.md) | Psychological model of the agent as a bounded decider: five state variables, six falsifiable laws, and a runnable simulation |
+| [`docs/research/`](docs/research/) | Thirteen research briefs, including a real-endpoint compatibility matrix and citation conventions |
 | [`docs/schemas/`](docs/schemas/) | 16 JSON Schemas |
 | [`docs/examples/`](docs/examples/) | 37 validatable examples: frame chains, claims, plans, delegations, bundles, snapshots, checkpoints |
 | [`src/types/`](src/types/) | Shared primitives and the public type barrel; each domain owns its schema-mirroring types |
@@ -66,6 +68,7 @@ Runtime modules:
 | --- | --- |
 | `runtime.ts` / `ledger.ts` | The seven verbs, the frame chain, receipts, the Manifest, self-audit |
 | `attention.ts` / `budget.ts` / `handles.ts` | Salience, the single metering point, handle-based pagination |
+| `cognition.ts` | Cognitive state model (proposal): load, vigilance, arousal, mastery, accountability, and a state-modulated salience law |
 | `warrant.ts` / `inquiry.ts` | Confidence derivation, tier validation, preregistration and reproduction |
 | `exec.ts` / `mcp/` | MCP execution, digest pinning, approval, TTL caching |
 | `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | Signatures, bundles, attestation, card verification, scope policy |

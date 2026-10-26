@@ -1623,8 +1623,8 @@ MVP 不需要：签名、他者模型、实验设计、联邦。**先计量，�
 | [`federation.ts`](../src/manifest/federation.ts) | 跨域 bundle 导出/导入、撤销、过期、第三方证明 | F-1…F-5 |
 | [`persistence.ts`](../src/ledger/persistence.ts) | 账本快照、只追加哈希链、篡改/重排/截断检测、恢复 | X-1 |
 | [`team.ts`](../src/cooperation/team.ts) | 委派衰减、租约 fencing、预留-结算、重复任务拒绝 | D-1…D-10 |
-| [`runtime.ts`](../src/cycle/runtime.ts) | 动词编排、帧链、回执、Manifest、自审计 | 全部 |
-| [`demo.ts`](../src/cycle/demo.ts) | 端到端事故场景（真实 MCP 帧），产出 [`runtime-run.json`](examples/runtime-run.json) | — |
+| ~~`ampRuntime.ts`~~ | 已删除；协议断言迁到纯模块 / 新 runtime | — |
+| ~~`cycleDemo.ts`~~ | 已删除；演示由 `tools/snapshot-demo.ts` 等纯模块脚本替代 | — |
 
 ```bash
 npm run demo            # 生成端到端轨迹（15 个对象）

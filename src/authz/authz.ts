@@ -22,7 +22,13 @@ export interface Subject {
     tid?: number;
 }
 
-export type Action = "read" | "write" | "append" | "grant" | "revoke" | "spawn" | "kill" | "send" | "receive" | "fork" | "join";
+export type PermissionAction = "read" | "write" | "append" | "grant" | "revoke" | "spawn" | "kill" | "send" | "receive" | "fork" | "join";
+
+/**
+ * @deprecated Use `PermissionAction`; `Action` is reserved for the runtime's
+ * goal-directed intent (see `src/runtime/action.ts`).
+ */
+export type Action = PermissionAction;
 
 export type ResourceKind = "object" | "process" | "thread" | "mailbox" | "budget";
 

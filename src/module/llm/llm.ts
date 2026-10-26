@@ -5,9 +5,25 @@
  */
 export type LlmRole = "system" | "user" | "assistant" | "tool";
 
+export interface LlmToolCall {
+    id: string;
+    name: string;
+    arguments: string;
+}
+
+export interface LlmToolDefinition {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+}
+
 export interface LlmMessage {
     role: LlmRole;
     content: string;
+    /** Assistant tool calls, or the tool result correlation id. */
+    toolCalls?: LlmToolCall[];
+    toolCallId?: string;
+    name?: string;
 }
 
 export interface LlmRequest {
@@ -15,17 +31,25 @@ export interface LlmRequest {
     messages: LlmMessage[];
     maxTokens?: number;
     temperature?: number;
+    tools?: LlmToolDefinition[];
 }
 
 export interface LlmUsage {
     inputTokens: number;
     outputTokens: number;
+    /** Prompt tokens served from cache, when the provider reports it. */
+    cacheHitTokens?: number;
+    /** Prompt tokens not served from cache. */
+    cacheMissTokens?: number;
+    /** Provider-reported or adapter-computed cost. */
+    costUsd?: number;
 }
 
 export interface LlmResponse {
     text: string;
     usage: LlmUsage;
     finishReason: "stop" | "length" | "tool_call";
+    toolCalls?: LlmToolCall[];
 }
 
 export interface LlmClient {

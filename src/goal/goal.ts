@@ -5,7 +5,7 @@
  * states, and `achieved`/`abandoned` are terminal. The plan and warrant layers
  * read this state instead of inferring intent from prose.
  */
-import type { Goal } from "../cycle/plan.ts";
+import type { Goal } from "./plan.ts";
 
 export type GoalState = "proposed" | "committed" | "active" | "achieved" | "abandoned";
 

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Kernel checks under the corrected model: a process is an agent, a thread is
  * a task/goal. An agent is alive across tasks, runs one task at a time, and
@@ -13,10 +13,13 @@ import { Kernel } from "../src/kernel/index.ts";
 import type { StepHandler } from "../src/kernel/index.ts";
 import { KernelError } from "../src/error/kernelError.ts";
 import { createProcess, getProcess, listProcesses, terminateProcess } from "../src/process/process.ts";
-import { AgentService, InMemoryAgentStore } from "../src/process/index.ts";
-import { InMemorySocialStore } from "../src/ipc/index.ts";
+import { AgentService } from "../src/process/index.ts";
+import { AgentRepository } from "../src/database/repository/agentRepository.ts";
+import { SocialRepository } from "../src/database/repository/socialRepository.ts";
 import { claimThread, getThread, listThreads, nextReadyThread, spawnThread } from "../src/thread/thread.ts";
 import { getObject, openStore, tableNames, verifyObjectChain } from "../src/database/store/database.ts";
+import type { CognitiveState } from "../src/attention/cognition.ts";
+import { planAttention, processAttention } from "../src/attention/resource.ts";
 
 const At: string = "2026-10-24T00:00:00.000Z";
 
@@ -263,7 +266,7 @@ test("file stores open in WAL mode and list agents by state", () => {
 test("the kernel injects the agent context without knowing storage", () => {
     const db = openStore(":memory:");
     const gamma = agent(db);
-    const service = new AgentService(new InMemoryAgentStore(), new InMemorySocialStore());
+    const service = new AgentService(new AgentRepository(db), new SocialRepository(db));
     service.createAgent({
         id: "a.gamma",
         pid: gamma.pid,
@@ -290,6 +293,40 @@ test("the kernel injects the agent context without knowing storage", () => {
     db.close();
 });
 
+test("the kernel exposes process and thread attention", () => {
+    const db = openStore(":memory:");
+    const gamma = agent(db);
+    const work = task(db, gamma.pid, "g.attention");
+    const state: CognitiveState = {
+        load: 0.2,
+        vigilance: 0.9,
+        arousal: 0.1,
+        mastery: 0.7,
+        accountability: 0.5,
+        cyclesSinceRest: 0,
+        capacityEff: 4,
+        pLapse: 0.1,
+        source: "default",
+        samples: 0,
+    };
+    const kernel = new Kernel(db, {
+        now: () => At,
+        attention: (pid, current) => {
+            const process = processAttention(pid, state);
+            return planAttention(process, [{ tid: current.tid, pid, priority: current.priority, preferredSlots: 2 }]);
+        },
+    });
+    const report = kernel.step((context) => {
+        assert.equal(context.attention?.foreground?.tid, work.tid);
+        assert.equal(context.attention?.process.safetySlots, 1);
+        assert.equal(context.attention?.rest, false);
+        return { status: "done" };
+    });
+    assert.ok(report);
+    assert.equal(report.status, "done");
+    kernel.close();
+    db.close();
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
-

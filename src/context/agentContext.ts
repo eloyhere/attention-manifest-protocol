@@ -8,6 +8,10 @@
 import type { Budget, Ref } from "../types/common.ts";
 import type { AffectState, AgentProfile, AgentReader, BackgroundProcess, Memory, Pid, RoleAssignment, SelfNarrative } from "../process/agent.ts";
 import type { Membership, Relationship, SocialReader } from "../ipc/social.ts";
+import { contextBudgetTokens } from "../scenario/scenario.ts";
+import type { ScenarioPlan } from "../scenario/scenario.ts";
+import { combineContextWeights, combineMemoryWeights } from "../interaction/interaction.ts";
+import type { InteractionPlan } from "../interaction/interaction.ts";
 
 const DEFAULT_TOKENS = 2000;
 
@@ -48,11 +52,17 @@ export interface AgentContext {
     segments: AgentContextSegment[];
     tokens: number;
     excluded: ExcludedSegment[];
+    scenario?: ScenarioPlan;
+    interaction?: InteractionPlan;
 }
 
 export interface AgentContextOptions {
     now?: string;
     includeKinds?: AgentContextKind[];
+    /** Weighted scenario mix controls token budget, shares and memory kinds. */
+    scenario?: ScenarioPlan;
+    /** Interaction modes re-weight what matters inside the scenario budget. */
+    interaction?: InteractionPlan;
 }
 
 export interface AgentContextAssembler {
@@ -122,9 +132,10 @@ const recencyScore = (at: string, now: number): number => {
     return 1 / (1 + days / 30);
 };
 
-const memoryScore = (memory: Memory, activeRoleId: string | undefined, now: number): number => {
+const memoryScore = (memory: Memory, activeRoleId: string | undefined, now: number, kindWeight?: number): number => {
     const roleBoost = memory.roleId !== undefined && memory.roleId === activeRoleId ? 0.2 : 0;
-    return clamp01(memory.salience * 0.7 + recencyScore(memory.at, now) * 0.3 + roleBoost);
+    const base = clamp01(memory.salience * 0.7 + recencyScore(memory.at, now) * 0.3 + roleBoost);
+    return kindWeight === undefined ? base : clamp01(base * (0.5 + kindWeight));
 };
 
 export const assembleAgentContext = (agent: AgentReader, social: SocialReader, pid: Pid, budget: Budget, options: AgentContextOptions = {}): AgentContext => {
@@ -134,8 +145,20 @@ export const assembleAgentContext = (agent: AgentReader, social: SocialReader, p
     if (narrative === undefined) throw new Error(`agent_not_found: narrative for pid ${pid}`);
 
     const now = options.now === undefined ? Date.now() : Date.parse(options.now);
-    const total = Number.isSafeInteger(budget.tokens) && (budget.tokens ?? 0) > 0 ? (budget.tokens as number) : DEFAULT_TOKENS;
-    const include = new Set<AgentContextKind>(options.includeKinds ?? ["self", "role", "affect", "memory", "relationship", "membership", "background"]);
+    const requested = Number.isSafeInteger(budget.tokens) && (budget.tokens ?? 0) > 0 ? (budget.tokens as number) : DEFAULT_TOKENS;
+    const scenario = options.scenario;
+    const interaction = options.interaction;
+    const total = scenario === undefined ? requested : contextBudgetTokens(scenario, requested);
+    const combinedShares =
+        scenario === undefined && interaction === undefined ? Shares : combineContextWeights(scenario?.contextWeights, interaction?.contextWeights);
+    const include = new Set<AgentContextKind>(
+        options.includeKinds ??
+            (scenario === undefined && interaction === undefined
+                ? ["self", "role", "affect", "memory", "relationship", "membership", "background"]
+                : (Object.keys(combinedShares) as AgentContextKind[]).filter((kind) => combinedShares[kind] > 0.01)),
+    );
+    const share = (kind: AgentContextKind): number => combinedShares[kind];
+    const memoryWeights = combineMemoryWeights(scenario?.memoryKindWeights, interaction?.memoryKindWeights);
     const activeRole = agent.activeRole(pid);
     const affect = agent.affect(pid);
     const memories = agent.memories(pid, { limit: 32 });
@@ -168,24 +191,28 @@ export const assembleAgentContext = (agent: AgentReader, social: SocialReader, p
 
     if (include.has("self")) {
         const ref = refFor("self", `agent.${pid}`, profile.name);
-        add("self", ref, selfText(profile, narrative), Math.floor(total * Shares.self), { value: 0 });
+        add("self", ref, selfText(profile, narrative), Math.floor(total * share("self")), { value: 0 });
     }
 
     if (include.has("role") && activeRole !== undefined) {
         const ref = refFor("role", activeRole.role.id, activeRole.role.label);
-        add("role", ref, roleText(activeRole), Math.floor(total * Shares.role), { value: 0 });
+        add("role", ref, roleText(activeRole), Math.floor(total * share("role")), { value: 0 });
     }
 
     if (include.has("affect") && affect !== undefined) {
         const ref = refFor("affect", `affect.${pid}`, affect.mood);
-        add("affect", ref, affectText(affect), Math.floor(total * Shares.affect), { value: 0 });
+        add("affect", ref, affectText(affect), Math.floor(total * share("affect")), { value: 0 });
     }
 
     if (include.has("memory")) {
-        const cap = Math.floor(total * Shares.memory);
+        const cap = Math.floor(total * share("memory"));
         const group = { value: 0 };
         const ranked = memories
-            .map((memory) => ({ memory, score: memoryScore(memory, activeRole?.role.id, now) }))
+            .filter((memory) => memoryWeights === undefined || (memoryWeights[memory.kind] ?? 0) > 0)
+            .map((memory) => ({
+                memory,
+                score: memoryScore(memory, activeRole?.role.id, now, memoryWeights === undefined ? undefined : (memoryWeights[memory.kind] ?? 0)),
+            }))
             .sort((left, right) => right.score - left.score);
         for (const entry of ranked) {
             const ref = refFor("memory", entry.memory.id);
@@ -196,7 +223,7 @@ export const assembleAgentContext = (agent: AgentReader, social: SocialReader, p
     }
 
     if (include.has("relationship")) {
-        const cap = Math.floor(total * Shares.relationship);
+        const cap = Math.floor(total * share("relationship"));
         const group = { value: 0 };
         for (const relationship of relationships) {
             const ref = refFor("relationship", relationship.id, relationship.kind);
@@ -208,12 +235,12 @@ export const assembleAgentContext = (agent: AgentReader, social: SocialReader, p
         const group = { value: 0 };
         for (const membership of memberships) {
             const ref = refFor("membership", membership.institution.id, membership.institution.name);
-            add("membership", ref, membershipText(membership), Math.max(1, Math.floor(total * 0.05)), group);
+            add("membership", ref, membershipText(membership), Math.max(1, Math.floor(total * share("membership"))), group);
         }
     }
 
     if (include.has("background")) {
-        const cap = Math.floor(total * Shares.background);
+        const cap = Math.floor(total * share("background"));
         const group = { value: 0 };
         for (const process of background) {
             const ref = refFor("background", process.id, process.kind);
@@ -233,5 +260,7 @@ export const assembleAgentContext = (agent: AgentReader, social: SocialReader, p
         segments,
         tokens: used,
         excluded,
+        ...(scenario === undefined ? {} : { scenario }),
+        ...(interaction === undefined ? {} : { interaction }),
     };
 };

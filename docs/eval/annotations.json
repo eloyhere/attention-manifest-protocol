@@ -1,0 +1,122 @@
+[
+  {
+    "caseId": "r-arith-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-arith-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-arith-2",
+    "annotator": "A",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-arith-2",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-arith-3",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-arith-3",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-logic-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-logic-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-logic-2",
+    "annotator": "A",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-logic-2",
+    "annotator": "B",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-memory-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-memory-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-memory-2",
+    "annotator": "A",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-memory-2",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-role-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-role-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-attention-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-attention-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-bayes-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-bayes-1",
+    "annotator": "B",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-bayes-2",
+    "annotator": "A",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-bayes-2",
+    "annotator": "B",
+    "label": "incorrect"
+  },
+  {
+    "caseId": "r-context-1",
+    "annotator": "A",
+    "label": "correct"
+  },
+  {
+    "caseId": "r-context-1",
+    "annotator": "B",
+    "label": "correct"
+  }
+]

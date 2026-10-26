@@ -8,6 +8,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import { closeStore, openStore, transaction } from "../store/database.ts";
+import { DatabaseAdapters } from "../adapter/adapters.ts";
 import { HandleRepository } from "../repository/handleRepository.ts";
 import { MessageRepository } from "../repository/messageRepository.ts";
 import { ObjectRepository } from "../repository/objectRepository.ts";
@@ -28,6 +29,7 @@ import { WorkerService } from "./workerService.ts";
 
 export class Database {
     readonly db: DatabaseSync;
+    readonly adapters: DatabaseAdapters;
     readonly objects: ObjectRepository;
     readonly processes: ProcessRepository;
     readonly threads: ThreadRepository;
@@ -53,6 +55,7 @@ export class Database {
 
     constructor(path: string) {
         this.db = openStore(path);
+        this.adapters = new DatabaseAdapters(this.db);
         this.objects = new ObjectRepository(this.db);
         this.processes = new ProcessRepository(this.db);
         this.threads = new ThreadRepository(this.db);

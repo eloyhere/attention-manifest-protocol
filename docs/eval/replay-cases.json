@@ -1,0 +1,14 @@
+[
+  { "id": "r-arith-1", "category": "arithmetic", "input": "Compute 7 + 5. Output only the number.", "answer": "12", "expected": "12", "humanLabel": "correct" },
+  { "id": "r-arith-2", "category": "arithmetic", "input": "Compute 9 + 6. Output only the number.", "answer": "16", "expected": "15", "humanLabel": "incorrect" },
+  { "id": "r-arith-3", "category": "arithmetic", "input": "Compute 8 + 8. Output only the number.", "answer": "16", "expected": "16", "humanLabel": "correct" },
+  { "id": "r-logic-1", "category": "syllogism", "input": "All A are B. No B are C. Can any A be C? Answer only yes or no.", "answer": "no", "expected": "no", "humanLabel": "correct" },
+  { "id": "r-logic-2", "category": "syllogism", "input": "All A are B. No B are C. Can any A be C? Answer only yes or no.", "answer": "yes", "expected": "no", "humanLabel": "incorrect" },
+  { "id": "r-memory-1", "category": "memory", "input": "What code did Mira give for item 3? Answer only the code.", "answer": "code-3", "expected": "code-3", "humanLabel": "correct" },
+  { "id": "r-memory-2", "category": "memory", "input": "What code did Mira give for item 4? Answer only the code.", "answer": "code-5", "expected": "code-4", "humanLabel": "incorrect" },
+  { "id": "r-role-1", "category": "role", "input": "What is your active role and one obligation?", "answer": "Analyst; ground claims in evidence", "expected": "Analyst", "humanLabel": "correct" },
+  { "id": "r-attention-1", "category": "attention", "input": "How many foreground slots and what is the safety floor?", "answer": "2 foreground slots; safety floor 1", "expected": "2", "humanLabel": "correct" },
+  { "id": "r-bayes-1", "category": "bayes", "input": "80% sensitivity, 10% false positive, 1% prevalence. P(disease|positive)?", "answer": "7.5%", "expected": "7.5", "humanLabel": "correct" },
+  { "id": "r-bayes-2", "category": "bayes", "input": "80% sensitivity, 10% false positive, 1% prevalence. P(disease|positive)?", "answer": "8.3%", "expected": "7.5", "humanLabel": "incorrect" },
+  { "id": "r-context-1", "category": "context", "input": "The payment service is down; what should you check first?", "answer": "Check the payment service logs and the deploy diff.", "expected": "logs", "humanLabel": "correct" }
+]

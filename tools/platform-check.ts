@@ -15,7 +15,7 @@ import { EvidenceGraph } from "../src/evidence/index.ts";
 import { checkpointProgress, computeProgress } from "../src/progress/index.ts";
 import { createGoalLifecycle, transitionGoal } from "../src/goal/index.ts";
 import { DeniedSandbox, ScriptedLlm, ToolRegistry } from "../src/module/index.ts";
-import type { Goal } from "../src/cycle/plan.ts";
+import type { Goal } from "../src/goal/plan.ts";
 
 const At: string = "2026-10-24T00:00:00.000Z";
 const Later: string = "2026-10-24T01:00:00.000Z";

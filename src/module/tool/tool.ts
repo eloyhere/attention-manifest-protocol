@@ -4,10 +4,13 @@
  */
 import { UnorderedMap } from "../../structure/unordered.ts";
 
+export type ToolRisk = "read" | "write" | "destructive";
+
 export interface ToolDescriptor {
     name: string;
     description: string;
     inputSchema: Record<string, unknown>;
+    risk?: ToolRisk;
 }
 
 export interface ToolInvocation {

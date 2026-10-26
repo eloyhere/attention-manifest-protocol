@@ -13,7 +13,7 @@
 
 - `Database` facade 已有 11 个 service，按表增长。
 - 原始 SQL（`.prepare(` 计数）：`thread` 23、`process` 14、`kernel` 5、`authz` 8、`concurrency` 12、`registry` 27。
-- `cycle/runtime.ts` 是 manifest + ledger + attention + goals 的 god object。
+- `cycle/runtime.ts` 曾是 manifest + ledger + attention + goals 的 god object；现已删除，协议断言迁到纯模块/新 runtime。
 - `manifest` 已有 Identity/SelfModel/Commitment；如果再加 person 表，会出现两套自我模型。
 - schema 已到 v4；person 表已写入 schema 但尚未接代码，迁移由 database 会话统一处理。
 
@@ -77,10 +77,16 @@ SQLite
 - `docs/agent-as-person.md` + `src/process/agent.ts` + `src/ipc/social.ts` + `src/context/agentContext.ts`。
 - 不动 database；不新增按表 service。
 - `tools/agent-check.ts` 用内存端口验证 8 项。
+- `tools/agent-store-check.ts` 用真实 SQLite 验证 5 项；`kernel-check` 的 agent context 测试改用真实 adapter。
+- `tools/attention-resource-check.ts` 验证进程容量、线程分配、reserve/floor、rest 与质量调整吞吐。
+- `tools/scenario-check.ts` 验证加权组合、context 预算、memory 类型选择与 attention 覆盖。
+- `tools/interaction-check.ts` 验证五种交互模式、context/memory 合成、安全边界与阶段映射。
+- `tools/bayes-check.ts` 验证 Beta 后验、用户/回答/注意力评分、证据折扣与学习；`tools/bayes-probe.ts` 对 DeepSeek 结果做离线后验。
 
 ### Phase 1：适配器先行（database 会话）
 
 - 在 `src/database/adapters/sqlite/` 实现 `AgentStore`、`SocialStore`、`ExecutionStore`、`AttentionStore`、`WarrantStore`、`RegistryStore`。
+- **已完成一部分**：`AgentStore`/`SocialStore` 已用新 `TableSql` 架构实现于 `src/database/repository/agentRepository.ts` 与 `socialRepository.ts`，通过 `DatabaseAdapters` 暴露；`tools/agent-store-check.ts` 用真实 SQLite 验证 5 项。
 - 保留现有 facade 作为兼容层，内部委托给新 adapter；旧 service 标记 deprecated。
 - 统一 schema v5 迁移：agent 表、thread class、索引；写 v4 → v5 测试。
 
@@ -88,8 +94,9 @@ SQLite
 
 - `process.ts` / `thread.ts` 状态机保留，SQL 移到 `ExecutionStore`。
 - `kernel` 只依赖 `ExecutionStore` + `AgentReader` + `AttentionStore`。
+- **已完成**：`src/process/executionStore.ts` 定义 `ExecutionStore`；`Kernel` 不再 import process/thread 函数、不再含 `.prepare`，默认注入 `ProcessExecutionStore`。process/thread 的 SQL 已清零，状态机/创建/调度/address-space 全部走 repository。
 - 删除 kernel 中的 `db.prepare`；`StepContext` 不再暴露原始连接。
-- 验收：`rg "\.prepare\(" src/{process,thread,kernel}` 为 0。
+- 验收：`rg "\.prepare\(" src/kernel` 为 0；`src/{process,thread}` 为下一阶段。
 
 ### Phase 3：Agent / Social 接入
 
@@ -134,7 +141,12 @@ SQLite
 | `kernel` | 修改 | 通过 `AgentContext` 注入人格；后续移除直接 SQL |
 | `context` | 修改 + 新增 | 新增 `agentContext.ts`：self→role→affect→memory→relationship→background 的预算装配 |
 | `ipc` | 修改 + 新增 | 新增 `social.ts`/`memorySocialStore.ts`：relationship/institution/membership；mailbox 仍是传输 |
-| `attention` | 修改 | salience 接收 role salience、affect（stress/arousal）与关系权重；不再只算 VOI |
+| `attention` | 修改 + 新增 | 新增 `resource.ts`：`ProcessAttention` / `ThreadAttention` / 准入 / reserve / rest；salience 接收 role salience、affect 与关系权重 |
+| `scenario` | **新增** | 加权场景混合（chat/writing/office/collaboration/investigation/research/engineering/iteration），控制 context 权重、memory 类型、token 乘数与 attention 策略 |
+| `interaction` | **新增** | 加权交互模式（affect/think/inspire/converge/orchestrate），控制 response moves、context 合成、安全边界与阶段顺序；与 scenario 正交 |
+| `bayes` | **新增** | Beta-Binomial 后验：用户输入、回答质量、注意力多维度评分；证据按可靠性折扣；与 interaction fit 对接 |
+| `runtime` | **新增** | `CognitiveRuntime` 闭环：评分 → 场景/交互 → 注意力 → 行为 → 行动 → 操作 → 回执；`stepAsync`；`DeepSeekLlm`；session/feedback；tool loop；outbox sink；eval；BehaviorRegistry + SingleActionPlanner |
+| `database` | 修改 | 新增 `outbox`/`runtime_sessions`/`runtime_turns` 表与 repository；仍由 database 会话拥有 schema |
 | `window` | 保留 | 工作记忆/页表；人格上下文是候选，window 决定最终装入 |
 | `frame` | 保留 | 一次注意帧；不承载人格 |
 | `goal` | 修改 | 目标属于 agent 的 current concerns；thread 是执行尝试 |
@@ -168,7 +180,7 @@ SQLite
 ## 8. 完成定义
 
 1. `Database` facade 字段 ≤ 8：`db`、`transaction`、`close`、6 个聚合端口。
-2. `rg "\.prepare\(" src/{process,thread,kernel}` 为 0。
+2. `rg "\.prepare\(" src/kernel` 为 0；`src/{process,thread}` 收口到 `ExecutionStore` 适配器。
 3. `src/kernel` 不 import `src/database/**`。
 4. agent 的 P-1…P-12 全部有测试。
 5. v4 → v5 迁移有测试；旧库可打开或明确拒绝。
