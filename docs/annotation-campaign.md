@@ -24,6 +24,24 @@
 node tools/annotation-status.ts
 ```
 
+0b. 或直接用本地标注页（推荐，键盘 1/2/3）：
+
+```bash
+node tools/annotation-server.ts --annotator=A --port=8787
+node tools/annotation-server.ts --annotator=B --port=8788
+```
+
+- A: http://127.0.0.1:8787/
+- B: http://127.0.0.1:8788/
+- 每条选择后写 `docs/eval/annotations-A.jsonl` / `-B.jsonl`
+- 不经过网络，仅监听 127.0.0.1
+
+0c. 合并 JSONL：
+
+```bash
+node tools/merge-annotations.ts docs/eval/annotations-A.jsonl docs/eval/annotations-B.jsonl
+```
+
 1. 复制两份：
    - `docs/annotation-campaign-A.csv`
    - `docs/annotation-campaign-B.csv`

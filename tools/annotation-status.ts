@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Progress/validation for the two blind annotation packets. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { importAnnotationsCsv } from "../src/evaluation/labels.ts";
 
@@ -36,5 +36,12 @@ for (const result of [left, right]) {
 console.log(
     `A=${left.filled}/${campaign.length} B=${right.filled}/${campaign.length} invalid=${left.invalid.length + right.invalid.length} unknown=${left.unknown.length + right.unknown.length}`,
 );
+const jsonl = (path: string): number =>
+    existsSync(path)
+        ? readFileSync(path, "utf8")
+              .split(/\r?\n/)
+              .filter((line) => line.trim().length > 0).length
+        : 0;
+console.log(`UI A=${jsonl("docs/eval/annotations-A.jsonl")}/${campaign.length} UI B=${jsonl("docs/eval/annotations-B.jsonl")}/${campaign.length}`);
 if (left.filled < campaign.length || right.filled < campaign.length) console.log("status=pending human labels");
 else console.log("status=ready to import");
