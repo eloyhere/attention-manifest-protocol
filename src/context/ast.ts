@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { estimateTokens } from "./agentContext.ts";
+import { PriorityQueue } from "../structure/priority.ts";
 
 export type ContextNodeKind = "goal" | "frame" | "turn" | "observation" | "evidence" | "hypothesis" | "decision" | "detail";
 
@@ -168,7 +169,10 @@ export class ContextAst {
     view(budgetTokens: number): ContextAstView {
         if (!Number.isSafeInteger(budgetTokens) || budgetTokens <= 0) throw new RangeError("budgetTokens must be positive");
         const ordered = this.order();
-        const ranked = [...ordered].sort((left, right) => (right.salience ?? 0) - (left.salience ?? 0) || left.order - right.order);
+        const queue = new PriorityQueue<ContextAstNode>({
+            values: ordered,
+            compare: (left, right) => (left.salience ?? 0) - (right.salience ?? 0),
+        });
         const selected = new Set<string>();
         let used = 0;
         const add = (node: ContextAstNode): boolean => {
@@ -179,7 +183,9 @@ export class ContextAst {
             used += cost;
             return true;
         };
-        for (const node of ranked) {
+        while (!queue.isEmpty) {
+            const node = queue.dequeue();
+            if (node === undefined) break;
             if (!add(node)) continue;
             for (const ancestor of this.ancestors(node.id)) add(ancestor);
         }
