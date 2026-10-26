@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 import { auditLabels, importAnnotationsCsv, requireLabelCoverage, resolveUnresolved, selectLabelCandidates } from "../src/evaluation/labels.ts";
 
-const csv = `caseId,annotator,label,note
+const csv = `\uFEFFcaseId,annotator,label,note
 a,A,correct,"grounded, concise"
 a,B,incorrect,wrong constraint
 b,A,correct,

@@ -42,7 +42,7 @@ const splitCsvLine = (line: string): string[] => {
 
 /** CSV header: caseId,annotator,label[,note]. */
 export const importAnnotationsCsv = (text: string): Annotation[] => {
-    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
     if (lines.length === 0) return [];
     const header = splitCsvLine(lines[0]).map((cell) => cell.trim());
     const indexOf = (name: string): number => header.indexOf(name);
