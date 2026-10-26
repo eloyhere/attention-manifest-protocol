@@ -8,3 +8,5 @@ export { FileContentStore, MemoryContentStore } from "./contentStore.ts";
 export type { ContentStore } from "./contentStore.ts";
 export { ContextIndex } from "./contextIndex.ts";
 export type { ContextIndexOptions, ContextIndexStats } from "./contextIndex.ts";
+export { agentContextToAst, windowToAst } from "./projections.ts";
+export type { AgentContextProjection } from "./projections.ts";

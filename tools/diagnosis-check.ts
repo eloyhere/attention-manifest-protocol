@@ -53,7 +53,7 @@ assert.equal(tasks[0].expect.observation.length > 0, true);
 const action = toActionPlan(payment);
 assert.ok(action);
 assert.equal(action.risk, "read");
-assert.equal(action.intent, "diagnose:thread_pool");
+assert.equal(action.intent, "diagnose:database");
 
 const context = toContextAst(payment, 800);
 assert.ok(context.view.tokens <= 800);

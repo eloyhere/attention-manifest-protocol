@@ -114,13 +114,19 @@ export const DEFAULT_HYPOTHESES: readonly Hypothesis[] = [
 ];
 
 const patternMatches = (pattern: SignalPattern, signal: DiagnosticSignal): boolean => {
-    if (pattern.layer !== signal.layer) return false;
-    if (pattern.kind !== undefined && pattern.kind !== signal.kind) return false;
-    if (pattern.name !== undefined && signal.name !== pattern.name && !signal.name.startsWith(`${pattern.name}.`)) return false;
+    if (pattern.layer !== signal.layer) {
+        return false;
+    }
+    if (pattern.kind !== (void 0) && pattern.kind !== signal.kind) {
+        return false;
+    }
+    if (pattern.name !== (void 0) && signal.name !== pattern.name && !signal.name.startsWith(`${pattern.name}.`)) {
+        return false;
+    }
     return true;
 };
 
-const label = (pattern: SignalPattern): string => [pattern.layer, pattern.kind, pattern.name].filter((part) => part !== undefined).join(".");
+const label = (pattern: SignalPattern): string => [pattern.layer, pattern.kind, pattern.name].filter((part) => part !== (void 0)).join(".");
 
 export const assessHypotheses = (frame: DiagnosticFrame): HypothesisAssessment[] => {
     return frame.hypotheses
@@ -166,22 +172,50 @@ export const observe = (frame: DiagnosticFrame, signal: DiagnosticSignal): Diagn
 
 export const nextStep = (frame: DiagnosticFrame): DiagnosticStep | undefined => frame.steps[0];
 
+/**
+ * Route to the step that best matches the current evidence. The static layer
+ * order is only a fallback: a strong DB hypothesis must not be routed to
+ * `thread_pool` just because it is first in the checklist.
+ */
+export const routeStep = (frame: DiagnosticFrame, minConfidence = 0.5): DiagnosticStep | undefined => {
+    const top = selectHypothesis(frame);
+    if (top !== (void 0) && top.confidence >= minConfidence) {
+        const matched = frame.steps.find((step) => step.layer === top.hypothesis.layer);
+        if (matched !== (void 0)) {
+            return matched;
+        }
+    }
+    return nextStep(frame);
+};
+
 export const validateDiagnosisFrame = (frame: DiagnosticFrame): string[] => {
     const problems: string[] = [];
-    if (frame.layers.length === 0) problems.push("diagnosis requires at least one layer");
-    if (frame.hypotheses.length === 0) problems.push("diagnosis requires at least one hypothesis");
-    for (const hypothesis of frame.hypotheses) {
-        if (hypothesis.discriminatingTest.trim().length === 0) problems.push(`hypothesis ${hypothesis.id} lacks a discriminating test`);
+    if (frame.layers.length === 0) {
+        problems.push("diagnosis requires at least one layer");
     }
-    if (frame.steps.some((step) => step.readOnly !== true)) problems.push("diagnostic steps must be read-only");
-    if (new Set(frame.steps.map((step) => step.id)).size !== frame.steps.length) problems.push("duplicate diagnostic step ids");
+    if (frame.hypotheses.length === 0) {
+        problems.push("diagnosis requires at least one hypothesis");
+    }
+    for (const hypothesis of frame.hypotheses) {
+        if (hypothesis.discriminatingTest.trim().length === 0) {
+            problems.push(`hypothesis ${hypothesis.id} lacks a discriminating test`);
+        }
+    }
+    if (frame.steps.some((step) => step.readOnly !== true)) {
+        problems.push("diagnostic steps must be read-only");
+    }
+    if (new Set(frame.steps.map((step) => step.id)).size !== frame.steps.length) {
+        problems.push("duplicate diagnostic step ids");
+    }
     return problems;
 };
 
 /** Render the next diagnostic step as a bounded, read-only ActionPlan. */
 export const toActionPlan = (frame: DiagnosticFrame): ActionPlan | undefined => {
-    const step = nextStep(frame);
-    if (step === undefined) return undefined;
+    const step = routeStep(frame);
+    if (step === (void 0)) {
+        return undefined;
+    }
     return {
         goal: `discriminate the incident cause at ${step.layer}`,
         intent: `diagnose:${step.layer}`,
@@ -207,6 +241,8 @@ export const toPlanTasks = (frame: DiagnosticFrame): PlanTask[] =>
 /** Select the layer that best explains the current evidence, with an explicit reason. */
 export const selectLayer = (frame: DiagnosticFrame): { layer: DiagnosticLayer | null; reason: string } => {
     const top = selectHypothesis(frame);
-    if (top === undefined) return { layer: null, reason: "no hypotheses" };
+    if (top === (void 0)) {
+        return { layer: null, reason: "no hypotheses" };
+    }
     return { layer: top.hypothesis.layer, reason: `${top.hypothesis.id} confidence=${top.confidence.toFixed(2)} matched=${top.matched.join(",") || "none"}` };
 };
