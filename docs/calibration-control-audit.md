@@ -114,7 +114,7 @@ fixture labels=10，agreement=100%（非独立人工）
 - `RuntimeSession` 已接 `scope`：每轮用 `engineFor(scope)` 评分，record/feedback 更新 local counts，snapshot 恢复 scope priors；未显式指定时自动派生 `session:primary-scenario`。
 - `calibration-sim.ts`：合成 400 条带信号的 overconfident 数据上，raw ECE 0.173 → isotonic 0.058，证明 selector 在数据足够时会启用映射；recorded 40 条上 temperature 从 0.314 降到 0.281，但仍是 checker 标签。
 - `scoped-priors-pooling.ts`：partial pooling 下未见 scope 从共享证据得到先验（pooled mean 0.963 vs unpooled 0.500）。
-- `CalibrationRegistry`：只有 `samples >= minSamples` 且 CV ECE 比 raw 至少改善 `minImprovement` 才激活映射；否则保持 raw。recorded 40 条 checker 标签 → status=activated (temperature T=0.25)，但这不能替代人工标签。
+- `CalibrationRegistry`：只有 `samples >= minSamples`、CV ECE 比 raw 至少改善 `minImprovement`，且 bootstrap 95% 上界 `< 0` 才激活映射；否则保持 raw。recorded 40 条 checker 标签 → status=activated (temperature T=0.25, CI [-0.034,-0.030])，但这不能替代人工标签。
 
 这仍然不是独立人工标注，只是把「可靠性」「一致性」「审计保留」变成可计算/可查询量。
 
@@ -138,6 +138,7 @@ fixture labels=10，agreement=100%（非独立人工）
 raw text ECE            0.314
 isotonic CV ECE         0.361   ← 更差
 temperature CV ECE      0.281   ← T=0.25
+bootstrap 95% CI        [-0.034, -0.030]  ← 改善不是单点噪声
 selected method         temperature
 oracle ECE              0.222
 ```

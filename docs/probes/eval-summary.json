@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T19:27:06.874Z",
+  "generatedAt": "2026-10-26T19:30:55.341Z",
   "replay": {
     "cases": 12,
     "accuracy": 0.6666666666666666,
@@ -17,7 +17,9 @@
     "status": "activated",
     "oracleEce": 0.22222222222222185,
     "labels": 10,
-    "temperature": 0.25
+    "temperature": 0.25,
+    "ciLower": -0.03446510913785705,
+    "ciUpper": -0.03041775787017087
   },
   "labels": {
     "cases": 12,

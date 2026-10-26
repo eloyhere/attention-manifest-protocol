@@ -25,8 +25,13 @@ const predict = (method: CalibrationMethod, isotonic: IsotonicModel, temperature
     return method === "isotonic" ? calibrated : 0.5 * calibrated + 0.5 * value;
 };
 
-const crossValidate = (points: readonly CalibrationPoint[], method: CalibrationMethod, folds: number): { ece: number; brier: number } => {
-    const predictions: CalibrationPoint[] = [];
+export interface CvPrediction {
+    predicted: number;
+    actual: boolean;
+}
+
+export const crossValidatedPredictions = (points: readonly CalibrationPoint[], method: CalibrationMethod, folds: number): CvPrediction[] => {
+    const predictions: CvPrediction[] = [];
     for (let fold = 0; fold < folds; fold += 1) {
         const train = points.filter((_, index) => index % folds !== fold);
         const test = points.filter((_, index) => index % folds === fold);
@@ -35,7 +40,54 @@ const crossValidate = (points: readonly CalibrationPoint[], method: CalibrationM
         const temperature = fitTemperature(train);
         for (const point of test) predictions.push({ predicted: predict(method, isotonic, temperature, point.predicted), actual: point.actual });
     }
+    return predictions;
+};
+
+const crossValidate = (points: readonly CalibrationPoint[], method: CalibrationMethod, folds: number): { ece: number; brier: number } => {
+    const predictions = crossValidatedPredictions(points, method, folds);
     return { ece: ece(predictions), brier: brier(predictions) };
+};
+
+const mulberry32 = (seed: number): (() => number) => {
+    let state = seed >>> 0;
+    return () => {
+        state += 0x6d2b79f5;
+        let value = Math.imul(state ^ (state >>> 15), 1 | state);
+        value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+};
+
+/** Paired bootstrap of ECE(calibrated) - ECE(raw); negative means improvement. */
+export const bootstrapEceDelta = (
+    points: readonly CalibrationPoint[],
+    method: CalibrationMethod,
+    folds = 5,
+    samples = 500,
+    seed = 42,
+): { mean: number; lower: number; upper: number } => {
+    const raw = crossValidatedPredictions(points, "raw", folds);
+    const calibrated = crossValidatedPredictions(points, method, folds);
+    if (raw.length === 0 || raw.length !== calibrated.length) return { mean: 0, lower: 0, upper: 0 };
+    const random = mulberry32(seed);
+    const deltas: number[] = [];
+    for (let sample = 0; sample < samples; sample += 1) {
+        const left: CvPrediction[] = [];
+        const right: CvPrediction[] = [];
+        for (let index = 0; index < raw.length; index += 1) {
+            const pick = Math.floor(random() * raw.length);
+            left.push(raw[pick]);
+            right.push(calibrated[pick]);
+        }
+        deltas.push(ece(right) - ece(left));
+    }
+    deltas.sort((a, b) => a - b);
+    const mean = deltas.reduce((sum, value) => sum + value, 0) / deltas.length;
+    return {
+        mean,
+        lower: deltas[Math.floor(deltas.length * 0.025)] ?? mean,
+        upper: deltas[Math.floor(deltas.length * 0.975)] ?? mean,
+    };
 };
 
 export const selectCalibration = (points: readonly CalibrationPoint[], folds = 5): CalibrationSelection => {

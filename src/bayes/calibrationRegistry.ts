@@ -7,7 +7,7 @@
  */
 import { applyIsotonic, applyTemperature, fitIsotonic, fitTemperature } from "./calibration.ts";
 import type { CalibrationPoint, IsotonicModel, TemperatureModel } from "./calibration.ts";
-import { selectCalibration } from "./calibrationSelection.ts";
+import { selectCalibration, bootstrapEceDelta } from "./calibrationSelection.ts";
 import type { CalibrationMethod, CalibrationSelection } from "./calibrationSelection.ts";
 
 export interface CalibrationModel {
@@ -19,6 +19,8 @@ export interface CalibrationModel {
     thresholds: number[];
     values: number[];
     temperature?: number;
+    ciLower: number;
+    ciUpper: number;
     activatedAt: string;
 }
 
@@ -26,6 +28,10 @@ export interface RegisterOptions {
     minSamples?: number;
     minImprovement?: number;
     folds?: number;
+    /** Require the bootstrap 95% upper bound to be below zero. */
+    requireCi?: boolean;
+    bootstrapSamples?: number;
+    seed?: number;
     at?: string;
 }
 
@@ -44,7 +50,11 @@ export class CalibrationRegistry {
         const minSamples = options.minSamples ?? 30;
         const minImprovement = options.minImprovement ?? 0.01;
         const selection = selectCalibration(points, options.folds ?? 5);
-        const improves = points.length >= minSamples && selection.method !== "raw" && selection.rawEce - selection.ece >= minImprovement;
+        const candidate = points.length >= minSamples && selection.method !== "raw" && selection.rawEce - selection.ece >= minImprovement;
+        const ci = candidate
+            ? bootstrapEceDelta(points, selection.method, options.folds ?? 5, options.bootstrapSamples ?? 500, options.seed ?? 42)
+            : { mean: 0, lower: 0, upper: 0 };
+        const improves = candidate && (options.requireCi === false || ci.upper < 0);
         if (!improves) {
             this.models.delete(scope);
             return { status: "raw", selection };
@@ -60,6 +70,8 @@ export class CalibrationRegistry {
             thresholds: model.thresholds,
             values: model.values,
             ...(selection.method === "temperature" ? { temperature: temperature.temperature } : {}),
+            ciLower: ci.lower,
+            ciUpper: ci.upper,
             activatedAt: options.at ?? new Date().toISOString(),
         };
         this.models.set(scope, record);

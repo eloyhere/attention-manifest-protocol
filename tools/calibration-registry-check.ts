@@ -26,6 +26,7 @@ const registry = new CalibrationRegistry();
 const activated = registry.register("scope.calibrated", points, { at: "2026-10-24T00:00:00.000Z" });
 assert.equal(activated.status, "activated");
 assert.notEqual(registry.model("scope.calibrated"), undefined);
+assert.ok((registry.model("scope.calibrated")?.ciUpper ?? 0) < 0);
 assert.ok(registry.calibrate("scope.calibrated", 0.9) < 0.9);
 
 const small = registry.register("scope.small", points.slice(0, 10));

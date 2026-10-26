@@ -42,6 +42,8 @@ interface RecordedProbe {
         oracleEce: number;
         labeled: number;
         calibrationTemperature?: number | null;
+        calibrationCiLower?: number | null;
+        calibrationCiUpper?: number | null;
         [key: string]: number | string | null;
     };
     cases: RecordedCase[];
@@ -80,6 +82,8 @@ const summary = {
         oracleEce: recorded.metrics.oracleEce,
         labels: recorded.metrics.labeled,
         temperature: recorded.metrics.calibrationTemperature ?? null,
+        ciLower: recorded.metrics.calibrationCiLower ?? null,
+        ciUpper: recorded.metrics.calibrationCiUpper ?? null,
     },
     labels: {
         cases: audit.cases,
@@ -111,7 +115,7 @@ Generated: ${summary.generatedAt}
 | recorded | accuracy | ${(summary.recorded.accuracy * 100).toFixed(1)}% |
 | recorded | text ECE | ${Number(summary.recorded.textEce).toFixed(3)} |
 | recorded | calibrated ECE | ${summary.recorded.calibratedEce.toFixed(3)} |
-| recorded | calibration | ${summary.recorded.status} (${summary.recorded.method}${summary.recorded.temperature === null ? "" : ` T=${summary.recorded.temperature}`}) |
+| recorded | calibration | ${summary.recorded.status} (${summary.recorded.method}${summary.recorded.temperature === null ? "" : ` T=${summary.recorded.temperature}`}${summary.recorded.ciLower === null ? "" : ` CI=[${summary.recorded.ciLower},${summary.recorded.ciUpper}]`}) |
 | recorded | oracle ECE | ${Number(summary.recorded.oracleEce).toFixed(3)} |
 | labels | coverage | ${(summary.labels.coverage * 100).toFixed(0)}% |
 | labels | disagreements | ${summary.labels.disagreements} |

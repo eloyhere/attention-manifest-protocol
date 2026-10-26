@@ -1,6 +1,6 @@
 # AMP eval summary
 
-Generated: 2026-10-26T19:27:06.874Z
+Generated: 2026-10-26T19:30:55.341Z
 
 > Fixture labels only; not an independent human study. Recorded n=40; replay n=12.
 
@@ -13,7 +13,7 @@ Generated: 2026-10-26T19:27:06.874Z
 | recorded | accuracy | 82.5% |
 | recorded | text ECE | 0.314 |
 | recorded | calibrated ECE | 0.281 |
-| recorded | calibration | activated (temperature T=0.25) |
+| recorded | calibration | activated (temperature T=0.25 CI=[-0.03446510913785705,-0.03041775787017087]) |
 | recorded | oracle ECE | 0.222 |
 | labels | coverage | 100% |
 | labels | disagreements | 2 |

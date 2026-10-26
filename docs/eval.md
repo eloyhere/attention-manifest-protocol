@@ -95,7 +95,7 @@ brier=0.247
 
 ```text
 runs=40 accuracy=82.5%
-textECE=0.314  calibratedECE=0.281  selected=temperature(T=0.25)  oracleECE=0.222
+textECE=0.314  calibratedECE=0.281  selected=temperature(T=0.25, CI=-0.034..-0.030)  oracleECE=0.222
 labels=10      labelAgreement=100%
 ```
 
