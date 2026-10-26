@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+docs
+public
+package-lock.json
+*.css
+*.html
+*.json
+*.md
+
+# Legacy JS/MJS files kept only as transitional shims; delete them.
+eslint.config.js
+prettier.config.mjs
+tools/eslint-rules/**/*.js
+tools/prettier-plugin/*.mjs
+.delete-probe

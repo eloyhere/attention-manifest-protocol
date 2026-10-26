@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local typecheck scratch (TypeScript kept outside the workspace install)
+.tscheck
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

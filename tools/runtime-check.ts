@@ -5,20 +5,20 @@
  */
 import assert from 'node:assert/strict'
 
-import { sha256Hex } from '../src/runtime/sha256.ts'
-import { canonical, digestOf } from '../src/runtime/canonical.ts'
-import { Dispatcher, BudgetExceeded } from '../src/runtime/budget.ts'
-import { HandleStore } from '../src/runtime/handles.ts'
+import { sha256Hex } from '../src/semantic/sha256.ts'
+import { canonical, digestOf } from '../src/semantic/canonical.ts'
+import { Dispatcher, BudgetExceeded } from '../src/attention/budget.ts'
+import { HandleStore } from '../src/execution/handles.ts'
 import {
   canAuthorizeEffect,
   deriveConfidence,
   validateClaim,
   validateHypothesis,
-} from '../src/runtime/warrant.ts'
-import { respectsMonotonicity, salience, selectFocus } from '../src/runtime/attention.ts'
-import { AmpRuntime } from '../src/runtime/runtime.ts'
+} from '../src/warrant/warrant.ts'
+import { respectsMonotonicity, salience, selectFocus } from '../src/attention/attention.ts'
+import { AmpRuntime } from '../src/cycle/runtime.ts'
 import type { Claim, EvidenceItem, Hypothesis } from '../src/types/index.ts'
-import type { Candidate } from '../src/runtime/attention.ts'
+import type { Candidate } from '../src/attention/attention.ts'
 
 let passed = 0
 let failed = 0

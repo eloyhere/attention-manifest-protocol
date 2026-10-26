@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { channelFromCard } from '../src/runtime/a2a.ts'
-import { fetchAgentCard } from '../src/runtime/agent-card.ts'
-import { delegateOver } from '../src/runtime/channel.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { channelFromCard } from '../src/protocol/a2a.ts'
+import { fetchAgentCard } from '../src/manifest/agentCard.ts'
+import { delegateOver } from '../src/protocol/channel.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 import { listen, portOf } from './_helpers.ts'
 
 const calls = []

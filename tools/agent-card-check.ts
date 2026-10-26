@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { fetchAgentCard } from '../src/runtime/agent-card.ts'
+import { fetchAgentCard } from '../src/manifest/agentCard.ts'
 import { listen, portOf } from './_helpers.ts'
 
 let passed = 0

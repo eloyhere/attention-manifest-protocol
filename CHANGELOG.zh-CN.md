@@ -9,6 +9,13 @@
 
 ### 新增
 
+- 构造边界（`src/boundary/`）。`frameFrom()` 在对象存在之前校验 id 文法、引用闭包、9 个槽位
+  上限、忽略上限（默认 50，溢出的部分作为 `deferred` 返回）与预算一致性；`parseToolCall()`
+  按 `inputSchema` 的子集解析参数，并给出被接受内容的摘要；`RefTable` 让 `tool` 与
+  `capability` 共用一个命名空间，并解析 `self`。19 项断言以 `npm run boundary-check` 运行，
+  同时接入 `npm run verify`。
+- `ExecProfile` 在策略判断与派发之前用 `parseToolCall()` 解析参数。被拒绝的参数不会到达服务端，
+  只留下一条 blocked 回执；审批绑定的是解析后的摘要。
 - 上下文经济。`planPrune()` 在已验证的账本上生成显式视图：被取代的主张、已关闭的假设、
   已解决且非阻塞的未知会离开视图；每一条丢弃都带 `reason` 与 `revisit_if`；引用闭包保证
   不会出现悬空引用。`supersedes` 有意**不**被视为依赖。

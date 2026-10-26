@@ -13,7 +13,7 @@ import {
   compactConceptHistory,
   pruneConcept,
   verifyConceptCheckpoint,
-} from '../src/runtime/concept-budget.ts'
+} from '../src/concept/conceptBudget.ts'
 import type { Concept } from '../src/types/index.ts'
 
 let passed = 0

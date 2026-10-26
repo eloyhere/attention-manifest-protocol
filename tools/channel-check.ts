@@ -2,8 +2,8 @@
 /** Channel checks: delegation crosses a seam and fails closed on rejection. */
 import assert from 'node:assert/strict'
 
-import { delegateOver, LoopbackChannel } from '../src/runtime/channel.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { delegateOver, LoopbackChannel } from '../src/protocol/channel.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 
 let passed = 0
 let failed = 0

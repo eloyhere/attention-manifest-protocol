@@ -2,8 +2,8 @@
 /** Shared-ledger granularity: full / summary / reference. */
 import assert from 'node:assert/strict'
 
-import { shareLedger } from '../src/runtime/share.ts'
-import { AmpRuntime } from '../src/runtime/runtime.ts'
+import { shareLedger } from '../src/ledger/share.ts'
+import { AmpRuntime } from '../src/cycle/runtime.ts'
 
 let passed = 0
 let failed = 0

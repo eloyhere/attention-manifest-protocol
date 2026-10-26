@@ -1,21 +1,23 @@
 /**
  * AMP v0.1 — public type surface.
  *
+ * The shared primitives stay in this directory. Every domain owns its own
+ * schema-mirroring types next to the code that enforces them; this barrel
+ * re-exports the whole surface for hosts and tools that want one import.
+ *
  * These types mirror docs/schemas/*.schema.json one-to-one.
- * They are contracts, not an implementation: the runtime that enforces the
- * 12 invariants lives outside this package.
  */
 export type * from './common.ts'
-export type * from './manifest.ts'
-export type * from './frame.ts'
-export type * from './epistemic.ts'
-export type * from './concept.ts'
-export type * from './concept-budget.ts'
-export type * from './plan.ts'
-export type * from './social.ts'
-export type * from './receipt.ts'
-export type * from './protocol.ts'
-export type * from './federation.ts'
-export type * from './collaboration.ts'
-export type * from './team.ts'
-export type * from './compaction.ts'
+export type * from '../concept/concept.ts'
+export type * from '../attention/socialTypes.ts'
+export type * from '../cooperation/collaboration.ts'
+export type * from '../delegate/teamTypes.ts'
+export type * from '../cycle/plan.ts'
+export type * from '../frame/frame.ts'
+export type * from '../window/compactionTypes.ts'
+export type * from '../concept/conceptBudgetTypes.ts'
+export type * from '../manifest/federationTypes.ts'
+export type * from '../manifest/manifest.ts'
+export type * from '../protocol/protocol.ts'
+export type * from '../receipt/receipt.ts'
+export type * from '../warrant/epistemic.ts'

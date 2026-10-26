@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { toA2ARequest, A2AChannel } from '../src/runtime/a2a.ts'
-import { delegateOver } from '../src/runtime/channel.ts'
-import { digestOf } from '../src/runtime/canonical.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
-import { toDelegationDoc } from '../src/runtime/wire.ts'
+import { toA2ARequest, A2AChannel } from '../src/protocol/a2a.ts'
+import { delegateOver } from '../src/protocol/channel.ts'
+import { digestOf } from '../src/semantic/canonical.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
+import { toDelegationDoc } from '../src/protocol/wire.ts'
 import { listen, portOf } from './_helpers.ts'
 
 let passed = 0

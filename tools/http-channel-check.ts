@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { digestOf } from '../src/runtime/canonical.ts'
-import { delegateOver } from '../src/runtime/channel.ts'
-import { HttpTeamChannel } from '../src/runtime/http-channel.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { digestOf } from '../src/semantic/canonical.ts'
+import { delegateOver } from '../src/protocol/channel.ts'
+import { HttpTeamChannel } from '../src/protocol/httpChannel.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 import { listen, portOf } from './_helpers.ts'
 
 let passed = 0

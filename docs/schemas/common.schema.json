@@ -31,7 +31,7 @@
     "refKind": {
       "type": "string",
       "enum": [
-        "entity", "concept", "process", "question", "hypothesis", "claim",
+        "entity", "concept", "process", "thread", "question", "hypothesis", "claim",
         "evidence", "goal", "plan", "task", "tool", "memory", "other",
         "human", "event", "handle", "frame", "self", "unknown", "common-ground",
         "capability", "agent", "receipt", "org"

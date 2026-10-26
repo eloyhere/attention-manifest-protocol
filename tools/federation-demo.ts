@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Emits a schema-valid federation bundle + attestation for docs/examples. */
-import { attest, exportBundle } from '../src/runtime/federation.ts'
-import { generateSigningKey, signManifest } from '../src/runtime/sign.ts'
+import { attest, exportBundle } from '../src/manifest/federation.ts'
+import { generateSigningKey, signManifest } from '../src/manifest/sign.ts'
 
 const agentKey = await generateSigningKey('a.gamma#1')
 const orgKey = await generateSigningKey('org.acme#2')

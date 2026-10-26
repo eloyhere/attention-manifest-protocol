@@ -6,10 +6,10 @@
  * network and the endpoint may change its policy at any time. Run manually:
  *   node tools/live-exec.ts
  */
-import { ExecProfile } from '../src/runtime/exec.ts'
-import { HandleStore } from '../src/runtime/handles.ts'
-import { HttpTransport } from '../src/runtime/mcp/http.ts'
-import { McpClient } from '../src/runtime/mcp/client.ts'
+import { ExecProfile } from '../src/execution/exec.ts'
+import { HandleStore } from '../src/execution/handles.ts'
+import { HttpTransport } from '../src/module/mcp/http.ts'
+import { McpClient } from '../src/module/mcp/client.ts'
 
 const URL_ = process.env.MCP_URL ?? 'https://mcp.context7.com/mcp'
 
@@ -44,7 +44,7 @@ for (const tool of snapshot.tools) {
 const out = await exec.call(
   'resolve-library-id',
   { query: 'how to use hooks', libraryName: 'react' },
-  { approved: true, budgetTokens: 300, predictedVoi: 0.6, realizedVoi: 0.55 },
+  { effect: 'read', budgetTokens: 300, predictedVoi: 0.6, realizedVoi: 0.55 },
 )
 
 console.log(`\ncall: outcome=${out.receipt.outcome}  tokens=${out.tokens}  handle=${out.handle ?? 'inline'}`)

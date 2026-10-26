@@ -6,15 +6,15 @@
  */
 import assert from 'node:assert/strict'
 
-import { adjudicate, mergeResults } from '../src/runtime/merge.ts'
-import { exportLedger, verifySnapshot } from '../src/runtime/persistence.ts'
-import { AmpRuntime } from '../src/runtime/runtime.ts'
-import { TeamSession } from '../src/runtime/session.ts'
-import { ExecProfile } from '../src/runtime/exec.ts'
-import { HandleStore } from '../src/runtime/handles.ts'
-import { McpClient } from '../src/runtime/mcp/client.ts'
-import { DemoServer } from '../src/runtime/mcp/server.ts'
-import { MemoryTransport } from '../src/runtime/mcp/transport.ts'
+import { adjudicate, mergeResults } from '../src/cooperation/merge.ts'
+import { exportLedger, verifySnapshot } from '../src/ledger/persistence.ts'
+import { AmpRuntime } from '../src/cycle/runtime.ts'
+import { TeamSession } from '../src/cycle/session.ts'
+import { ExecProfile } from '../src/execution/exec.ts'
+import { HandleStore } from '../src/execution/handles.ts'
+import { McpClient } from '../src/module/mcp/client.ts'
+import { DemoServer } from '../src/module/mcp/server.ts'
+import { MemoryTransport } from '../src/module/mcp/transport.ts'
 import type { AttentionRequest } from '../src/types/index.ts'
 
 const goal = 'sha256:' + 'a'.repeat(64)

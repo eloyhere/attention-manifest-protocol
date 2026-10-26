@@ -2,9 +2,9 @@
 /** Bundle → trust registry → card verification. */
 import assert from 'node:assert/strict'
 
-import { signCard, verifyCardWithRegistry } from '../src/runtime/card-sign.ts'
-import { exportBundle, registryFromBundle } from '../src/runtime/federation.ts'
-import { generateSigningKey, signManifest } from '../src/runtime/sign.ts'
+import { signCard, verifyCardWithRegistry } from '../src/manifest/cardSign.ts'
+import { exportBundle, registryFromBundle } from '../src/manifest/federation.ts'
+import { generateSigningKey, signManifest } from '../src/manifest/sign.ts'
 
 let passed = 0
 let failed = 0

@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
-import { channelFromCard } from '../src/runtime/a2a.ts'
-import { signCard } from '../src/runtime/card-sign.ts'
-import { delegateOver } from '../src/runtime/channel.ts'
-import { attest, exportBundle } from '../src/runtime/federation.ts'
-import { generateSigningKey, KeyRegistry, signManifest } from '../src/runtime/sign.ts'
-import { fetchTrustedAgent } from '../src/runtime/trust.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { channelFromCard } from '../src/protocol/a2a.ts'
+import { signCard } from '../src/manifest/cardSign.ts'
+import { delegateOver } from '../src/protocol/channel.ts'
+import { attest, exportBundle } from '../src/manifest/federation.ts'
+import { generateSigningKey, KeyRegistry, signManifest } from '../src/manifest/sign.ts'
+import { fetchTrustedAgent } from '../src/manifest/trust.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 import { listen, portOf } from './_helpers.ts'
 
 let passed = 0

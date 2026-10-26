@@ -2,8 +2,8 @@
 /** Persistence checks: chain integrity, tamper/reorder/truncate, restore. */
 import assert from 'node:assert/strict'
 
-import { exportLedger, restoreLedger, verifySnapshot } from '../src/runtime/persistence.ts'
-import { AmpRuntime } from '../src/runtime/runtime.ts'
+import { exportLedger, restoreLedger, verifySnapshot } from '../src/ledger/persistence.ts'
+import { AmpRuntime } from '../src/cycle/runtime.ts'
 
 let passed = 0
 let failed = 0

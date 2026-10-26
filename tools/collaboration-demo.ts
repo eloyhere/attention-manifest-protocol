@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Emits schema-valid delegation / lease / result-contract for docs/examples. */
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 
 const team = new TeamRuntime({ now: () => '2026-10-24T10:00:00Z' })
 const goalDigest = `sha256:${'a'.repeat(64)}`

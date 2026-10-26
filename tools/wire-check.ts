@@ -2,8 +2,8 @@
 /** Wire round-trip checks for delegation and lease documents. */
 import assert from 'node:assert/strict'
 
-import { fromDelegationDoc, toDelegationDoc, toLeaseDoc } from '../src/runtime/wire.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { fromDelegationDoc, toDelegationDoc, toLeaseDoc } from '../src/protocol/wire.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 
 let passed = 0
 let failed = 0

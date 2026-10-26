@@ -89,7 +89,7 @@
 
 ## 6. 与已有零件的关系
 
-- [`sign.ts`](../src/runtime/sign.ts) 提供 Manifest 签名与注册表；
+- [`sign.ts`](../src/manifest/sign.ts) 提供 Manifest 签名与注册表；
 - `bundle` 是**传输形态**，不是新的信任根；
 - 第三方证明不替代签名，只补充「谁审过」；
 - 跨域交换的审计记录复用 `Receipt` 与事件日志。

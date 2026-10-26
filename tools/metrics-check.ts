@@ -2,8 +2,8 @@
 /** Coordination metrics: duplicate rate, alignment share, cost/success, contested rate. */
 import assert from 'node:assert/strict'
 
-import { TaskBoard } from '../src/runtime/board.ts'
-import { coordinationMetrics } from '../src/runtime/metrics.ts'
+import { TaskBoard } from '../src/cooperation/board.ts'
+import { coordinationMetrics } from '../src/cooperation/metrics.ts'
 
 let passed = 0
 let failed = 0

@@ -2,10 +2,10 @@
 /** Team-manifest enforcement + conflict adjudication. */
 import assert from 'node:assert/strict'
 
-import { adjudicate, mergeResults } from '../src/runtime/merge.ts'
-import { AttenuationError, TeamRuntime } from '../src/runtime/team.ts'
+import { adjudicate, mergeResults } from '../src/cooperation/merge.ts'
+import { AttenuationError, TeamRuntime } from '../src/delegate/team.ts'
 import type { TeamManifest } from '../src/types/index.ts'
-import type { MergedClaim } from '../src/runtime/merge.ts'
+import type { MergedClaim } from '../src/cooperation/merge.ts'
 
 let passed = 0
 let failed = 0

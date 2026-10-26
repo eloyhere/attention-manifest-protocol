@@ -7,6 +7,9 @@ export type Id = string
 export type Digest = string
 export type Timestamp = string
 
+/** Process id: in AMP a process is an agent, i.e. a person. */
+export type Pid = number
+
 /** Credence in [0, 1]. For claims this is DERIVED from tier + evidence, never authored. */
 export type Confidence = number
 
@@ -23,6 +26,7 @@ export type RefKind =
   | 'entity'
   | 'concept'
   | 'process'
+  | 'thread'
   | 'question'
   | 'hypothesis'
   | 'claim'

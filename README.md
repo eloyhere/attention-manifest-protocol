@@ -32,12 +32,15 @@ A controller trades between them: a finite amount of attention, spent to buy the
 | Protocol | 16 JSON Schemas, TypeScript types in one-to-one correspondence, a message envelope and seven speech acts |
 | Attention | salience contract, focus and ignore sets, impasse classification, interrupt classes and debt |
 | Warrant | T0–T4 epistemic tiers, confidence derivation, minimal revision, unknowns and stopping rules |
-| Execution | MCP 2026-07-28 client (stateless and legacy fallback), budget dispatch, handle-based shaping |
+| Boundary | constructors that reject: id grammar, reference closure, slot and exclusion caps, tool-argument parsing |
+| Execution | MCP 2026-07-28 client (stateless and legacy fallback), budget dispatch, schema-validated arguments, handle-based shaping |
 | Federation | `ManifestBundle` and `Attestation`, digest pinning, revocation, import that fails closed |
 | Collaboration | delegation decay, lease fencing, task board, result merge and conflict adjudication, unified ledger |
 | Trust | Agent Card discovery and signing, bundle keys, scope policy, A2A `message/send` |
 | Persistence | append-only hash chain, snapshot verification, restore that refuses corrupted data |
 | Context economy | prune plans over a verified view, checkpoints over a cold prefix, concept budgets and concept-history checkpoints; nothing is buried while still cited |
+| Kernel | SQLite agent/task scheduler: an agent process runs one task thread at a time, with atomic claims, fencing leases, per-task and per-agent budgets, crash recovery and capability isolation |
+| Registry | concepts and modules as rows, each with a versioned declaration object, a content digest, dependency edges and attestations |
 
 ## Repository layout
 
@@ -52,8 +55,9 @@ A controller trades between them: a finite amount of attention, spent to buy the
 | [`docs/research/`](docs/research/) | Nine research briefs, including a real-endpoint compatibility matrix and citation conventions |
 | [`docs/schemas/`](docs/schemas/) | 16 JSON Schemas |
 | [`docs/examples/`](docs/examples/) | 37 validatable examples: frame chains, claims, plans, delegations, bundles, snapshots, checkpoints |
-| [`src/types/`](src/types/) | TypeScript types, one for one with the schemas |
-| [`src/runtime/`](src/runtime/) | Reference runtime (see the table below) |
+| [`src/types/`](src/types/) | Shared primitives and the public type barrel; each domain owns its schema-mirroring types |
+| [`src/structure/`](src/structure/) | Dependency-free structures: hash/ordered/unordered containers, stack, queue, deque, binary heap, binary tree, BST, AVL, red-black tree, segment tree, AST, Bloom filter, cuckoo filter and LRU containers |
+| [`src/`](src/) | Domain runtime: `attention`, `frame`, `ledger`, `warrant`, `manifest`, `policy`, `perform`, `protocol`, `cooperation`, `cycle`, `semantic`, `module`, `storage`, `structure`, `boundary` |
 | [`tools/`](tools/) | 31 verification scripts, 4 example generators and 5 real-endpoint probes — all TypeScript |
 
 Runtime modules:
@@ -77,6 +81,7 @@ npm run scenario          # end-to-end incident: delegation → MCP → merge �
 npm run demo              # emit a runtime trace
 npm run typecheck         # strict type check for src/
 npm run typecheck:tools   # type check for tools/, so the tests are checked too
+npm run style-check       # ESLint rules + Prettier formatting check (see LINTING.md)
 ```
 
 There is no JavaScript under `tools/`. All 40 scripts are `.ts`, run directly by Node's

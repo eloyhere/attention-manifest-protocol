@@ -2,7 +2,7 @@
 /** Task board checks: dedup, claim, complete, cancel, counters. */
 import assert from 'node:assert/strict'
 
-import { DuplicateGoal, TaskBoard } from '../src/runtime/board.ts'
+import { DuplicateGoal, TaskBoard } from '../src/cooperation/board.ts'
 
 let passed = 0
 let failed = 0

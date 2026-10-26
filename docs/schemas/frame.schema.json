@@ -20,7 +20,7 @@
       "maxItems": 9,
       "items": {
         "type": "object",
-        "required": ["target", "role", "salience", "why", "state"],
+        "required": ["target", "role", "salience", "why", "cost", "state"],
         "properties": {
           "target": { "$ref": "common.schema.json#/$defs/ref" },
           "role": {
@@ -43,7 +43,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["target", "reason"],
+        "required": ["target", "reason", "revisit_if"],
         "properties": {
           "target": { "$ref": "common.schema.json#/$defs/ref" },
           "reason": {

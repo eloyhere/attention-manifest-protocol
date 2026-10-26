@@ -4,10 +4,10 @@
  * deepwiki and mslearn only speak 2025-06-18/2025-11-25: discover is absent,
  * so the client must fall back to initialize + session + notifications/initialized.
  */
-import { ExecProfile } from '../src/runtime/exec.ts'
-import { HandleStore } from '../src/runtime/handles.ts'
-import { McpClient } from '../src/runtime/mcp/client.ts'
-import { HttpTransport } from '../src/runtime/mcp/http.ts'
+import { ExecProfile } from '../src/execution/exec.ts'
+import { HandleStore } from '../src/execution/handles.ts'
+import { McpClient } from '../src/module/mcp/client.ts'
+import { HttpTransport } from '../src/module/mcp/http.ts'
 
 const ENDPOINTS = [
   { name: 'mslearn', url: 'https://learn.microsoft.com/api/mcp', tool: 'microsoft_docs_search', args: { query: 'Azure Functions' } },
@@ -39,7 +39,7 @@ for (const endpoint of ENDPOINTS) {
   console.log(`tools: ${snapshot.tools.length}  (${snapshot.tools.map((t) => t.name).join(', ')})`)
 
   const out = await exec.call(endpoint.tool, endpoint.args, {
-    approved: true,
+    effect: 'read',
     budgetTokens: 300,
     predictedVoi: 0.6,
     realizedVoi: 0.55,

@@ -2,9 +2,9 @@
 /** End-to-end collaboration session: delegation → board → lease → spend → metrics. */
 import assert from 'node:assert/strict'
 
-import { BudgetExceeded } from '../src/runtime/budget.ts'
-import { DuplicateGoal } from '../src/runtime/board.ts'
-import { TeamSession } from '../src/runtime/session.ts'
+import { BudgetExceeded } from '../src/attention/budget.ts'
+import { DuplicateGoal } from '../src/cooperation/board.ts'
+import { TeamSession } from '../src/cycle/session.ts'
 
 let passed = 0
 let failed = 0

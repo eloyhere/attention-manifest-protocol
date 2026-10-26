@@ -2,8 +2,8 @@
 /** Agent Card signatures: sign, verify, tamper, wrong key. */
 import assert from 'node:assert/strict'
 
-import { signCard, verifyCardSignature } from '../src/runtime/card-sign.ts'
-import { generateSigningKey } from '../src/runtime/sign.ts'
+import { signCard, verifyCardSignature } from '../src/manifest/cardSign.ts'
+import { generateSigningKey } from '../src/manifest/sign.ts'
 
 let passed = 0
 let failed = 0

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Emits a schema-valid ledger snapshot for docs/examples. */
-import { exportLedger } from '../src/runtime/persistence.ts'
-import { AmpRuntime } from '../src/runtime/runtime.ts'
+import { exportLedger } from '../src/ledger/persistence.ts'
+import { AmpRuntime } from '../src/cycle/runtime.ts'
 
 const runtime = new AmpRuntime({ agentId: 'a.gamma', start: '2026-10-24T01:00:00Z' })
 runtime.noteUnknown({ question: '错误率上升是发布引起还是流量引起？', importance: 0.9, blocking: true })

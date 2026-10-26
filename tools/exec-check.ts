@@ -5,13 +5,26 @@
  */
 import assert from 'node:assert/strict'
 
-import { BudgetExceeded } from '../src/runtime/budget.ts'
-import { ApprovalRequired, DriftDetected, ExecProfile } from '../src/runtime/exec.ts'
-import { HandleStore } from '../src/runtime/handles.ts'
-import { McpClient } from '../src/runtime/mcp/client.ts'
-import { DemoServer } from '../src/runtime/mcp/server.ts'
-import { MemoryTransport } from '../src/runtime/mcp/transport.ts'
-import type { Budget } from '../src/types/index.ts'
+import { BudgetExceeded } from '../src/attention/budget.ts'
+import { ApprovalRequired, DriftDetected, ExecProfile, PolicyDenied } from '../src/execution/exec.ts'
+import { HandleStore } from '../src/execution/handles.ts'
+import { McpClient } from '../src/module/mcp/client.ts'
+import { DemoServer } from '../src/module/mcp/server.ts'
+import { MemoryTransport } from '../src/module/mcp/transport.ts'
+import type { Budget, Claim } from '../src/types/index.ts'
+
+const heldClaim = (tier: Claim['tier'] = 'T3'): Claim => ({
+  amp: '0.1',
+  kind: 'claim',
+  id: `cl.${tier}`,
+  statement: 'the deployment is the best reversible action available',
+  tier,
+  confidence: 0.9,
+  status: 'held',
+  warrant: { evidence: [], inference: 'deduction', strength: 0.9 },
+  provenance: { source: 'a.lead' },
+  created: '2026-10-24T01:00:00Z',
+})
 
 let passed = 0
 let failed = 0
@@ -101,17 +114,57 @@ await test('oversized results become handles, not truncation', async () => {
   assert.equal(page.next, 400)
 })
 
-await test('destructive tools require approval and never reach the server', async () => {
-  const { exec, server } = setup()
+await test('tool arguments are validated against inputSchema before dispatch', async () => {
+  const { exec, server, receipts } = setup()
   await exec.connect()
   await assert.rejects(
-    () => exec.call('deploy.rollback', { version: 'v41' }),
+    () => exec.call('logs.query', { window: 'mid' }),
+    (error) => error instanceof PolicyDenied,
+  )
+  assert.equal(server.calls, 0)
+  assert.equal(receipts.at(-1)?.outcome, 'blocked')
+  assert.match(receipts.at(-1)?.note ?? '', /invalid_tool_args/)
+
+  const good = await exec.call('logs.query', { window: 'post' })
+  assert.equal(good.receipt.outcome, 'success')
+  assert.equal(server.calls, 1)
+})
+
+await test('destructive tools need a claim, host approval and one-time consumption', async () => {
+  const { exec, server, receipts } = setup()
+  await exec.connect()
+  const args = { version: 'v41' }
+
+  await assert.rejects(
+    () => exec.call('deploy.rollback', args, { claim: heldClaim() }),
     (error) => error instanceof ApprovalRequired,
   )
   assert.equal(server.calls, 0)
+  assert.equal(receipts.at(-1)?.outcome, 'blocked')
+  assert.match(receipts.at(-1)?.note ?? '', /approval_required/)
 
-  const approved = await exec.call('deploy.rollback', { version: 'v41' }, { approved: true })
+  await assert.rejects(
+    () => exec.call('deploy.rollback', args, { claim: heldClaim('T2') }),
+    (error) => error instanceof PolicyDenied,
+  )
+  assert.equal(server.calls, 0)
+
+  const approval = exec.approveTool('deploy.rollback', args, 'host.operator', 60_000)
+  const approved = await exec.call('deploy.rollback', args, { claim: heldClaim(), approval })
   assert.ok(approved.inline?.includes('v41'))
+  assert.equal(server.calls, 1)
+
+  await assert.rejects(
+    () => exec.call('deploy.rollback', args, { claim: heldClaim(), approval }),
+    (error) => error instanceof PolicyDenied,
+  )
+  assert.equal(server.calls, 1)
+
+  const wrongArgsApproval = exec.approveTool('deploy.rollback', args, 'host.operator', 60_000)
+  await assert.rejects(
+    () => exec.call('deploy.rollback', { version: 'v42' }, { claim: heldClaim(), approval: wrongArgsApproval }),
+    (error) => error instanceof PolicyDenied,
+  )
   assert.equal(server.calls, 1)
 })
 
@@ -134,6 +187,18 @@ await test('catalog drift fails closed', async () => {
   const verdict = await exec.verify()
   assert.equal(verdict.ok, false)
   await assert.rejects(() => exec.refresh(), (error) => error instanceof DriftDetected)
+})
+
+await test('call-time pin catches a change inside the TTL window', async () => {
+  const { exec, server, receipts } = setup()
+  await exec.connect()
+  server.mutateDescription()
+  await assert.rejects(
+    () => exec.call('logs.query', { window: 'post' }),
+    (error) => error instanceof DriftDetected,
+  )
+  assert.equal(server.calls, 0)
+  assert.equal(receipts.at(-1)?.outcome, 'blocked')
 })
 
 await test('clock is injected so receipts share one timeline', async () => {

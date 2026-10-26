@@ -9,6 +9,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Construction boundary (`src/boundary/`). `frameFrom()` validates the id grammar, reference
+  closure, the 9-slot ceiling, the exclusion cap (default 50, overflow returned as `deferred`)
+  and budget consistency before a frame exists; `parseToolCall()` validates arguments against a
+  JSON Schema subset and returns a digest of exactly what was accepted; `RefTable` gives `tool`
+  and `capability` one namespace and resolves `self`. 19 assertions run as
+  `npm run boundary-check` and inside `npm run verify`.
+- `ExecProfile` parses call arguments through `parseToolCall()` before policy evaluation and
+  dispatch. A rejected argument set records a blocked receipt and never reaches a server;
+  approvals bind to the parsed digest.
 - Context economy. `planPrune()` builds an explicit view of a verified ledger: superseded
   claims, closed hypotheses and resolved non-blocking unknowns leave it, every omission
   carries a `reason` and a `revisit_if`, and citations are closed over so that nothing

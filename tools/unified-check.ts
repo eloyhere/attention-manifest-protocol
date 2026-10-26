@@ -2,8 +2,8 @@
 /** Unified ledger: compute and attention share one account and snapshot. */
 import assert from 'node:assert/strict'
 
-import { BudgetExceeded } from '../src/runtime/budget.ts'
-import { UnifiedLedger } from '../src/runtime/unified.ts'
+import { BudgetExceeded } from '../src/attention/budget.ts'
+import { UnifiedLedger } from '../src/cooperation/unified.ts'
 import type { AttentionRequest } from '../src/types/index.ts'
 
 let passed = 0

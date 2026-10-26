@@ -2,8 +2,8 @@
 /** Card trust: signature resolved through a registry, not the card itself. */
 import assert from 'node:assert/strict'
 
-import { signCard, verifyCardWithRegistry } from '../src/runtime/card-sign.ts'
-import { generateSigningKey, KeyRegistry } from '../src/runtime/sign.ts'
+import { signCard, verifyCardWithRegistry } from '../src/manifest/cardSign.ts'
+import { generateSigningKey, KeyRegistry } from '../src/manifest/sign.ts'
 
 let passed = 0
 let failed = 0

@@ -2,8 +2,8 @@
 /** Inquiry profile checks: pre-registration, looks, tiers, replication. */
 import assert from 'node:assert/strict'
 
-import { digestOf } from '../src/runtime/canonical.ts'
-import { InquiryLog, preregHashOf, replicationCheck } from '../src/runtime/inquiry.ts'
+import { digestOf } from '../src/semantic/canonical.ts'
+import { InquiryLog, preregHashOf, replicationCheck } from '../src/warrant/inquiry.ts'
 import type { Hypothesis } from '../src/types/index.ts'
 
 let passed = 0

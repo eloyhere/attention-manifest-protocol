@@ -2,8 +2,8 @@
 /** Result merge checks: tier decay on transfer, independence caps, contested conflicts. */
 import assert from 'node:assert/strict'
 
-import { mergeResults, transferTier } from '../src/runtime/merge.ts'
-import type { MergeClaim } from '../src/runtime/merge.ts'
+import { mergeResults, transferTier } from '../src/cooperation/merge.ts'
+import type { MergeClaim } from '../src/cooperation/merge.ts'
 
 let passed = 0
 let failed = 0

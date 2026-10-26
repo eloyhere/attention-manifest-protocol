@@ -4,10 +4,10 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { listen } from './_helpers.ts'
 
-import { digestOf } from '../src/runtime/canonical.ts'
-import { delegateOver } from '../src/runtime/channel.ts'
-import { HttpTeamChannel } from '../src/runtime/http-channel.ts'
-import { TeamRuntime } from '../src/runtime/team.ts'
+import { digestOf } from '../src/semantic/canonical.ts'
+import { delegateOver } from '../src/protocol/channel.ts'
+import { HttpTeamChannel } from '../src/protocol/httpChannel.ts'
+import { TeamRuntime } from '../src/delegate/team.ts'
 
 let passed = 0
 let failed = 0

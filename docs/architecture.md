@@ -910,7 +910,7 @@ S(i)   = [ EVSI_i · P(accept_i) · exp(−Δt_i / τ_class) ] / [ c_tok + c_too
 
 ### 6.10 实验登记与复现
 
-预注册不只是一个字段，而是一道**时序检查**：假设的哈希必须覆盖「陈述 + 指标 + 停止规则 + 排除项」，并在第一次观测之前写入。参考实现（[`inquiry.ts`](../src/runtime/inquiry.ts)）强制三件事：
+预注册不只是一个字段，而是一道**时序检查**：假设的哈希必须覆盖「陈述 + 指标 + 停止规则 + 排除项」，并在第一次观测之前写入。参考实现（[`inquiry.ts`](../src/warrant/inquiry.ts)）强制三件事：
 
 1. **登记先于观测**：没有 `prereg` 的假设不能开实验；哈希与内容不符（假设被改过）直接拒绝。
 2. **每一次观测都是一次 look**：必须在日志里递增；固定样本设计下的额外观测会产生警告——这正是可选停止（optional stopping）的痕迹。
@@ -1254,7 +1254,7 @@ retry → local adjust → re-decompose → replan → abandon
 
 接收方必须响应 `grant` / `defer` / `deny` 之一，并给出理由。未响应的请求在 `expires` 后自动转为 `defer`，计入**注意力债务**（未兑现的请求数），作为指标暴露。
 
-参考实现（[`social.ts`](../src/runtime/social.ts)）把这条规则变成可执行循环：
+参考实现（[`social.ts`](../src/attention/social.ts)）把这条规则变成可执行循环：
 
 | 规则 | 行为 |
 | --- | --- |
@@ -1323,7 +1323,7 @@ S 面是**事实**，M 面是**提议**，A 面是**协商**。
 2. **模型不能直接写 `tier` 之外的可信字段。** `confidence` 可以被提议，但会被校准上限压制；`calibration` 只能由回执计算（M-1）。
 3. **动词不改变工具面。** 新增能力不新增工具，而是通过 `inspect`/`attend` 展开——这是前缀稳定性的物理保证（R1、R2）。
 
-七个动词的请求结构定义在 [`schemas/verb.schema.json`](schemas/verb.schema.json)，TypeScript 类型见 [`src/types/protocol.ts`](../src/types/protocol.ts)。
+七个动词的请求结构定义在 [`schemas/verb.schema.json`](schemas/verb.schema.json)，TypeScript 类型见 [`src/protocol/protocol.ts`](../src/protocol/protocol.ts)。
 
 ### 10.3 消息面：信封与七个言语行为
 
@@ -1414,7 +1414,7 @@ AMP 是 MCP 之上的剖面，不是替代品。映射关系如下：
 1. **MCP 只要求（SHOULD）确定性排序**，因此 AMP 不能把缓存与签名建立在服务端顺序上；`digest` 必须覆盖 AMP 自己生成的规范序列化。
 2. **官方注册表不签名**（只有命名空间认证）。因此 AMP 的签名是**增量**的，不是重复的；同时不要把签名宣传成身份证明（见 §11.2）。
 
-**HTTP 绑定的头契约（实测）。** 2026-07-28 的 Streamable HTTP 把 JSON-RPC 信封镜像到头里：每个请求都要带 `MCP-Protocol-Version`，且方法名必须与 `Mcp-Method` 一致；`tools/call` 还要带 `Mcp-Name`。缺任一项，真实服务器（context7）返回 `-32020`。参考实现的 [`HttpTransport`](../src/runtime/mcp/http.ts) 已实现该规则；兼容性矩阵见 [`research/live-mcp-compatibility.md`](research/live-mcp-compatibility.md)。
+**HTTP 绑定的头契约（实测）。** 2026-07-28 的 Streamable HTTP 把 JSON-RPC 信封镜像到头里：每个请求都要带 `MCP-Protocol-Version`，且方法名必须与 `Mcp-Method` 一致；`tools/call` 还要带 `Mcp-Name`。缺任一项，真实服务器（context7）返回 `-32020`。参考实现的 [`HttpTransport`](../src/module/mcp/http.ts) 已实现该规则；兼容性矩阵见 [`research/live-mcp-compatibility.md`](research/live-mcp-compatibility.md)。
 
 ### 10.7 能力协商与降级
 
@@ -1610,21 +1610,21 @@ MVP 不需要：签名、他者模型、实验设计、联邦。**先计量，�
 
 | 模块 | 职责 | 对应不变量 |
 | --- | --- | --- |
-| [`ledger.ts`](../src/runtime/ledger.ts) | 只追加账本（内存版） | X-1 |
-| [`budget.ts`](../src/runtime/budget.ts) | 唯一计费点，嵌套调用同样计数 | A-3 |
-| [`handles.ts`](../src/runtime/handles.ts) | 内容寻址句柄与确定性分页 | A-3 |
-| [`warrant.ts`](../src/runtime/warrant.ts) | 置信度派生、等级校验、最小修订 | W-1 / W-3 / W-5 / M-1 |
-| [`attention.ts`](../src/runtime/attention.ts) | 显著性契约、焦点集与忽略集 | A-1 / A-2 / A-4 |
-| [`mcp/`](../src/runtime/mcp/) | 无状态 MCP 客户端/服务端/传输；`_meta` 版本校验 | A-3 / §10.6 |
-| [`exec.ts`](../src/runtime/exec.ts) | Exec Profile：TTL 缓存、摘要固定、审批、预算与整形 | A-3 / T3 |
-| [`sign.ts`](../src/runtime/sign.ts) | Ed25519 签名、内容摘要重算、注册表与撤销 | M-1 / T3 |
-| [`inquiry.ts`](../src/runtime/inquiry.ts) | 预注册哈希、looks、T3/T4、复现判定 | W-2 / §6.10 |
-| [`social.ts`](../src/runtime/social.ts) | 注意力协商：预算、安静时段、冷却、债务 | A-4 / §9.5 |
-| [`federation.ts`](../src/runtime/federation.ts) | 跨域 bundle 导出/导入、撤销、过期、第三方证明 | F-1…F-5 |
-| [`persistence.ts`](../src/runtime/persistence.ts) | 账本快照、只追加哈希链、篡改/重排/截断检测、恢复 | X-1 |
-| [`team.ts`](../src/runtime/team.ts) | 委派衰减、租约 fencing、预留-结算、重复任务拒绝 | D-1…D-10 |
-| [`runtime.ts`](../src/runtime/runtime.ts) | 动词编排、帧链、回执、Manifest、自审计 | 全部 |
-| [`demo.ts`](../src/runtime/demo.ts) | 端到端事故场景（真实 MCP 帧），产出 [`runtime-run.json`](examples/runtime-run.json) | — |
+| [`ledger.ts`](../src/ledger/ledger.ts) | 只追加账本（内存版） | X-1 |
+| [`budget.ts`](../src/attention/budget.ts) | 唯一计费点，嵌套调用同样计数 | A-3 |
+| [`handles.ts`](../src/perform/handles.ts) | 内容寻址句柄与确定性分页 | A-3 |
+| [`warrant.ts`](../src/warrant/warrant.ts) | 置信度派生、等级校验、最小修订 | W-1 / W-3 / W-5 / M-1 |
+| [`attention.ts`](../src/attention/attention.ts) | 显著性契约、焦点集与忽略集 | A-1 / A-2 / A-4 |
+| [`mcp/`](../src/module/mcp/) | 无状态 MCP 客户端/服务端/传输；`_meta` 版本校验 | A-3 / §10.6 |
+| [`exec.ts`](../src/perform/exec.ts) | Exec Profile：TTL 缓存、摘要固定、审批、预算与整形 | A-3 / T3 |
+| [`sign.ts`](../src/manifest/sign.ts) | Ed25519 签名、内容摘要重算、注册表与撤销 | M-1 / T3 |
+| [`inquiry.ts`](../src/warrant/inquiry.ts) | 预注册哈希、looks、T3/T4、复现判定 | W-2 / §6.10 |
+| [`social.ts`](../src/attention/social.ts) | 注意力协商：预算、安静时段、冷却、债务 | A-4 / §9.5 |
+| [`federation.ts`](../src/manifest/federation.ts) | 跨域 bundle 导出/导入、撤销、过期、第三方证明 | F-1…F-5 |
+| [`persistence.ts`](../src/ledger/persistence.ts) | 账本快照、只追加哈希链、篡改/重排/截断检测、恢复 | X-1 |
+| [`team.ts`](../src/cooperation/team.ts) | 委派衰减、租约 fencing、预留-结算、重复任务拒绝 | D-1…D-10 |
+| [`runtime.ts`](../src/cycle/runtime.ts) | 动词编排、帧链、回执、Manifest、自审计 | 全部 |
+| [`demo.ts`](../src/cycle/demo.ts) | 端到端事故场景（真实 MCP 帧），产出 [`runtime-run.json`](examples/runtime-run.json) | — |
 
 ```bash
 npm run demo            # 生成端到端轨迹（15 个对象）

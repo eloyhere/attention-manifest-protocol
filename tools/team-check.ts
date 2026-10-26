@@ -8,7 +8,7 @@ import {
   DuplicateTask,
   FencingError,
   TeamRuntime,
-} from '../src/runtime/team.ts'
+} from '../src/delegate/team.ts'
 
 let passed = 0
 let failed = 0

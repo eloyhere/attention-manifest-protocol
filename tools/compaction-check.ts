@@ -9,10 +9,10 @@
  */
 import assert from 'node:assert/strict'
 
-import { Ledger } from '../src/runtime/ledger.ts'
-import { exportLedger } from '../src/runtime/persistence.ts'
-import type { LedgerSnapshot } from '../src/runtime/persistence.ts'
-import { CompactionRefused, compactLedger, planPrune, verifyCompaction } from '../src/runtime/compaction.ts'
+import { Ledger } from '../src/ledger/ledger.ts'
+import { exportLedger } from '../src/ledger/persistence.ts'
+import type { LedgerSnapshot } from '../src/ledger/persistence.ts'
+import { CompactionRefused, compactLedger, planPrune, verifyCompaction } from '../src/window/compaction.ts'
 import type { Claim, Hypothesis, UnknownItem } from '../src/types/index.ts'
 
 let passed = 0

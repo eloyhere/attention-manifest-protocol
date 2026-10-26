@@ -2,9 +2,9 @@
 /** Federation checks F1–F8: export/import, tamper, revocation, expiry, endorsement. */
 import assert from 'node:assert/strict'
 
-import { digestOf } from '../src/runtime/canonical.ts'
-import { attest, exportBundle, importBundle } from '../src/runtime/federation.ts'
-import { generateSigningKey, signManifest } from '../src/runtime/sign.ts'
+import { digestOf } from '../src/semantic/canonical.ts'
+import { attest, exportBundle, importBundle } from '../src/manifest/federation.ts'
+import { generateSigningKey, KeyRegistry, signManifest } from '../src/manifest/sign.ts'
 import type { Manifest } from '../src/types/index.ts'
 
 let passed = 0
@@ -83,23 +83,45 @@ await test('F5 expired bundles fail', async () => {
   assert.ok(result.reasons.some((r) => r.includes('expired')))
 })
 
-await test('F6 attestation must bind to the manifest digest', async () => {
+await test('F6 attestation must bind the digest and verify with a trusted issuer key', async () => {
   const org = await generateSigningKey('org.acme#1')
+  const issuerKeys = new KeyRegistry()
+  issuerKeys.add(org.kid, org.publicKey)
   const good = await attest({
     id: 'at.1', issuer: { kind: 'org', id: 'org.acme' }, manifest, scope: ['reviewed'],
     issued: window.issued, expires: window.expires, key: org,
   })
-  const accepts = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [good] }), { now: NOW })
+  const accepts = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [good] }), {
+    now: NOW,
+    issuerKeys,
+  })
   assert.equal(accepts.attested, true)
+
+  const noTrust = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [good] }), { now: NOW })
+  assert.equal(noTrust.attested, false, 'bundle content is not an issuer trust root')
 
   const wrong = await attest({
     id: 'at.2', issuer: { kind: 'org', id: 'org.acme' },
     manifest: { ...manifest, digest: 'sha256:' + '1'.repeat(64) },
     scope: ['reviewed'], issued: window.issued, expires: window.expires, key: org,
   })
-  const rejects = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [wrong] }), { now: NOW })
+  const rejects = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [wrong] }), {
+    now: NOW,
+    issuerKeys,
+  })
   assert.equal(rejects.attested, false)
   assert.equal(rejects.ok, true, 'missing endorsement must not invalidate verification')
+
+  const impostor = await generateSigningKey('org.acme#evil')
+  const forged = await attest({
+    id: 'at.3', issuer: { kind: 'org', id: 'org.acme' }, manifest, scope: ['reviewed'],
+    issued: window.issued, expires: window.expires, key: impostor,
+  })
+  const forgedResult = await importBundle(await exportBundle(manifest, key, { ...window, attestations: [forged] }), {
+    now: NOW,
+    issuerKeys,
+  })
+  assert.equal(forgedResult.attested, false, 'an attestation signed by the wrong key must not endorse')
 })
 
 await test('F7 missing key is reported specifically', async () => {

@@ -8,7 +8,7 @@ import {
   signManifest,
   verifyManifest,
   verifyWithRegistry,
-} from '../src/runtime/sign.ts'
+} from '../src/manifest/sign.ts'
 import type { Manifest } from '../src/types/index.ts'
 
 let passed = 0

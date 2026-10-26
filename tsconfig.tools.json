@@ -23,7 +23,9 @@
   },
   "include": [
     "tools/**/*.ts",
-    "src/runtime/**/*.ts",
-    "src/types/**/*.ts"
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/main.ts"
   ]
 }

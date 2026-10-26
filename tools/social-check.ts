@@ -2,7 +2,7 @@
 /** Social profile checks: attention budgets, quiet hours, cooldown, debt. */
 import assert from 'node:assert/strict'
 
-import { AttentionBroker } from '../src/runtime/social.ts'
+import { AttentionBroker } from '../src/attention/social.ts'
 import type { AttentionRequest } from '../src/types/index.ts'
 
 let passed = 0

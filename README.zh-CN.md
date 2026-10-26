@@ -32,12 +32,15 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 | 协议 | 16 个 JSON Schema、一一对应的 TS 类型、消息信封与七种言语行为 |
 | 注意力 | 显著性契约、焦点集与忽略集、僵局分类、打断分级与债务 |
 | 凭据 | T0–T4 认知投入等级、置信度派生、最小修订、未知与停止规则 |
-| 执行 | MCP 2026-07-28 客户端（无状态与旧式回退）、预算调度、句柄整形 |
+| 边界 | 构造即拒绝：id 文法、引用闭包、槽位与忽略上限、工具参数解析 |
+| 执行 | MCP 2026-07-28 客户端（无状态与旧式回退）、预算调度、schema 校验的参数、句柄整形 |
 | 联邦 | `ManifestBundle` 与 `Attestation`、摘要固定、撤销、导入失败关闭 |
 | 协作 | 委派衰减、租约 fencing、任务板、结果合并与冲突裁决、统一账本 |
 | 信任 | Agent Card 发现与签名、bundle 密钥、scope 策略、A2A `message/send` |
 | 持久化 | 只追加哈希链、快照校验、恢复时拒收损坏数据 |
 | 上下文经济 | 在已验证账本上生成剪枝视图，用检查点替换冷前缀；概念有预算、历史有检查点；活引用不会被埋掉 |
+| 内核 | SQLite agent/任务调度：agent 进程一次只跑一个任务线程，原子认领、fencing lease、任务与 agent 双层预算、崩溃恢复、基于能力的隔离 |
+| 注册表 | 概念与模块作为表存储，每次声明都有带版本的对象、内容摘要、依赖边与证明 |
 
 ## 仓库结构
 
@@ -52,8 +55,9 @@ AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Ag
 | [`docs/research/`](docs/research/) | 九份研究简报，含真实端点兼容性矩阵与引用纪律 |
 | [`docs/schemas/`](docs/schemas/) | 16 个 JSON Schema |
 | [`docs/examples/`](docs/examples/) | 37 个可校验示例：帧链、主张、计划、委派、bundle、快照、检查点 |
-| [`src/types/`](src/types/) | 与 schema 一一对应的 TS 类型 |
-| [`src/runtime/`](src/runtime/) | 参考运行时（见下表） |
+| [`src/types/`](src/types/) | 共享原语与公共类型 barrel；各领域在自己目录内保存与 schema 对应的类型 |
+| [`src/structure/`](src/structure/) | 零依赖数据结构：hash/ordered/unordered 容器、栈、队列、双端队列、二叉堆、二叉树、BST、AVL、红黑树、线段树、AST、Bloom filter、cuckoo filter 与 LRU 容器 |
+| [`src/`](src/) | 领域运行时：`attention`、`frame`、`ledger`、`warrant`、`manifest`、`policy`、`perform`、`protocol`、`cooperation`、`cycle`、`semantic`、`module`、`storage`、`structure`、`boundary` |
 | [`tools/`](tools/) | 31 个校验脚本、4 个示例生成器、5 个真实端点探针，全部为 TypeScript |
 
 运行时模块：
