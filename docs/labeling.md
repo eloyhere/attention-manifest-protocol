@@ -60,6 +60,8 @@ Active learning：`selectLabelCandidates` 优先选 `predicted` 接近 0.5、unc
 
 Coverage gate：`requireLabelCoverage(audit, { minCoverage, maxDuplicates })`；低于阈值/有重复直接抛错，batch 不能进入 calibration。
 
+导入到校准：`node tools/calibrate-imported.ts`；它先检查 coverage/duplicates/unresolved，再调用 `CalibrationRegistry`，证据不足只输出 `refused`。
+
 未来接入真实标注时：
 
 1. 导出 JSONL；

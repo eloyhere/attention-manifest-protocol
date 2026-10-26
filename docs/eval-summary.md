@@ -1,6 +1,6 @@
 # AMP eval summary
 
-Generated: 2026-10-26T19:03:53.346Z
+Generated: 2026-10-26T19:18:21.234Z
 
 > Fixture labels only; not an independent human study. Recorded n=40; replay n=12.
 

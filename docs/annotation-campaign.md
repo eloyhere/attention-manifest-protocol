@@ -36,6 +36,14 @@ AMP_ANNOTATIONS_PATH=docs/eval/annotations.imported.json node tools/label-audit.
 
 5. 平票用第三人裁决，再填 `resolveUnresolved` 或人工修订 `annotations.imported.json`。
 
+6. 只有 coverage/无平票/无 unsure 时，导入才可能进入校准：
+
+```bash
+node tools/calibrate-imported.ts
+```
+
+输出 `docs/probes/calibration-imported.json`。当前 fixture 只有 replay 12 条，coverage=23%，会明确 `status=refused`。
+
 ## 4. 当前输出预期
 
 - coverage 应接近 100%；

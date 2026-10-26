@@ -20,37 +20,46 @@ export interface LabelCandidate {
     uncertainty?: number;
 }
 
-const splitCsvLine = (line: string): string[] => {
-    const cells: string[] = [];
-    let current = "";
+const splitCsvRecords = (text: string): string[][] => {
+    const records: string[][] = [];
+    let record: string[] = [];
+    let cell = "";
     let quoted = false;
-    for (let index = 0; index < line.length; index += 1) {
-        const char = line[index];
+    for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
         if (char === '"') {
-            if (quoted && line[index + 1] === '"') {
-                current += '"';
+            if (quoted && text[index + 1] === '"') {
+                cell += '"';
                 index += 1;
             } else quoted = !quoted;
         } else if (char === "," && !quoted) {
-            cells.push(current);
-            current = "";
-        } else current += char;
+            record.push(cell);
+            cell = "";
+        } else if ((char === "\n" || char === "\r") && !quoted) {
+            if (char === "\r" && text[index + 1] === "\n") index += 1;
+            record.push(cell);
+            if (record.some((entry) => entry.trim().length > 0)) records.push(record);
+            record = [];
+            cell = "";
+        } else cell += char;
     }
-    cells.push(current);
-    return cells;
+    if (cell.length > 0 || record.length > 0) {
+        record.push(cell);
+        if (record.some((entry) => entry.trim().length > 0)) records.push(record);
+    }
+    return records;
 };
 
-/** CSV header: caseId,annotator,label[,note]. */
+/** CSV header: caseId,annotator,label[,note]. Handles quoted newlines. */
 export const importAnnotationsCsv = (text: string): Annotation[] => {
-    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
-    if (lines.length === 0) return [];
-    const header = splitCsvLine(lines[0]).map((cell) => cell.trim());
+    const records = splitCsvRecords(text.replace(/^\uFEFF/, ""));
+    if (records.length === 0) return [];
+    const header = records[0].map((cell) => cell.trim());
     const indexOf = (name: string): number => header.indexOf(name);
     if (indexOf("caseId") < 0 || indexOf("annotator") < 0 || indexOf("label") < 0) {
         throw new Error("CSV header requires caseId, annotator, label");
     }
-    return lines.slice(1).map((line, row) => {
-        const cells = splitCsvLine(line);
+    return records.slice(1).map((cells, row) => {
         const caseId = cells[indexOf("caseId")]?.trim();
         const annotator = cells[indexOf("annotator")]?.trim();
         const label = cells[indexOf("label")]?.trim();

@@ -258,6 +258,7 @@ const llm = DeepSeekLlm.fromEnv();
 - `tools/calibration-check.ts`：ECE/Brier/isotonic/cross-validation/model selection。
 - `tools/calibration-registry-check.ts`：只有 CV 改善足够才激活校准映射。
 - `tools/labels-workflow-check.ts`：CSV 导入、active-learning 选样、第三人裁决。
+- `tools/calibrate-imported.ts`：真实标签 coverage/unsure 门控 + calibration registry。
 - `tools/behavior-tuning-check.ts`：冲突统计 → priority 建议 + apply/rollback。
 - `tools/calibration-sim.ts`：合成 400 条数据验证 selector 在数据足够时启用映射。
 - `tools/scoped-priors-check.ts`：scope 级 Beta 先验与 global 回退。
