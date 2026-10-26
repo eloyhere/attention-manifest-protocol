@@ -1,7 +1,7 @@
 # 校准、行为裁决与审计：调研与修复方案
 
 > 目标：修当前四个已知问题——后验校准弱、fixture 标签、behavior 冲突、审批/审计分散。
-> 结论：**behavior priority/hard guardrail + 独立 approval outbox 已落地；isotonic 校准在 40 条真实 recorded 数据上反而变差，不能上线，需要更多人工标签。**
+> 结论：**behavior priority/hard guardrail + 独立 approval outbox 已落地；temperature scaling 在 40 条 recorded checker 标签上把 ECE 从 0.314 降到 0.281，但这不是人工标签，人工 campaign 仍是最终证据。**
 
 ## 1. 当前问题（来自实测）
 
@@ -29,7 +29,7 @@ fixture labels=10，agreement=100%（非独立人工）
 
 来源：[Calibration across methods](https://export.arxiv.org/pdf/2610.24969#9#9#9)、[post-processing calibration](https://dl.acm.org/doi/pdf/10.1145/3832783.3837465?download=true#2#5#2)、[calibration comparison table](https://www.nature.com/articles/s41598-026-54840-2/tables/3)。
 
-**本项目的实测**：40 条 recorded 上，raw text ECE=0.314；5-fold isotonic 后 ECE=**0.361**，更差。加入 `selectCalibration` 后，selector 选择 **raw**，因此不再强行上线校准映射。结论：当前数据量不足以拟合校准，保留 raw + 区间。
+**本项目的实测**：40 条 recorded checker 标签上，raw text ECE=0.314；isotonic 后 0.361（更差），但 temperature scaling 的 5-fold CV ECE=0.281（T=0.25），`CalibrationRegistry` 因此激活 temperature。**注意：recorded 标签来自 checker，不是独立人工；人工 campaign 仍是最终裁决。**
 
 ### 2.2 行为裁决：subsumption / behavior tree 都强调「单一控制权」
 
@@ -106,15 +106,15 @@ fixture labels=10，agreement=100%（非独立人工）
 
 - `SourceReliability`：按 source 记录 α/β，`BayesianEngine` 接受 `sourceWeights`，低可靠来源的证据权重下降；未见过来源默认 1，不改变旧行为。
 - `src/evaluation/agreement.ts`：`agreementRate` / `cohenKappa` / `fleissKappa`；`eval-replay` 用两组 fixture 标签报告 κ=0.571。
-- `selectCalibration`：raw / isotonic / shrunk 三候选，5-fold CV 选 ECE 最低；recorded 40 条上选择 **raw**，拒绝更差的 isotonic。
+- `selectCalibration`：raw / isotonic / shrunk / temperature 四候选，5-fold CV 选 ECE 最低；recorded 40 条选择 temperature（0.281），但这不是人工标签证据。
 - `runtime_approvals` 独立表：`outboxEventSink` 在 `runtime.approval` 事件时双写 outbox + approval 表；支持 `list(pid)` / `prune(before)`；`listForSubject` 走 authz（owner 或 read grant），tool/decision 写入前脱敏。
 - `RuntimeSession.behaviorConflicts`：记录 winner←loser 频次，并随 session snapshot 持久化。
 - `TurnFeedback.actualCorrect`：用户给出实际对错后，更新 `SourceReliability`，并通过 `BayesianEngine.setSourceWeights` 影响后续评分；reliability 随 session snapshot 持久化。
 - `ScopedPriors`：`global prior + local counts`；支持 `globalWeight` 部分池化；未见 scope 回退到 global。
 - `RuntimeSession` 已接 `scope`：每轮用 `engineFor(scope)` 评分，record/feedback 更新 local counts，snapshot 恢复 scope priors；未显式指定时自动派生 `session:primary-scenario`。
-- `calibration-sim.ts`：合成 400 条带信号的 overconfident 数据上，raw ECE 0.173 → isotonic 0.058，证明 selector 在数据足够时会启用映射；在 recorded 40 条上仍选择 raw。
+- `calibration-sim.ts`：合成 400 条带信号的 overconfident 数据上，raw ECE 0.173 → isotonic 0.058，证明 selector 在数据足够时会启用映射；recorded 40 条上 temperature 从 0.314 降到 0.281，但仍是 checker 标签。
 - `scoped-priors-pooling.ts`：partial pooling 下未见 scope 从共享证据得到先验（pooled mean 0.963 vs unpooled 0.500）。
-- `CalibrationRegistry`：只有 `samples >= minSamples` 且 CV ECE 比 raw 至少改善 `minImprovement` 才激活映射；否则保持 raw。recorded 40 条 → status=raw。
+- `CalibrationRegistry`：只有 `samples >= minSamples` 且 CV ECE 比 raw 至少改善 `minImprovement` 才激活映射；否则保持 raw。recorded 40 条 checker 标签 → status=activated (temperature T=0.25)，但这不能替代人工标签。
 
 这仍然不是独立人工标注，只是把「可靠性」「一致性」「审计保留」变成可计算/可查询量。
 
@@ -135,13 +135,14 @@ fixture labels=10，agreement=100%（非独立人工）
 ## 5. 当前实测结论
 
 ```text
-raw text ECE      0.314
-isotonic CV ECE   0.361   ← 更差
-selected method   raw     ← selector 拒绝校准映射
-oracle ECE        0.222
+raw text ECE            0.314
+isotonic CV ECE         0.361   ← 更差
+temperature CV ECE      0.281   ← T=0.25
+selected method         temperature
+oracle ECE              0.222
 ```
 
-这证明：**校准不是「加一个 isotonic 就变好」；没有足够标签时，最诚实的做法是保留 raw + 不确定性区间，并继续收集标签。**
+这证明：**isotonic 不是万能；temperature 在 checker 标签上确实降低了 ECE。** 但 checker 标签不是独立人工，`docs/annotation-campaign.csv` 的 A/B 人工标签才是最终证据；在人工标签到位前，不能把这次激活当成人工研究结论。
 
 ## 6. 参考
 

@@ -5,8 +5,8 @@
  * cross-validated ECE beats raw by `minImprovement`. Otherwise the scope stays
  * raw. This prevents the "isotonic made it worse" failure from shipping.
  */
-import { applyIsotonic, fitIsotonic } from "./calibration.ts";
-import type { CalibrationPoint, IsotonicModel } from "./calibration.ts";
+import { applyIsotonic, applyTemperature, fitIsotonic, fitTemperature } from "./calibration.ts";
+import type { CalibrationPoint, IsotonicModel, TemperatureModel } from "./calibration.ts";
 import { selectCalibration } from "./calibrationSelection.ts";
 import type { CalibrationMethod, CalibrationSelection } from "./calibrationSelection.ts";
 
@@ -18,6 +18,7 @@ export interface CalibrationModel {
     cvEce: number;
     thresholds: number[];
     values: number[];
+    temperature?: number;
     activatedAt: string;
 }
 
@@ -49,6 +50,7 @@ export class CalibrationRegistry {
             return { status: "raw", selection };
         }
         const model: IsotonicModel = fitIsotonic(points);
+        const temperature: TemperatureModel = fitTemperature(points);
         const record: CalibrationModel = {
             scope,
             method: selection.method,
@@ -57,6 +59,7 @@ export class CalibrationRegistry {
             cvEce: selection.ece,
             thresholds: model.thresholds,
             values: model.values,
+            ...(selection.method === "temperature" ? { temperature: temperature.temperature } : {}),
             activatedAt: options.at ?? new Date().toISOString(),
         };
         this.models.set(scope, record);
@@ -66,6 +69,7 @@ export class CalibrationRegistry {
     calibrate(scope: string, predicted: number): number {
         const model = this.models.get(scope);
         if (model === undefined) return clamp01(predicted);
+        if (model.method === "temperature") return applyTemperature({ temperature: model.temperature ?? 1 }, predicted);
         const calibrated = applyIsotonic({ thresholds: model.thresholds, values: model.values }, predicted);
         return model.method === "isotonic" ? calibrated : 0.5 * calibrated + 0.5 * clamp01(predicted);
     }

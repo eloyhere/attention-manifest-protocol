@@ -95,11 +95,11 @@ brier=0.247
 
 ```text
 runs=40 accuracy=82.5%
-textECE=0.314  calibratedECE=0.314  selected=raw  oracleECE=0.222
+textECE=0.314  calibratedECE=0.281  selected=temperature(T=0.25)  oracleECE=0.222
 labels=10      labelAgreement=100%
 ```
 
-**重要负结果**：5-fold isotonic 的 ECE 是 0.361，比 raw 0.314 更差；`CalibrationRegistry` 因此保持 `status=raw`，不强行上线校准映射。说明 40 条数据不足以拟合校准；当前保留 raw + 区间并继续收集标签。详见 `docs/calibration-control-audit.md`。
+**校准结果（checker 标签，不是人工）**：isotonic 的 ECE 是 0.361（更差），temperature 的 5-fold ECE 是 0.281，`CalibrationRegistry` 因此激活 temperature。它证明机制可用，但**不证明人工泛化**；`docs/annotation-campaign.csv` 的 A/B 人工标签到位前，不把这次激活当人工研究结论。详见 `docs/calibration-control-audit.md`。
 
 统一汇总见 `docs/eval-summary.md`（由 `tools/eval-summary.ts` 生成）。
 

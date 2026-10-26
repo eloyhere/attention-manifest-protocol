@@ -185,6 +185,7 @@ const report = {
         calibratedBrier: calibrated.brier,
         calibratedMethod: calibrated.method,
         calibrationStatus: registered.status,
+        calibrationTemperature: registered.model?.temperature ?? null,
         oracleEce: oracle.ece,
         oracleBrier: oracle.brier,
         labeled: labeled.length,
@@ -198,7 +199,7 @@ const report = {
 writeFileSync("docs/probes/eval-recorded-replay.json", `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
 console.log(
-    `runs=${results.length} acc=${(report.metrics.accuracy * 100).toFixed(1)}% textECE=${text.ece.toFixed(3)} calibratedECE=${calibrated.ece.toFixed(3)} status=${registered.status} method=${calibrated.method} oracleECE=${oracle.ece.toFixed(3)} labels=${labeled.length} agreement=${(labeledAgreement ?? 0).toFixed(0)}`,
+    `runs=${results.length} acc=${(report.metrics.accuracy * 100).toFixed(1)}% textECE=${text.ece.toFixed(3)} calibratedECE=${calibrated.ece.toFixed(3)} status=${registered.status} method=${calibrated.method}${registered.model?.temperature === undefined ? "" : ` T=${registered.model.temperature}`} oracleECE=${oracle.ece.toFixed(3)} labels=${labeled.length} agreement=${(labeledAgreement ?? 0).toFixed(0)}`,
 );
 for (const condition of conditions) {
     console.log(

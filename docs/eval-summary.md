@@ -1,6 +1,6 @@
 # AMP eval summary
 
-Generated: 2026-10-26T19:18:21.234Z
+Generated: 2026-10-26T19:22:45.526Z
 
 > Fixture labels only; not an independent human study. Recorded n=40; replay n=12.
 
@@ -12,8 +12,8 @@ Generated: 2026-10-26T19:18:21.234Z
 | replay | Brier | 0.247 |
 | recorded | accuracy | 82.5% |
 | recorded | text ECE | 0.314 |
-| recorded | calibrated ECE | 0.314 |
-| recorded | calibration | raw (raw) |
+| recorded | calibrated ECE | 0.281 |
+| recorded | calibration | activated (temperature T=0.25) |
 | recorded | oracle ECE | 0.222 |
 | labels | coverage | 100% |
 | labels | disagreements | 2 |

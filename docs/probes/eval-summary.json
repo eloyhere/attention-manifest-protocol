@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T19:18:21.234Z",
+  "generatedAt": "2026-10-26T19:22:45.526Z",
   "replay": {
     "cases": 12,
     "accuracy": 0.6666666666666666,
@@ -12,11 +12,12 @@
     "runs": 40,
     "accuracy": 0.825,
     "textEce": 0.31409611637991663,
-    "calibratedEce": 0.31409611637991663,
-    "method": "raw",
-    "status": "raw",
+    "calibratedEce": 0.2814990155194531,
+    "method": "temperature",
+    "status": "activated",
     "oracleEce": 0.22222222222222185,
-    "labels": 10
+    "labels": 10,
+    "temperature": 0.25
   },
   "labels": {
     "cases": 12,

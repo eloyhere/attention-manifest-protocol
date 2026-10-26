@@ -68,6 +68,41 @@ export const applyIsotonic = (model: IsotonicModel, predicted: number): number =
     return model.values[index === -1 ? model.values.length - 1 : index];
 };
 
+export interface TemperatureModel {
+    temperature: number;
+}
+
+const logit = (value: number): number => {
+    const bounded = Math.max(1e-6, Math.min(1 - 1e-6, value));
+    return Math.log(bounded / (1 - bounded));
+};
+
+const sigmoid = (value: number): number => 1 / (1 + Math.exp(-value));
+
+/** Grid-fit temperature by NLL; T<1 sharpens, T>1 softens. */
+export const fitTemperature = (
+    points: readonly CalibrationPoint[],
+    grid: readonly number[] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5],
+): TemperatureModel => {
+    if (points.length === 0) return { temperature: 1 };
+    let best = 1;
+    let bestLoss = Number.POSITIVE_INFINITY;
+    for (const temperature of grid) {
+        const loss = points.reduce((sum, point) => {
+            const calibrated = sigmoid(logit(point.predicted) / temperature);
+            const target = point.actual ? 1 : 0;
+            return sum - (target * Math.log(Math.max(1e-9, calibrated)) + (1 - target) * Math.log(Math.max(1e-9, 1 - calibrated)));
+        }, 0);
+        if (loss < bestLoss) {
+            bestLoss = loss;
+            best = temperature;
+        }
+    }
+    return { temperature: best };
+};
+
+export const applyTemperature = (model: TemperatureModel, predicted: number): number => sigmoid(logit(predicted) / model.temperature);
+
 export const crossValidateCalibration = (points: readonly CalibrationPoint[], folds = 5): { ece: number; brier: number; rawEce: number; rawBrier: number } => {
     if (points.length === 0) return { ece: 0, brier: 0, rawEce: 0, rawBrier: 0 };
     const predictions: CalibrationPoint[] = [];
