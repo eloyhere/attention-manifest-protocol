@@ -75,6 +75,7 @@ console.log(toActionPlan(frame));
 - 纯诊断帧；
 - 层清单、假设、判别测试；
 - `PlanTask` / `ActionPlan` 桥接；
+- `toContextAst`：诊断帧 → AST 子树（summary 在上下文，signal/hypothesis 详情在本地 ref）；
 - 测试覆盖 DB、connect、queue、code 四类判别。
 
 ### P1：Behavior + Planner

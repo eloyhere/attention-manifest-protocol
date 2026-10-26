@@ -19,6 +19,7 @@ import type { TelemetrySample } from "./telemetry.ts";
 import type { BehaviorPlan } from "./behavior.ts";
 import type { ActionRecord } from "./action.ts";
 import type { ApprovalRecord, OperationRecord } from "./operation.ts";
+import type { DiagnosticFrame } from "../diagnosis/index.ts";
 
 export interface SessionAttentionState extends CognitiveState {
     stress: number;
@@ -42,6 +43,7 @@ export interface SessionTurnRecord {
     actions?: ActionRecord[];
     operations?: OperationRecord[];
     approvals?: ApprovalRecord[];
+    diagnosis?: DiagnosticFrame;
 }
 
 export interface TurnFeedback {

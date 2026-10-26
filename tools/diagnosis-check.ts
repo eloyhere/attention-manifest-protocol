@@ -2,7 +2,16 @@
 /** Diagnostic frame: layer checklist, hypothesis discrimination, PlanTask bridge. */
 import assert from "node:assert/strict";
 
-import { assessHypotheses, buildDiagnosisFrame, observe, selectLayer, toActionPlan, toPlanTasks, validateDiagnosisFrame } from "../src/diagnosis/index.ts";
+import {
+    assessHypotheses,
+    buildDiagnosisFrame,
+    observe,
+    selectLayer,
+    toActionPlan,
+    toContextAst,
+    toPlanTasks,
+    validateDiagnosisFrame,
+} from "../src/diagnosis/index.ts";
 import type { DiagnosticSignal } from "../src/diagnosis/index.ts";
 
 const signal = (layer: DiagnosticSignal["layer"], kind: DiagnosticSignal["kind"], name: string): DiagnosticSignal => ({ layer, kind, name, state: "critical" });
@@ -45,6 +54,13 @@ const action = toActionPlan(payment);
 assert.ok(action);
 assert.equal(action.risk, "read");
 assert.equal(action.intent, "diagnose:thread_pool");
+
+const context = toContextAst(payment, 800);
+assert.ok(context.view.tokens <= 800);
+assert.match(context.view.text, /database/);
+assert.equal(context.top?.hypothesis.layer, "database");
+const signalDetail = context.ast.expand("signal.database.db.lock_wait", context.details);
+assert.ok(signalDetail?.includes("db.lock_wait"));
 
 const added = observe(payment, signal("queue", "saturation", "queue.lag"));
 assert.equal(payment.incident.signals?.length, 7);

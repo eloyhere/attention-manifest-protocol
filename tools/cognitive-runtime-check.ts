@@ -326,6 +326,25 @@ test("autoTuneBehavior applies the conflict-derived priority after a turn", asyn
     assert.equal(behaviors.list().find((entry) => entry.id === "clarify_when_uncertain")?.priority, 74);
 });
 
+test("diagnosis opt-in attaches a read-only diagnostic action", async () => {
+    const service = setup();
+    const session = new RuntimeSession();
+    const runtime = new CognitiveRuntime({
+        pid: 1,
+        agent: service.agents,
+        social: service.social,
+        llm: new RecordingLlm([response("Inspect the layers before changing production.")]),
+        now: () => At,
+        session,
+        diagnosis: true,
+    });
+    const turn = await runtime.respond("There is a TypeScript bug in the payment API", { interactionMix: { think: 1 } });
+    assert.ok(turn.diagnosis);
+    assert.equal(turn.actions?.[0].intent.startsWith("diagnose:"), true);
+    assert.equal(turn.actions?.[0].risk, "read");
+    assert.ok(session.history[0].diagnosis);
+});
+
 test("session derives a scenario scope when no explicit scope is given", async () => {
     const service = setup();
     const session = new RuntimeSession({ scope: "base" });

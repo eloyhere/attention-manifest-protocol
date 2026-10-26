@@ -121,6 +121,7 @@ export class KernelRuntime {
             actions: turn.actions,
             operations: turn.operations,
             approvals: turn.approvals,
+            diagnosis: turn.diagnosis,
             safety: turn.safety,
             trace: turn.trace,
             runtimeReceiptId: turn.receiptId,

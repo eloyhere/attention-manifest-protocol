@@ -38,6 +38,8 @@ import { CRISIS_RESOURCES } from "./escalation.ts";
 import type { BehaviorPlan } from "./behavior.ts";
 import { BehaviorRegistry } from "./behavior.ts";
 import { BehaviorTuningController } from "./behaviorTuning.ts";
+import { buildDiagnosisFrame, toActionPlan, toContextAst } from "../diagnosis/index.ts";
+import type { DiagnosticFrame } from "../diagnosis/index.ts";
 import type { ActionPlanner, ActionRecord } from "./action.ts";
 import { SingleActionPlanner } from "./action.ts";
 import type { ApprovalRecord, OperationRecord, SideEffect } from "./operation.ts";
@@ -109,6 +111,7 @@ export interface RuntimeTurn {
     actions?: ActionRecord[];
     operations?: OperationRecord[];
     approvals?: ApprovalRecord[];
+    diagnosis?: DiagnosticFrame;
     safety: SafetyDecision;
     receiptId: string;
     trace: string[];
@@ -135,6 +138,8 @@ export interface CognitiveRuntimeOptions {
     telemetry?: TelemetrySource;
     escalationSink?: EscalationSink;
     behaviors?: BehaviorRegistry;
+    /** Opt-in: attach a read-only diagnostic frame to engineering turns. */
+    diagnosis?: boolean;
     /** Opt-in: apply bounded priority suggestions after each turn. Default false. */
     autoTuneBehavior?: boolean;
     actionPlanner?: ActionPlanner;
@@ -189,6 +194,7 @@ const systemPrompt = (
     attention: AttentionPlan,
     behavior: BehaviorPlan,
     useContext: boolean,
+    diagnosisText?: string,
 ): string => {
     const contextText =
         useContext && context !== undefined && context.segments.length > 0
@@ -200,6 +206,7 @@ const systemPrompt = (
         `Interaction: ${interaction.rationale}`,
         `Attention: ${attention.process.effectiveSlots} slots; foreground ${attention.foreground?.slots ?? 0}; reserve ${attention.process.reserveSlots}; rest=${attention.rest}.`,
         ...(contextText.length > 0 ? [contextText] : []),
+        ...(diagnosisText === undefined || diagnosisText.length === 0 ? [] : [`Diagnostic context (summaries only):\n${diagnosisText}`]),
         ...interaction.guardrails,
         ...behavior.guardrails,
         "Answer the user's request directly. Mark uncertainty where it exists. Do not manipulate or induce dependency.",
@@ -268,7 +275,14 @@ export class CognitiveRuntime {
         if (behavior.activations.length > 0) {
             trace.push(`behaviors=${behavior.activations.map((activation) => `${activation.behaviorId}@${activation.confidence.toFixed(2)}`).join(",")}`);
         }
-        const planned = await this.actionPlanner.plan({ turnId, text: input, behavior, scenario, interaction });
+        const diagnosis =
+            this.options.diagnosis === true && scenario.active.includes("engineering")
+                ? buildDiagnosisFrame({ id: turnId, summary: input, symptoms: [] })
+                : undefined;
+        const diagnosisContext = diagnosis === undefined ? undefined : toContextAst(diagnosis, 800);
+        if (diagnosis !== undefined) trace.push(`diagnosis=${diagnosis.id} scope=${diagnosisContext?.top?.hypothesis.layer ?? "open"}`);
+        const diagnosisAction = diagnosis === undefined ? undefined : toActionPlan(diagnosis);
+        const planned = diagnosisAction === undefined ? await this.actionPlanner.plan({ turnId, text: input, behavior, scenario, interaction }) : [diagnosisAction];
         const actions: ActionRecord[] = planned.slice(0, behavior.maxActionsPerTurn).map((action, index) => ({
             id: `act.${turnId}.${index + 1}`,
             turnId,
@@ -344,7 +358,7 @@ export class CognitiveRuntime {
             inputSchema: tool.inputSchema,
         }));
         const messages: LlmMessage[] = [
-            { role: "system", content: systemPrompt(context, scenario, interaction, attention, behavior, useContext) },
+            { role: "system", content: systemPrompt(context, scenario, interaction, attention, behavior, useContext, diagnosisContext?.view.text) },
             { role: "user", content: input },
         ];
         const baseRequest = {
@@ -491,6 +505,7 @@ export class CognitiveRuntime {
                 actions,
                 operations,
                 approvals,
+                ...(diagnosis === undefined ? {} : { diagnosis }),
             });
             this.sessionStore?.save(this.options.pid, this.session.serialize(), at);
             if (this.options.autoTuneBehavior === true) {
@@ -534,6 +549,7 @@ export class CognitiveRuntime {
             ...(actions.length === 0 ? {} : { actions }),
             ...(operations.length === 0 ? {} : { operations }),
             ...(approvals.length === 0 ? {} : { approvals }),
+            ...(diagnosis === undefined ? {} : { diagnosis }),
             safety: postSafety,
             receiptId: receipt.id,
             trace,
