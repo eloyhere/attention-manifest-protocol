@@ -1,6 +1,6 @@
 /**
  * Action = goal-directed intent. It is not a permission verb and not an
- * operation. See docs/action-operation-turn-session-behavior.md.
+ * operation.
  */
 import type { BehaviorPlan } from "./behavior.ts";
 import type { ScenarioPlan } from "../scenario/scenario.ts";

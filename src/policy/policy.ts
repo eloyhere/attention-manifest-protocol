@@ -164,6 +164,11 @@ export interface PolicyOptions {
      * Whether reads may proceed without a claim. Defaults to true.
      */
     allowReadWithoutClaim?: boolean;
+    /**
+     * Optional host projection of warrant freshness. Only true passes; failures
+     * deny before approval consumption. Omission preserves the existing gate.
+     */
+    isClaimCurrent?: (claim: Claim) => boolean;
 }
 
 /**
@@ -244,6 +249,7 @@ export class PolicyEngine {
     private readonly maxTtlMs: number;
     private readonly approvalEffects: ReadonlySet<EffectClass>;
     private readonly allowReadWithoutClaim: boolean;
+    private readonly isClaimCurrent: ((claim: Claim) => boolean) | undefined;
     private readonly approvals = new Map<Id, ApprovalRecord>();
 
     constructor(options: PolicyOptions) {
@@ -255,6 +261,7 @@ export class PolicyEngine {
         this.maxTtlMs = positiveMs(options.maxTtlMs ?? DEFAULT_MAX_TTL_MS, "maxTtlMs");
         this.approvalEffects = new Set<EffectClass>(options.approvalEffects ?? DefaultApprovalEffects);
         this.allowReadWithoutClaim = options.allowReadWithoutClaim ?? true;
+        this.isClaimCurrent = options.isClaimCurrent;
     }
 
     /**
@@ -462,6 +469,15 @@ export class PolicyEngine {
                 return undefined;
             }
             return deny("missing_claim", minTier);
+        }
+        if (this.isClaimCurrent) {
+            try {
+                if (this.isClaimCurrent(claim) !== true) {
+                    return deny("claim_requires_revalidation", minTier);
+                }
+            } catch {
+                return deny("claim_freshness_unavailable", minTier);
+            }
         }
         if (claim.status !== "held") {
             return deny("claim_not_held", minTier);

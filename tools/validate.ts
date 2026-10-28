@@ -234,6 +234,8 @@ const KIND_TO_SCHEMA = {
     "result-contract": "collaboration.schema.json",
     "team-manifest": "team.schema.json",
     "commitment-record": "team.schema.json",
+    "attention-manifest": "governance.schema.json",
+    "switch-credential": "governance.schema.json",
 };
 
 function fail(msg) {

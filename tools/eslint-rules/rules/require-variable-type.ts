@@ -1,6 +1,6 @@
 import { ESLintUtils, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/README.md#code-style`);
 
 type AnnotatablePattern = TSESTree.Node & {
     typeAnnotation?: TSESTree.TSTypeAnnotation | null;

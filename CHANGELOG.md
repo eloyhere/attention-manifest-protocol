@@ -7,8 +7,103 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidated project guidance into the English and Chinese READMEs; evaluation summaries now remain JSON-only.
+
+## [0.4.0] - 2026-10-29
+
+Governance v0.4: persistence, key rotation and real HTTP interoperability.
+
 ### Added
 
+- A real HTTP server (`src/governance/httpServer.ts`): localhost, method/path/body limits,
+  end-to-end authentication with `HttpCooperationTransport`; `cooperation-http-check` has 3 checks.
+- Key rotation (`GovernanceKeyring.rotate/revokeKid/prune`): signatures made before rotation remain
+  valid during the overlap window and an old kid can be revoked; `signing-check` is now 5 checks.
+- Audit checkpoints (`checkpoint/verifyCheckpoint/entriesAfter`): a retained segment verifies
+  independently; `audit-check` is now 4 checks.
+- Governance object store (`src/governance/store.ts`): manifests, credentials and receipts are
+  appended to a JSONL event log and the latest state is replayed on reopen;
+  `governance-store-check` has 1 check.
+- DeepSeek paired samples expanded to 20: rubric 20/20, judge 4.85/5, paired token delta +6.9%,
+  about $0.007547, boundaries 20/20.
+
+## [0.3.0] - 2026-10-28
+
+Governance v0.3: Ed25519 signing, durable audit, authenticated transport and a pre-execution tool gate.
+
+### Added
+
+- Ed25519 signing adapter (`src/governance/signing.ts`): `GovernanceSignatureBundle` binds
+  signer/subject/id/version/digest and `GovernanceKeyring` supports revocation; `signing-check`
+  covers transplant, missing, duplicate and revoked signatures.
+- Durable audit: `src/storage/fileAppendSink.ts` provides a JSONL file sink; `audit-check` now
+  reopens the chain across processes and rejects on-disk tampering (3 checks).
+- HTTP transport authentication: Ed25519 signatures, clock skew and nonce replay protection;
+  `cooperation-check` is now 14 checks.
+- Pre-execution tool gate (`src/governance/toolPolicy.ts`): `GovernedToolPolicy` checks
+  high-risk approval, freeze/breaker and the evidence floor before the executor runs;
+  `tool-gate-check` has 4 checks.
+- DeepSeek evaluation expanded to 20 quality and 20 boundary cases: rubric 20/20, judge
+  4.85/5, paired token delta +6.2%, about $0.004095; the report is
+  `docs/probes/governance-live.json`.
+\n## [0.2.0] - 2026-10-28
+
+Governance v0.2: auditable, transportable and measurable, with a green verification chain.
+
+### Added
+
+- The attention-governance layer (`src/governance/`). It implements the nine constructs of the
+  Attention Manifest Protocol description: the scenario × mode matrix (all tables from
+  9.1–9.8), the perspective registry, signed attention manifests, the three-layer context,
+  triple-signed switch credentials, the Bayesian control layer, the legal behaviour layer
+  (freeze, downgrade, breaker), the three-ledger budget and the seven-phase approval
+  workflow. It reconciles the description's T1/T2/T3 strictness order with AMP's existing
+  T0–T4 strength order (`F1→T3`, `F2→T2`, `F3→T1`) and keeps explicit bridges from the eight
+  legacy scenarios to the five canonical ones and from `inspire` to `diverge`.
+- `docs/governance.md`, `governance.schema.json` (manifest and credential) and two validatable
+  examples (`attention-manifest.json`, `switch-credential.json`).
+- `tools/governance-check.ts` (19 assertions) and `tools/governed-task-check.ts` (5
+  assertions), both wired into `npm run verify`.
+- `src/runtime/governedTask.ts`: manifest verification, credential validation, legal audit,
+  ledger charge, board receipt and control decision wrapped around `CognitiveRuntime`.
+  Refusal paths return before the model call. A live `deepseek-chat` governed turn has been
+  run end to end.
+- Agent budget ledgers and `reallocate()`: budgets now support `scope: "agent"`; a sub-agent's
+  quota is transferred from its parent with the total conserved. Negative/NaN/Infinity amounts
+  are rejected, reserve charges require finance approval, and a draw above 50% also needs the board.
+- Perspective-switch orchestration (`src/governance/switching.ts`): peer switch, downgrade,
+  mode switch, scenario re-derivation and the escalation plan. A scenario switch calls
+  `rederiveAttentionManifest()`, increments the version and records the parent digest.
+- Multi-agent cooperation (`src/governance/cooperation.ts`): structured messages (manifest
+  summary, refs, credential, receipt), receiver-side credential verification, an independent
+  supervisory audit path, and communication pruning by reliability × information value.
+- Multi-agent transport seam (`src/governance/transport.ts`): `LoopbackTransport`,
+  `HttpCooperationTransport` and `createCooperationHandler()`. The receiver always re-runs the
+  digest/manifest/credential/receipt checks; malformed envelopes are 400, policy rejections 422
+  and success 200. `cooperation-check` is now 13 checks.
+- Governance audit chain (`src/governance/audit.ts`): manifests, credentials, receipts, charges,
+  legal orders, workflow transitions, switches and runtime turns can be appended to a hash-linked
+  append-only log; `verify()` detects edits, reordering and truncation, and `open({ sink })`
+  verifies the whole chain on reopen. `GovernedTask` accepts an `audit` and appends a
+  `runtime.turn` record after settlement.
+- `tools/audit-check.ts` (2 checks) covers cross-object records, reopen, tampering and corruption;
+  wired into `npm run verify`.
+- `tools/cooperation-check.ts` (13 checks) wired into `npm run verify`; `governance-check` is
+  now 21 checks, including regressions for forged signatures, negative amounts, freeze
+  revocation, the archive gate, control NaN, unknown effects and private-context leakage.
+- `tools/live-governance-eval.ts` (`npm run governance-live`) with DeepSeek quality, token and
+  boundary evaluation. Quality uses a deterministic rubric plus a strict judge; tokens record
+  input/output/cache/cost, ledger charge and cap; boundaries cover crisis escalation, expired
+  manifest, stale credential, legal freeze, budget exhaustion, prompt-injection leakage and
+  multi-agent scope/size limits. The report lands in `docs/probes/governance-live.json`; the
+  key is read from the environment only. First run: 6/6 rubric, judge 4.83/5, matched token
+  delta +3.8%, boundaries 9/9.
+- `GovernedTask` now maps the manifest's scenario and modes into the runtime's
+  scenario/interaction budgets, injects the manifest summary, evidence floor and forbidden
+  behaviours as a `systemNote`, charges the manifest's `perspective`/`agent` ledger, and checks
+  for a frozen ledger before generation.
 - Construction boundary (`src/boundary/`). `frameFrom()` validates the id grammar, reference
   closure, the 9-slot ceiling, the exclusion cap (default 50, overflow returned as `deferred`)
   and budget consistency before a frame exists; `parseToolCall()` validates arguments against a
@@ -71,6 +166,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The audit gate was unsatisfiable: `audit.behavior` and `audit.budget` had no approving
+  department. Legal now owns `audit.behavior` and finance owns `audit.budget`, so the audit
+  phase can advance to escalation or archive.
+- `src/bayes/calibration.ts` left unused `item` parameters in the `filter` callbacks of the
+  cross-validation split, which made `tsc --noEmit` fail; the parameters were renamed with no
+  behavioural change.
+- `package.json` had a corrupted UTF-8 fragment in `description` (`T0閳ユ彑4`), now `T0-T4`; the
+  `demo` script pointed at the long-deleted `src/cycle/demo.ts` and was removed, with the
+  README pointing at the runnable governance checks instead.
 - `a2a-check` compared the digest of a runtime `Delegation` with the digest of the same
   object passed where a `DelegationDoc` was expected, so both sides hashed the camelCase
   object and the assertion could never fail. It now converts with `toDelegationDoc()` and

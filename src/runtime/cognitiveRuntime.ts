@@ -170,6 +170,11 @@ export interface CognitiveRuntimeOptions {
      * Maximum tool rounds per turn. Defaults to 4.
      */
     maxToolRounds?: number;
+    /**
+     * Maximum serialized tool message size. Defaults to 1 MiB; an oversized
+     * result becomes a complete error envelope rather than broken JSON.
+     */
+    maxToolResultChars?: number;
 }
 
 export interface TurnOverride {
@@ -184,6 +189,11 @@ export interface TurnOverride {
      * Explicit prior scope; otherwise derived from session + primary scenario.
      */
     scope?: string;
+    /**
+     * Optional governance note (manifest refs, floor, constraints). It is
+     * appended to the system prompt and never carries context bodies.
+     */
+    systemNote?: string;
 }
 
 const mergeUsage: (left: LlmUsage, right: LlmUsage) => LlmUsage = (left: LlmUsage, right: LlmUsage): LlmUsage => ({
@@ -218,10 +228,11 @@ type SystemPromptInput = {
     useContext: boolean;
     diagnosisText: string | undefined;
     contextAstText: string | undefined;
+    systemNote?: string;
 };
 
 const systemPrompt: (input: SystemPromptInput) => string = (input: SystemPromptInput): string => {
-    const { context, scenario, interaction, attention, behavior, useContext, diagnosisText, contextAstText }: SystemPromptInput = input;
+    const { context, scenario, interaction, attention, behavior, useContext, diagnosisText, contextAstText, systemNote }: SystemPromptInput = input;
     const contextText: string =
         contextAstText !== (void 0) && contextAstText.length > 0
             ? `Relevant self-context (AST):\n${contextAstText}`
@@ -233,6 +244,7 @@ const systemPrompt: (input: SystemPromptInput) => string = (input: SystemPromptI
         `Scenario: ${scenario.rationale}`,
         `Interaction: ${interaction.rationale}`,
         `Attention: ${attention.process.effectiveSlots} slots; foreground ${attention.foreground?.slots ?? 0}; reserve ${attention.process.reserveSlots}; rest=${attention.rest}.`,
+        ...(systemNote === (void 0) || systemNote.length === 0 ? [] : [systemNote]),
         ...(contextText.length > 0 ? [contextText] : []),
         ...(diagnosisText === (void 0) || diagnosisText.length === 0 ? [] : [`Diagnostic context (summaries only):\n${diagnosisText}`]),
         ...interaction.guardrails,
@@ -253,10 +265,16 @@ export class CognitiveRuntime {
     private readonly session?: RuntimeSession;
     private readonly sessionStore?: SessionStore;
     private readonly turnStore?: TurnStore;
+    private readonly maxToolResultChars: number;
     private counter = 0;
     private turnCounter = 0;
 
     constructor(options: CognitiveRuntimeOptions) {
+        const resultLimit: number = options.maxToolResultChars ?? 1024 * 1024;
+        if (!Number.isSafeInteger(resultLimit) || resultLimit < 128 || resultLimit > 1024 * 1024) {
+            throw new RangeError("maxToolResultChars must be an integer in 128..1048576");
+        }
+        this.maxToolResultChars = resultLimit;
         this.options = options;
         this.sessionStore = options.sessionStore;
         this.turnStore = options.turnStore;
@@ -416,6 +434,7 @@ export class CognitiveRuntime {
                     useContext,
                     diagnosisText: diagnosisContext?.view.text,
                     contextAstText: contextAstView?.text,
+                    ...(override.systemNote === (void 0) ? {} : { systemNote: override.systemNote }),
                 }),
             },
             { role: "user", content: input },
@@ -441,11 +460,16 @@ export class CognitiveRuntime {
                 const execution: ToolExecution = await this.runTool(call);
                 const content: Redaction = redactSecrets(execution.result.content);
                 const error: Redaction | undefined = execution.result.error === (void 0) ? undefined : redactSecrets(execution.result.error);
-                const safeResult: ToolResult = {
+                let safeResult: ToolResult = {
                     ok: execution.result.ok,
                     content: content.text,
                     ...(error === (void 0) ? {} : { error: error.text }),
                 };
+                let toolMessage: string = JSON.stringify(safeResult);
+                if (toolMessage.length > this.maxToolResultChars) {
+                    safeResult = { ok: false, content: "", error: "tool_result_too_large: request a smaller page or view" };
+                    toolMessage = JSON.stringify(safeResult);
+                }
                 const operation: OperationRecord = {
                     id: `op.${turnId}.tool.${operations.length + 1}`,
                     actionId: actionId ?? "act.none",
@@ -486,7 +510,7 @@ export class CognitiveRuntime {
                 }
                 messages.push({
                     role: "tool",
-                    content: JSON.stringify(safeResult).slice(0, 4000),
+                    content: toolMessage,
                     toolCallId: call.id,
                     name: call.name,
                 });

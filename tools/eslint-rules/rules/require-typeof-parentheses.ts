@@ -1,6 +1,6 @@
 import { ESLintUtils, type TSESLint, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/README.md#code-style`);
 
 const isParenthesized = (sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node): boolean => {
     const tokenBefore = sourceCode.getTokenBefore(node);

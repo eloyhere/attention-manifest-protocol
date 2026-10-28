@@ -1,140 +1,150 @@
 # Attention Manifest Protocol (AMP)
 
-**English** · [简体中文](README.zh-CN.md)
+**English** · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
-> Let an agent come to know the universe scientifically — and spend its attention where it is needed.
+AMP is a metacognitive protocol for agents: declare knowledge and obligations, allocate finite attention, obtain evidence, and record costs and outcomes. The reference implementation is version `0.4.0`, requires **Node.js 24 or later**, and uses Apache-2.0.
 
-AMP is a **metacognitive protocol**. It does not prescribe how a model thinks. It prescribes how an agent *declares* what it knows, what it wants and what it is attending to, and how it decides where to look next when attention is finite.
+## Architecture
 
-It keeps two ledgers, and they answer two different questions.
-
-| Ledger | Records | Answers |
-| --- | --- | --- |
-| **Warrant Ledger** | claims, evidence, hypotheses, unknowns, concepts, plans | Why should I believe this? |
-| **Attention Ledger** | attention frames, budgets, receipts, interrupts | Where did my cognition go? |
-
-A controller trades between them: a finite amount of attention, spent to buy the warrant that is worth most.
-
-## Three objects
-
-| Object | Lifetime | Answers |
-| --- | --- | --- |
-| `Manifest` | durable, TTL-bounded, signable | Who am I? What can I do? What have I undertaken to do? What am I missing? |
-| `Frame` | one attention cycle, immutable | What am I looking at? Why this? **What am I ignoring?** |
-| `Receipt` | every action | How much attention did it cost? What did it return? |
-
-`Frame.ignored` is the field with no direct precedent. Classical cognitive architectures record what was attended to; they do not record what was deliberately excluded, on what grounds, and when it should be reconsidered.
-
-## What is implemented
-
-| Layer | Capability |
+| Component | Responsibility |
 | --- | --- |
-| Protocol | 16 JSON Schemas, TypeScript types in one-to-one correspondence, a message envelope and seven speech acts |
-| Attention | salience contract, focus and ignore sets, impasse classification, interrupt classes and debt |
-| Warrant | T0–T4 epistemic tiers, confidence derivation, minimal revision, unknowns and stopping rules |
-| Boundary | constructors that reject: id grammar, reference closure, slot and exclusion caps, tool-argument parsing |
-| Execution | MCP 2026-07-28 client (stateless and legacy fallback), budget dispatch, schema-validated arguments, handle-based shaping |
-| Federation | `ManifestBundle` and `Attestation`, digest pinning, revocation, import that fails closed |
-| Collaboration | delegation decay, lease fencing, task board, result merge and conflict adjudication, unified ledger |
-| Trust | Agent Card discovery and signing, bundle keys, scope policy, A2A `message/send` |
-| Persistence | append-only hash chain, snapshot verification, restore that refuses corrupted data |
-| Context economy | prune plans over a verified view, checkpoints over a cold prefix, concept budgets and concept-history checkpoints; nothing is buried while still cited |
-| Kernel | SQLite agent/task scheduler: an agent process runs one task thread at a time, with atomic claims, fencing leases, per-task and per-agent budgets, crash recovery and capability isolation |
-| Registry | concepts and modules as rows, each with a versioned declaration object, a content digest, dependency edges and attestations |
+| Warrant Ledger | Claims, evidence, hypotheses, unknowns, concepts and plans: why believe a conclusion? |
+| Attention Ledger | Frames, budgets, receipts and interruptions: where was attention spent? |
+| Manifest | Durable, signable identity, capabilities, commitments and limits |
+| Attention | Select candidates and record why they matter |
+| Frame | Freeze one allocation with refs, budgets and explicit exclusions (`ignored`) |
+| Context | Materialize summaries, relations and bounded detail access |
+| Receipt | Record actual costs and outcomes for audit and calibration |
+
+```text
+Attention → Frame → Context → Receipt → Ledger
+```
+
+Context combines a structural tree and typed relationships. Project dependencies, imports, calls and references are descriptive and may contain cycles; `depends` separately denotes prerequisites. Relations do not automatically widen a Frame. Summaries retain provenance/revision information; content-addressed detail reads verify hashes. Structure and provenance do not by themselves prove factual correctness.
+
+## Implemented capabilities
+
+- T0–T4 evidence tiers, confidence limits, revision, falsifiability, preregistration and abstention.
+- Budgeted attention, explicit exclusions, interrupts, leases, delegation and merge/arbitration.
+- Signed manifests/credentials, governance workflows, tool gates, authenticated local/HTTP communication, audit chains and persistence adapters.
+- MCP execution, schema-validated arguments, digest pinning and legacy fallback; A2A discovery and messages.
+- Project trees, project dependency graphs, partial TS/JS import/call/reference graphs and lexical knowledge retrieval.
+- Structured Markdown/TXT/DOCX/XLSX/PPTX and TeX/LaTeX/BibTeX input with native source locations and summary/detail separation.
+- `amp.workspace` v1 agent service, seven tools, local runtime integration and MCP stdio.
+
+Offline parsers live in `tools/support/`. The runtime stays database-free and uses ports; persistence adapters are separate. Concrete contracts remain in [schemas](docs/schemas/), [examples](docs/examples/) and executable [checks](tools/).
+
+## Quick start
+
+```sh
+npm ci
+npm run build
+npm run verify
+npm run scenario
+```
+
+Focused checks: `npm run workspace-agent-check`, `workspace-context-check`, `document-context-check`, `tex-context-check`, `governance-check`, `typecheck` and `typecheck:tools`. `verify` runs the full chain and both type checks. Evaluation inputs/reports remain in [docs/eval](docs/eval/) and [docs/probes](docs/probes/) as JSON; fixture and recorded-probe results are not independent human studies or production-quality evidence.
+
+## Agent tools
+
+The `amp.workspace` v1 response contains `protocol`, `version`, `revision`, `ok`, and either `data` or `error`. Both adapters share input schemas; the [protocol types](src/context/workspaceProtocol.ts) define the response envelope. Except capability discovery, each business tool requires the current `revision`.
+
+| Tool | Purpose |
+| --- | --- |
+| `amp_workspace_capabilities` | Discover permitted projects, registered Frames, tools and limits |
+| `amp_workspace_tree` | Page project roots or structural children with native source locations |
+| `amp_workspace_query` | Retrieve candidate IDs by lexical AND search and bounded graph traversal |
+| `amp_workspace_relations` | Page typed dependency/call/reference relations and sources |
+| `amp_workspace_materialize` | Materialize a host-registered Frame into a bounded Context |
+| `amp_workspace_read` | Read a CAS-verified detail page for an explicitly allocated visible target |
+| `amp_workspace_release` | Release a read handle without refunding or reopening its Frame |
+
+### MCP stdio
+
+```sh
+npm run workspace-agent-demo
+npm run workspace-agent -- --config .cache/workspace-agent.local
+```
+
+For an MCP client, start Node directly to keep package-manager banners out of stdout. Replace absolute paths with your checkout location:
+
+```json
+{
+  "mcpServers": {
+    "amp-workspace": {
+      "command": "node",
+      "args": [
+        "R:/project/attention-manifest-protocol/tools/workspace-agent-server.ts",
+        "--config",
+        "R:/project/attention-manifest-protocol/.cache/workspace-agent.local"
+      ]
+    }
+  }
+}
+```
+
+The trusted host bootstrap contains `version: 1`, `agentId`, explicit `projectIds`, a `WorkspaceSnapshot`, `contents` mapping CAS refs to text, `frames`, and optional lower `limits`. Contents are hash-checked at startup. The demo uses example inputs; real hosts pass their authorized inventory to `scanStructuredWorkspace` in [documentScanner.ts](tools/support/documentScanner.ts).
+
+The stdio adapter reads configuration only at startup; new snapshots/Frames require a new host configuration and instance. It accepts newline-delimited JSON-RPC, limits messages to 1 MiB and configuration to 64 MiB, and never executes tools carried in notifications. It supports `initialize` for `2025-11-25` / `2025-06-18` and the repository's `2026-07-28` stateless discovery/metadata profile; other versions are not claimed as tested.
+
+### Local runtime
+
+```ts
+import { WorkspaceAgentService } from "./src/context/index.ts";
+import { ToolRegistry, registerWorkspaceTools, WorkspaceToolExecutor } from "./src/module/index.ts";
+
+const workspace = new WorkspaceAgentService({
+    agentId: frame.agent,
+    projectIds: ["project:packages/app"],
+    snapshot,
+    store,
+});
+workspace.registerFrame(frame, snapshot.revision);
+const tools = new ToolRegistry();
+registerWorkspaceTools(tools, workspace);
+const toolExecutor = new WorkspaceToolExecutor(workspace, existingExecutor);
+```
+
+The host provides the Frame, snapshot, ContentStore and fallback executor; pass `tools` / `toolExecutor` to `CognitiveRuntime`. Registration, revocation and Receipt settlement are host APIs, unavailable to the model.
+
+### Scope, lifecycle and limits
+
+Discovery/query return metadata and candidates, not authorization. Hosts fix project scope and register selected Frames. Only active targets admitted to the view permit detail reads; ancestor summaries do not grant whole-file access. Workspace IDs are extension-local keys, not global Ledger identities. Full Frame validation, signatures and policy checks remain host responsibilities.
+
+Identical materialization requests reuse a Context without recharging summaries; changed parameters are rejected. Release/revocation invalidates the read handle but retains pending settlement. Hosts use `pendingSettlements()` and `settle(contextId, receipt)` to obtain an archived ContextSnapshot. This state is in memory; hosts must persist audit/recovery data.
+
+Defaults: 128 registered Frames, 32 live read Contexts, 8000 estimated summary tokens, 8000 UTF-16 units per detail page, 131072 units per successful response and 1000 business calls. Query depth is at most 10; results/pages at most 100. Hosts may lower limits. Summary text and successful detail pages share the Frame's remaining estimated token budget; repeat reads cost budget and release does not refund it. Discovery, JSON wrapping and later model consumption are excluded from that estimate; actual usage belongs in Receipts.
+
+Detail offsets use UTF-16 units; `nextOffset: null` ends pagination. Reassemble structured JSON detail before parsing. CAS verification reads the full detail before paging, so response bounds do not imply bounded storage I/O. Runtime messages retain complete JSON up to `maxToolResultChars` (default 1048576, configurable down to 128); oversize results return `tool_result_too_large`, while logs retain a 4000-character preview.
+
+Service errors: `invalid_arguments`, `unknown_tool`, `revision_mismatch`, `not_available`, `frame_unavailable`, `budget_exhausted`, `capacity_exceeded`, `response_too_large`, `integrity_failure`, `internal_error`. Oversize responses fail instead of truncating structured content.
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| [`docs/architecture.md`](docs/architecture.md) | Normative architecture: model, attention, warrant, planning, protocol, security, consistency, adoption |
-| [`docs/rationale.md`](docs/rationale.md) | Twelve ADRs, each with its evidence, its cost and the options that were rejected |
-| [`docs/multi-agent.md`](docs/multi-agent.md) | Multi-agent work: admission rules, delegation objects and their ten invariants, team objects, eight failure signals |
-| [`docs/trust-chain.md`](docs/trust-chain.md) | Trust chain: discovery → card signature → bundle keys → endorsement → scope policy |
-| [`docs/federation.md`](docs/federation.md) | Cross-domain bundles and third-party attestation |
-| [`docs/compaction.md`](docs/compaction.md) | Context economy: pruning as an explicit view, compaction as a committed checkpoint, concept budgets |
-| [`docs/attention-upgrade.md`](docs/attention-upgrade.md) | Proposal: ten diagnoses of the current allocation path, seven new invariants, acceptance vectors V16–V24 |
-| [`docs/cognitive-model.md`](docs/cognitive-model.md) | Psychological model of the agent as a bounded decider: five state variables, six falsifiable laws, and a runnable simulation |
-| [`docs/research/`](docs/research/) | Thirteen research briefs, including a real-endpoint compatibility matrix and citation conventions |
-| [`docs/schemas/`](docs/schemas/) | 16 JSON Schemas |
-| [`docs/examples/`](docs/examples/) | 37 validatable examples: frame chains, claims, plans, delegations, bundles, snapshots, checkpoints |
-| [`src/types/`](src/types/) | Shared primitives and the public type barrel; each domain owns its schema-mirroring types |
-| [`src/structure/`](src/structure/) | Dependency-free structures: hash/ordered/unordered containers, stack, queue, deque, binary heap, stable/keyed/bucket priority queues, bounded top-k selection, binary tree, BST, AVL, red-black tree, segment tree, AST, Bloom filter, cuckoo filter and LRU containers |
-| [`src/`](src/) | Domain runtime: `attention`, `frame`, `ledger`, `warrant`, `manifest`, `policy`, `perform`, `protocol`, `cooperation`, `cycle`, `semantic`, `module`, `storage`, `structure`, `boundary` |
-| [`tools/`](tools/) | 31 verification scripts, 4 example generators and 5 real-endpoint probes — all TypeScript |
+| [src/context](src/context/) | Context lifecycle, tree/graph projections, CAS, workspace facts and agent service |
+| [src/module](src/module/) | LLM/tool ports, MCP adapters and execution policies |
+| [src/runtime](src/runtime/) | Agent turn/tool loop and governance integration |
+| [src/governance](src/governance/) | Manifests, credentials, budgets, workflows, signing and audit |
+| [src/structure](src/structure/) | Maps, trees, queues, priority indexes, filters, AST and LRU |
+| [src](src/) | Other attention, evidence, ledger, policy, kernel and persistence domains |
+| [tools](tools/) | TypeScript checks, offline scanners, demos and probes |
+| [docs/schemas](docs/schemas/) / [docs/examples](docs/examples/) | Machine-readable contracts and protocol examples |
+| [docs/eval](docs/eval/) / [docs/probes](docs/probes/) | Evaluation inputs and JSON reports |
 
-Runtime modules:
+## Code style
 
-| Module | Responsibility |
-| --- | --- |
-| `runtime.ts` / `ledger.ts` | The seven verbs, the frame chain, receipts, the Manifest, self-audit |
-| `attention.ts` / `budget.ts` / `handles.ts` | Salience, the single metering point, handle-based pagination |
-| `cognition.ts` | Cognitive state model (proposal): load, vigilance, arousal, mastery, accountability, and a state-modulated salience law |
-| `warrant.ts` / `inquiry.ts` | Confidence derivation, tier validation, preregistration and reproduction |
-| `exec.ts` / `mcp/` | MCP execution, digest pinning, approval, TTL caching |
-| `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | Signatures, bundles, attestation, card verification, scope policy |
-| `team.ts` / `board.ts` / `merge.ts` / `metrics.ts` / `session.ts` | Delegation, task board, merge, metrics, end-to-end session |
-| `channel.ts` / `http-channel.ts` / `a2a.ts` | Transport seams, idempotent HTTP channel, A2A binding |
-| `persistence.ts` / `share.ts` / `compaction.ts` / `concept-budget.ts` | Hash-chain snapshots, sharing granularities, pruning, compaction, concept budgets |
+ESLint checks semantic/style constraints; Prettier handles layout. Commands: `npm run lint`, `lint:fix`, `format:check`, `format`, `style-check`. Configuration lives in [eslint.config.mts](eslint.config.mts) and [prettier.config.mts](prettier.config.mts); local rules/printer live under `tools/`.
 
-## Quick start
+Declare variable types explicitly; use arrow functions instead of `function`, semicolons, four-space indentation, double quotes and template strings. Keep parameters/type parameters on one line, use braces for control flow, `typeof(value)` and `=== (void 0)`. Locals/parameters and function values use lowerCamelCase; module-level data uses PascalCase. Comments use multiline JSDoc except tool directives. Historical files retain lint/format migration debt; functional verification does not imply a clean repository-wide style check.
 
-```bash
-npm run verify            # 31 verification entries plus two type checks (src and tools)
-npm run scenario          # end-to-end incident: delegation → MCP → merge → attention → metrics
-npm run demo              # emit a runtime trace
-npm run typecheck         # strict type check for src/
-npm run typecheck:tools   # type check for tools/, so the tests are checked too
-npm run style-check       # ESLint rules + Prettier formatting check (see LINTING.md)
-```
+## Boundaries and evidence
 
-There is no JavaScript under `tools/`. All 40 scripts are `.ts`, run directly by Node's
-type stripping, and included in `tsconfig.tools.json`, so the test code is held to the
-same type contract as the runtime.
+Static dependency extraction is partial; missing edges do not prove independence. Markdown/TeX scanners do not implement all macros or semantics. Summaries, graphs and long contexts require multi-hop, cross-document and changing-information evaluations. Relevant primary sources include [LaRA](https://proceedings.mlr.press/v267/li25dv.html), [GraphRAG-Bench](https://arxiv.org/abs/2506.05690), [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) and [RFC 6920](https://www.rfc-editor.org/rfc/rfc6920.html); they do not establish AMP's own effectiveness.
 
-Real endpoints (network access required):
+Sandbox isolation, multi-tenancy, interactive OAuth, production deployment and real external-agent interoperability remain outside the completed reference implementation. Human research inspires design but does not prove identical model mechanisms or capacity constants. Provenance proves integrity, not truth or authority to act.
 
-```bash
-npm run live-test     # context7 (2026-07-28)
-npm run live-legacy   # mslearn + deepwiki (legacy handshake fallback)
-npm run oauth-probe   # OAuth discovery chain for Linear and Figma
-```
+## License and history
 
-## Where to start reading
-
-1. [`docs/architecture.md`](docs/architecture.md) §1 — why AMP is needed, with a summary of the evidence
-2. §3 — the two ledgers, the three object types and the 12 invariants
-3. §6 — the warrant layer: T0–T4, falsifiability, epistemic hygiene
-4. §12 — the consistency vectors V1–V15
-5. [`docs/compaction.md`](docs/compaction.md) — pruning and compaction, the two ways a ledger stays affordable
-6. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) — a real frame chain
-
-## Status and boundaries
-
-`v0.1.0`. Sixteen schemas, 37 example objects, 31 verification entries and 195 counted
-assertions, all passing. The normative specification and the research briefs under
-`docs/` are currently written in Simplified Chinese.
-
-**What it does not claim.** It does not claim understanding. It claims only that beliefs
-are declarable, chargeable, refutable and auditable. It takes no position on consciousness.
-
-**What is not implemented.** Sandbox isolation, multi-tenancy, interactive OAuth
-authorisation and interoperability with real external agents; every cross-domain test runs
-locally. The reference implementation deliberately omits the environment-layer capabilities
-that a production deployment would need.
-
-## Documentation and change history
-
-- [Architecture specification](docs/architecture.md)
-- [Rationale and ADRs](docs/rationale.md)
-- [Changelog](CHANGELOG.md) · [更新日志（中文）](CHANGELOG.zh-CN.md)
-
-## Licence
-
-Apache License 2.0: the full text is in [`LICENSE`](LICENSE). Copyright 2026 Eloy Kim; the
-attribution notices are in [`NOTICE`](NOTICE).
-
-The licence grants a perpetual, worldwide, royalty-free copyright licence and an express
-patent grant. A redistribution must keep the licence and attribution notices and state
-which files were changed. It is not copyleft — a derivative work may be distributed under
-other terms, provided those conditions are met. The software is provided "as is", without
-warranties or conditions of any kind.
+[Apache License 2.0](LICENSE), copyright 2026 Eloy Kim; retain [NOTICE](NOTICE), license and attribution notices when redistributing. History: [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md).

@@ -2,7 +2,7 @@
 /**
  * Person domain checks with the in-memory port. No SQLite, no database module.
  *
- * These tests are the executable form of docs/agent-as-person.md: append-only narrative,
+ * These tests cover append-only narrative,
  * one active role, typed memory, affect as state, social membership, and a
  * budgeted context assembly that records exclusions.
  */

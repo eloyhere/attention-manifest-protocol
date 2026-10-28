@@ -1,128 +1,150 @@
 # Attention Manifest Protocol（AMP）
 
-[English](README.md) · **简体中文**
+[English](README.md) · **简体中文** · [更新日志](CHANGELOG.zh-CN.md)
 
-> 让 Agent 以科学的方式认识宇宙，并把注意力用在需要的地方。
+AMP 是供 agent 使用的元认知协议：声明知识和义务，分配有限注意力，获取证据，记录成本与结果。当前参考实现为 `0.4.0`，要求 **Node.js 24 或以上**，使用 Apache-2.0 许可证。
 
-AMP 是一个**元认知协议**。它不规定模型如何思考，而规定 Agent 如何**声明**自己知道什么、想要什么、此刻在注意什么，以及在注意力有限时如何决定下一个看哪里。
+## 架构
 
-它维护两个账本，回答两个不同的问题。
-
-| 账本 | 记录 | 回答 |
-| --- | --- | --- |
-| **Warrant Ledger**（凭据账本） | 主张、证据、假设、未知、概念、计划 | 我凭什么相信这件事？ |
-| **Attention Ledger**（注意力账本） | 注意帧、预算、回执、打断 | 我的认知花在了哪里？ |
-
-一个控制器在两者之间做交易：用有限的注意力，换取最有价值的凭据。
-
-## 三个对象
-
-| 对象 | 生命周期 | 回答 |
-| --- | --- | --- |
-| `Manifest` | 持久、带 TTL、可签名 | 我是谁？能做什么？承诺了什么？还缺什么？ |
-| `Frame` | 一次注意周期，不可变 | 此刻在看什么？为什么是它？**忽略了什么？** |
-| `Receipt` | 每次行动 | 花了多少注意力？换回了什么？ |
-
-`Frame.ignored` 是这套设计中没有直接先例的字段。经典认知架构记录了「注意到了什么」，却没有记录「刻意忽略了什么、依据是什么、何时应当重新考虑」。
-
-## 已实现的范围
-
-| 层 | 能力 |
+| 构件 | 职责 |
 | --- | --- |
-| 协议 | 16 个 JSON Schema、一一对应的 TS 类型、消息信封与七种言语行为 |
-| 注意力 | 显著性契约、焦点集与忽略集、僵局分类、打断分级与债务 |
-| 凭据 | T0–T4 认知投入等级、置信度派生、最小修订、未知与停止规则 |
-| 边界 | 构造即拒绝：id 文法、引用闭包、槽位与忽略上限、工具参数解析 |
-| 执行 | MCP 2026-07-28 客户端（无状态与旧式回退）、预算调度、schema 校验的参数、句柄整形 |
-| 联邦 | `ManifestBundle` 与 `Attestation`、摘要固定、撤销、导入失败关闭 |
-| 协作 | 委派衰减、租约 fencing、任务板、结果合并与冲突裁决、统一账本 |
-| 信任 | Agent Card 发现与签名、bundle 密钥、scope 策略、A2A `message/send` |
-| 持久化 | 只追加哈希链、快照校验、恢复时拒收损坏数据 |
-| 上下文经济 | 在已验证账本上生成剪枝视图，用检查点替换冷前缀；概念有预算、历史有检查点；活引用不会被埋掉 |
-| 内核 | SQLite agent/任务调度：agent 进程一次只跑一个任务线程，原子认领、fencing lease、任务与 agent 双层预算、崩溃恢复、基于能力的隔离 |
-| 注册表 | 概念与模块作为表存储，每次声明都有带版本的对象、内容摘要、依赖边与证明 |
+| Warrant Ledger（凭据账本） | 主张、证据、假设、未知、概念与计划：为什么相信一个结论？ |
+| Attention Ledger（注意力账本） | 帧、预算、回执与打断：注意力花在了哪里？ |
+| Manifest | 可持久化、可签名的身份、能力、承诺与限制声明 |
+| Attention | 选择候选并记录选择理由 |
+| Frame | 固化本轮引用、预算和显式排除项 `ignored` |
+| Context | 将分配物化为摘要、关系与受限的详情读取 |
+| Receipt | 记录实际成本和结果，支持审计与校准 |
+
+```text
+Attention 选择 → Frame 固化 → Context 物化 → Receipt 结算 → Ledger
+```
+
+Context 使用结构树和类型化关系图。项目依赖、导入、调用与引用属于可含环的描述性关系；`depends` 单独表示先决条件。关系不会自动扩大 Frame。摘要保留来源和修订，原文按内容寻址哈希校验。结构和来源本身不证明事实正确。
+
+## 已实现的能力
+
+- T0–T4 证据等级、置信度限制、修订、可证伪条件、预注册与显式弃权。
+- 预算内注意力、排除项、打断、租约、委派以及合并与仲裁。
+- 签名清单与凭据、治理工作流、工具门控、带认证的本地/HTTP 通信、审计链和持久化适配器。
+- MCP 执行、参数 Schema 校验、摘要固定与旧式握手回退，以及 A2A 发现与消息绑定。
+- 项目树、项目依赖图、TS/JS 的部分静态导入/调用/引用图，以及知识库词法检索。
+- Markdown、TXT、DOCX、XLSX、PPTX、TeX/LaTeX/BibTeX 的结构提取、原生定位与摘要/详情分层。
+- `amp.workspace` v1 服务、7 个 agent 工具、本地运行时接入与 MCP stdio 服务端。
+
+离线解析器位于 `tools/support/`；运行时通过端口接入数据，不依赖数据库，持久化适配器与运行时核心分离。具体契约见 [Schema](docs/schemas/)、[协议示例](docs/examples/) 与 [可执行检查](tools/)。
+
+## 快速开始
+
+```sh
+npm ci
+npm run build
+npm run verify
+npm run scenario
+```
+
+专项检查为 `npm run workspace-agent-check`、`workspace-context-check`、`document-context-check`、`tex-context-check`、`governance-check`、`typecheck` 与 `typecheck:tools`。`verify` 执行完整验证链和两份类型检查。评测输入/结果以 JSON 保存在 [docs/eval](docs/eval/) 与 [docs/probes](docs/probes/)，夹具与录制探针不等同于独立的人类研究或生产质量证明。
+
+## Agent 工具
+
+`amp.workspace` v1 的响应包含 `protocol`、`version`、`revision`、`ok`，以及 `data` 或 `error`。两种适配器共用输入 Schema；响应外层由[协议类型](src/context/workspaceProtocol.ts)定义。除能力发现外，每个业务工具都必须提供当前 `revision`。
+
+| 工具 | 用途 |
+| --- | --- |
+| `amp_workspace_capabilities` | 发现获准项目、已登记 Frame、工具及额度 |
+| `amp_workspace_tree` | 分页读取项目根或结构子项，保留原生来源定位 |
+| `amp_workspace_query` | 使用词法 AND 与有界关系遍历返回候选 ID |
+| `amp_workspace_relations` | 分页查询依赖、调用、引用等关系与来源 |
+| `amp_workspace_materialize` | 将宿主已登记的 Frame 物化为预算内 Context |
+| `amp_workspace_read` | 分页读取显式分配且已物化目标的详情，并验证 CAS 哈希 |
+| `amp_workspace_release` | 释放读取句柄，不退款，也不重新开放 Frame |
+
+### MCP stdio 接入
+
+```sh
+npm run workspace-agent-demo
+npm run workspace-agent -- --config .cache/workspace-agent.local
+```
+
+真实 MCP 客户端应直接启动 Node，避免包管理器提示混入协议 stdout。将以下绝对路径替换为实际项目目录：
+
+```json
+{
+  "mcpServers": {
+    "amp-workspace": {
+      "command": "node",
+      "args": [
+        "R:/project/attention-manifest-protocol/tools/workspace-agent-server.ts",
+        "--config",
+        "R:/project/attention-manifest-protocol/.cache/workspace-agent.local"
+      ]
+    }
+  }
+}
+```
+
+可信宿主配置包含 `version: 1`、`agentId`、显式 `projectIds`、`WorkspaceSnapshot`、CAS 引用到文本的 `contents` 映射、`frames` 与可选的更低 `limits`。启动时校验内容哈希。演示生成器使用示例输入；真实宿主将获准文件清单交给 [documentScanner.ts](tools/support/documentScanner.ts) 中的 `scanStructuredWorkspace`。
+
+stdio 适配器只在启动时读取配置；新快照或新 Frame 需要宿主更新配置并启动新实例。协议采用逐行 JSON-RPC，单条输入上限 1 MiB、配置上限 64 MiB，通知不会执行工具。支持 `2025-11-25` / `2025-06-18` 的 `initialize`，以及项目已有 `2026-07-28` 的无状态发现和逐请求元数据 profile；其他版本未宣称经过测试。
+
+### 本地运行时接入
+
+```ts
+import { WorkspaceAgentService } from "./src/context/index.ts";
+import { ToolRegistry, registerWorkspaceTools, WorkspaceToolExecutor } from "./src/module/index.ts";
+
+const workspace = new WorkspaceAgentService({
+    agentId: frame.agent,
+    projectIds: ["project:packages/app"],
+    snapshot,
+    store,
+});
+workspace.registerFrame(frame, snapshot.revision);
+const tools = new ToolRegistry();
+registerWorkspaceTools(tools, workspace);
+const toolExecutor = new WorkspaceToolExecutor(workspace, existingExecutor);
+```
+
+Frame、快照、ContentStore 与后备执行器由宿主提供；将 `tools` / `toolExecutor` 传入 `CognitiveRuntime`。登记、撤销和实际 Receipt 结算属于宿主接口，不暴露给模型。
+
+### 范围、生命周期与额度
+
+发现与查询返回元数据和候选，不授予新权限。宿主固定项目范围并登记所选 Frame。只有 active 且实际进入视图的目标可读取 detail；祖先摘要不授予整份文件的原文访问。工作区 ID 属于扩展局部键，不是全局 Ledger 身份；完整 Frame 校验、签名与策略检查仍由宿主负责。
+
+相同参数重复物化复用同一 Context，不重复扣摘要成本，更改参数会被拒绝。释放或撤销后句柄失效，待结算记录保留。宿主通过 `pendingSettlements()` 和 `settle(contextId, receipt)` 对账并获取已归档的 ContextSnapshot。服务为内存状态，审计和重启恢复数据需由宿主持久化。
+
+默认上限：128 个 Frame、32 个活跃读取 Context、8000 个摘要估算 token、每页 8000 个 UTF-16 单元、每个成功响应 131072 个单元、1000 次业务调用。查询深度最多 10，候选/分页最多 100 项；宿主可降低额度。摘要与成功详情页共用 Frame 的剩余估算 token，重复读取计费、释放不退款。发现、JSON 包装和模型后续消费成本不在该估算中，真实用量由 Receipt 记录。
+
+详情偏移以 UTF-16 单元计数，`nextOffset: null` 表示结束；结构化 JSON 详情须合并完整分页后再解析。CAS 在分页前读取和校验完整内容，因此响应上限不代表底层 I/O 上限。运行时保留完整工具 JSON，`maxToolResultChars` 默认 1048576、最低可设为 128；超限返回 `tool_result_too_large`，日志保留 4000 字符预览。
+
+服务错误码：`invalid_arguments`、`unknown_tool`、`revision_mismatch`、`not_available`、`frame_unavailable`、`budget_exhausted`、`capacity_exceeded`、`response_too_large`、`integrity_failure`、`internal_error`。超大响应显式失败，不截断结构化内容。
 
 ## 仓库结构
 
 | 路径 | 内容 |
 | --- | --- |
-| [`docs/architecture.md`](docs/architecture.md) | 架构规范：模型、注意力、凭据、规划、协议、安全、一致性、落地 |
-| [`docs/rationale.md`](docs/rationale.md) | 12 条 ADR：每条决策的证据、代价与被否决的方案 |
-| [`docs/multi-agent.md`](docs/multi-agent.md) | 多 Agent：准入规则、委派对象与 10 条不变量、团队对象、8 个失败信号 |
-| [`docs/trust-chain.md`](docs/trust-chain.md) | 信任链：发现 → 卡片签名 → bundle 密钥 → 背书 → scope 策略 |
-| [`docs/federation.md`](docs/federation.md) | 跨域 bundle 与第三方证明 |
-| [`docs/compaction.md`](docs/compaction.md) | 上下文经济：剪枝是可审计的视图，压缩是带承诺的检查点，概念有预算 |
-| [`docs/research/`](docs/research/) | 九份研究简报，含真实端点兼容性矩阵与引用纪律 |
-| [`docs/schemas/`](docs/schemas/) | 16 个 JSON Schema |
-| [`docs/examples/`](docs/examples/) | 37 个可校验示例：帧链、主张、计划、委派、bundle、快照、检查点 |
-| [`src/types/`](src/types/) | 共享原语与公共类型 barrel；各领域在自己目录内保存与 schema 对应的类型 |
-| [`src/structure/`](src/structure/) | 零依赖数据结构：hash/ordered/unordered 容器、栈、队列、双端队列、二叉堆、二叉树、BST、AVL、红黑树、线段树、AST、Bloom filter、cuckoo filter 与 LRU 容器 |
-| [`src/`](src/) | 领域运行时：`attention`、`frame`、`ledger`、`warrant`、`manifest`、`policy`、`perform`、`protocol`、`cooperation`、`cycle`、`semantic`、`module`、`storage`、`structure`、`boundary` |
-| [`tools/`](tools/) | 31 个校验脚本、4 个示例生成器、5 个真实端点探针，全部为 TypeScript |
+| [src/context](src/context/) | Context 生命周期、树/图投影、CAS、工作区事实与 agent 服务 |
+| [src/module](src/module/) | 模型/工具端口、MCP 适配器与执行策略 |
+| [src/runtime](src/runtime/) | agent 回合、工具循环与治理接入 |
+| [src/governance](src/governance/) | 清单、凭据、预算、工作流、签名与审计 |
+| [src/structure](src/structure/) | 映射、树、队列、优先级索引、过滤器、AST 与 LRU |
+| [src](src/) | 其他注意力、证据、账本、策略、内核与持久化领域 |
+| [tools](tools/) | TypeScript 检查、离线扫描器、演示与探针 |
+| [docs/schemas](docs/schemas/) / [docs/examples](docs/examples/) | 机器可读契约与协议示例 |
+| [docs/eval](docs/eval/) / [docs/probes](docs/probes/) | 评测输入与 JSON 报告 |
 
-运行时模块：
+## 代码风格
 
-| 模块 | 职责 |
-| --- | --- |
-| `runtime.ts` / `ledger.ts` | 七个动词、帧链、回执、Manifest、自审计 |
-| `attention.ts` / `budget.ts` / `handles.ts` | 显著性、唯一计费点、句柄分页 |
-| `warrant.ts` / `inquiry.ts` | 置信度派生、等级校验、预注册与复现 |
-| `exec.ts` / `mcp/` | MCP 执行、摘要固定、审批、TTL 缓存 |
-| `federation.ts` / `sign.ts` / `card-sign.ts` / `trust.ts` | 签名、bundle、证明、卡片验签、scope 策略 |
-| `team.ts` / `board.ts` / `merge.ts` / `metrics.ts` / `session.ts` | 委派、任务板、合并、指标、端到端会话 |
-| `channel.ts` / `http-channel.ts` / `a2a.ts` | 传输接缝、HTTP 幂等通道、A2A 绑定 |
-| `persistence.ts` / `share.ts` / `compaction.ts` / `concept-budget.ts` | 哈希链快照、共享粒度、剪枝、压缩、概念预算 |
+ESLint 检查语义和风格约束，Prettier 处理排版。命令为 `npm run lint`、`lint:fix`、`format:check`、`format`、`style-check`。配置位于 [eslint.config.mts](eslint.config.mts) 与 [prettier.config.mts](prettier.config.mts)，本地规则和 printer 位于 `tools/`。
 
-## 快速开始
+变量显式标注类型；使用箭头函数、分号、4 空格缩进、双引号和模板字符串；参数/类型参数保持单行，控制语句使用大括号，采用 `typeof(value)` 和 `=== (void 0)`。局部变量、形参与函数值使用 lowerCamelCase，模块顶层数据使用 PascalCase；注释采用多行 JSDoc，工具指令除外。历史文件仍有 lint/format 迁移债务，功能验证通过不代表全仓风格检查通过。
 
-```bash
-npm run verify            # 31 个校验入口，外加两份类型检查（src 与 tools）
-npm run scenario          # 端到端事故场景：委派 → MCP → 合并 → 注意力 → 指标
-npm run demo              # 生成运行时轨迹
-npm run typecheck         # src/ 的严格类型检查
-npm run typecheck:tools   # tools/ 的类型检查，测试代码同样受检
-```
+## 边界与研究依据
 
-`tools/` 下没有 JavaScript 文件。40 个脚本全部是 `.ts`，由 Node 直接做类型剥离后运行，
-并纳入 `tsconfig.tools.json` 的检查范围，因此测试代码与运行时共享同一套类型契约。
+静态依赖抽取不完整，缺失边不证明独立；Markdown/TeX 扫描器不实现全部宏或语义。摘要、关系图与长上下文应通过多跳、跨文档和变化信息任务评测。一手资料包括 [LaRA](https://proceedings.mlr.press/v267/li25dv.html)、[GraphRAG-Bench](https://arxiv.org/abs/2506.05690)、[Tree-sitter](https://tree-sitter.github.io/tree-sitter/) 与 [RFC 6920](https://www.rfc-editor.org/rfc/rfc6920.html)，这些资料不直接证明 AMP 自身的有效性。
 
-真实端点（需要网络）：
+沙箱隔离、多租户、交互式 OAuth、生产部署与真实外部 agent 互通仍未完成。人类研究属于设计启发，不能推导模型具有相同机制或容量常数。来源证明完整性，不证明事实为真或拥有行动权限。
 
-```bash
-npm run live-test     # context7（2026-07-28）
-npm run live-legacy   # mslearn + deepwiki（旧式握手回退）
-npm run oauth-probe   # Linear / Figma 的 OAuth 发现链
-```
+## 许可证与历史
 
-## 从哪读起
-
-1. [`docs/architecture.md`](docs/architecture.md) §1 —— 为什么需要 AMP，附证据速览
-2. §3 —— 两个账本、三类对象与 12 条不变量
-3. §6 —— 凭据层：T0–T4、可证伪、认知卫生
-4. §12 —— 一致性向量 V1–V15
-5. [`docs/compaction.md`](docs/compaction.md) —— 剪枝与压缩：账本保持可负担的两种方式
-6. [`docs/examples/frame-chain.json`](docs/examples/frame-chain.json) —— 一条真实的帧链
-
-## 状态与边界
-
-`v0.1.0`。16 个 schema、37 个示例对象、31 个校验入口、195 项带计数的断言，全部通过。
-规范文档与研究简报目前以简体中文撰写。
-
-**不承诺什么。** 不承诺「理解」，只承诺可声明、可计价、可反驳、可审计；不对意识问题表态。
-
-**尚未实现。** 沙箱隔离、多租户、OAuth 交互授权，以及与真实外部 Agent 的互通；所有跨域测试均在本机运行。参考实现有意不包含生产部署所需的环境层能力。
-
-## 文档与变更历史
-
-- [架构规范](docs/architecture.md)
-- [设计依据与 ADR](docs/rationale.md)
-- [Changelog](CHANGELOG.md) · [更新日志](CHANGELOG.zh-CN.md)
-
-## 许可
-
-Apache License 2.0，全文见 [`LICENSE`](LICENSE)。版权所有 © 2026 Eloy Kim，署名声明见
-[`NOTICE`](NOTICE)。
-
-该许可授予永久、全球范围、免版税的著作权许可，并附带明示的专利许可。再分发时须保留许可证
-与署名声明，并说明修改了哪些文件。它不是 copyleft 许可：衍生作品可以按其他条款分发，只要
-仍满足上述条件。本软件按「原样」提供，不附带任何明示或默示的担保或条件。
+[Apache License 2.0](LICENSE)，版权所有者为 Eloy Kim，2026。再分发时保留 [NOTICE](NOTICE)、许可证与署名声明。历史见 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md) 与 [CHANGELOG.md](CHANGELOG.md)。

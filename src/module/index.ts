@@ -4,4 +4,6 @@ export * from "./tool/tool.ts";
 export * from "./tool/policy.ts";
 export * from "./tool/redact.ts";
 export * from "./tool/mcpExecutor.ts";
+export * from "./tool/workspaceExecutor.ts";
+export * from "./mcp/workspaceServer.ts";
 export * from "./sandbox/sandbox.ts";

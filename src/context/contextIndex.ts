@@ -28,7 +28,6 @@ export class ContextIndex {
     readonly ast: ContextAst;
     private readonly store: ContentStore;
     private readonly cache: LRUUnorderedMap<string, string>;
-    private readonly exact = new Map<string, ContextAstNode>();
     private hits = 0;
     private misses = 0;
 
@@ -42,25 +41,24 @@ export class ContextIndex {
      * Add a node and, when given, store its detail behind a content ref.
      */
     add(node: ContextAstNode, detail?: string): ContextAstNode {
-        if (this.exact.has(node.id)) {
+        if (this.ast.node(node.id) !== (void 0)) {
             throw new Error(`duplicate indexed node ${node.id}`);
         }
         const detailRef = detail === (void 0) ? node.detailRef : this.store.put(detail);
         const indexed: ContextAstNode = { ...node, ...(detailRef === (void 0) ? {} : { detailRef }) };
         this.ast.add(indexed);
-        this.exact.set(indexed.id, indexed);
-        return indexed;
+        return this.ast.node(indexed.id)!;
     }
 
     node(id: string): ContextAstNode | undefined {
-        return this.exact.get(id);
+        return this.ast.node(id);
     }
 
     /**
      * LRU -> CAS retrieval; a miss is explicit.
      */
     getDetail(nodeId: string): string | undefined {
-        const node = this.exact.get(nodeId);
+        const node = this.ast.node(nodeId);
         if (node?.detailRef === (void 0)) {
             return undefined;
         }
@@ -77,11 +75,11 @@ export class ContextIndex {
         return detail;
     }
 
-    view(budgetTokens: number): ContextAstView {
-        return this.ast.view(budgetTokens);
+    view(budgetTokens: number, targetIds?: readonly string[]): ContextAstView {
+        return this.ast.view(budgetTokens, targetIds);
     }
 
     stats(): ContextIndexStats {
-        return { nodes: this.exact.size, cachedDetails: this.cache.size, hits: this.hits, misses: this.misses };
+        return { nodes: this.ast.size, cachedDetails: this.cache.size, hits: this.hits, misses: this.misses };
     }
 }

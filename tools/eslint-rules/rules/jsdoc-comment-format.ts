@@ -1,6 +1,6 @@
 import { ESLintUtils, type TSESTree } from "@typescript-eslint/utils";
 
-const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/LINTING.md#${name}`);
+const createRule = ESLintUtils.RuleCreator((name) => `https://github.com/attention-manifest-protocol/blob/main/README.md#code-style`);
 
 const DEFAULT_ALLOW_PATTERNS: readonly string[] = ["^!", "^#", "^eslint-", "^prettier-", "^@ts-", "^@__", "^c8\\b", "^istanbul\\b", "^v8\\b"];
 

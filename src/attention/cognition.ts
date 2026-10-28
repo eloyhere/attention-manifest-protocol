@@ -1,5 +1,5 @@
 /**
- * AMP — cognitive state model (proposal, see docs/cognitive-model.md).
+ * AMP — cognitive state model (proposal).
  *
  * The premise: an agent and a person face the same *control* problem — a
  * resource-bounded decider must allocate finite cognition, monitor itself, and

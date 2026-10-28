@@ -184,8 +184,8 @@ export const crossValidateCalibration: CrossValidate = (points: readonly Calibra
     }
     const predictions: CalibrationPoint[] = [];
     for (let fold: number = 0; fold < folds; fold += 1) {
-        const train: CalibrationPoint[] = points.filter((item, index) => index % folds !== fold);
-        const test: CalibrationPoint[] = points.filter((item, index) => index % folds === fold);
+        const train: CalibrationPoint[] = points.filter((_point, index) => index % folds !== fold);
+        const test: CalibrationPoint[] = points.filter((_point, index) => index % folds === fold);
         if (train.length === 0 || test.length === 0) {
             continue;
         }

@@ -31,6 +31,13 @@ assert.equal(/from\s+["'][^"']*database/.test(RuntimeText), false, "runtime must
 assert.equal(/node:sqlite/.test(RuntimeText), false, "runtime must not import node:sqlite");
 
 const Kernel: string = readFileSync("src/kernel/scheduler.ts", "utf8");
+const WorkspaceServiceFiles: string[] = [
+    "src/context/workspaceService.ts", "src/context/workspaceProtocol.ts",
+    "src/module/tool/workspaceExecutor.ts", "src/module/mcp/workspaceServer.ts",
+];
+const WorkspaceServiceText: string = WorkspaceServiceFiles.map((file: string): string => readFileSync(file, "utf8")).join("\n");
+assert.equal(/from\s+["'][^"']*(?:database|tools\/support)/.test(WorkspaceServiceText), false, "workspace service must not import database or offline parsers");
+assert.equal(/from\s+["'](?:typescript|fflate|fast-xml-parser|node:sqlite)["']/.test(WorkspaceServiceText), false, "workspace service must stay independent of parsers and SQL");
 assert.equal(/\bdb\.prepare\(/.test(Kernel), false, "kernel must use the execution port, not raw SQL");
 
 const ProcessSqlBaseline: number = 0;
@@ -43,6 +50,15 @@ assert.ok(ProcessSql <= ProcessSqlBaseline, `process/thread raw SQL grew to ${Pr
 
 const RuntimeIndex: string = readFileSync("src/runtime/index.ts", "utf8");
 assert.equal(RuntimeIndex.includes("database"), false, "runtime index must not re-export database");
+
+const GovernanceFiles: string[] = walk("src/governance");
+const GovernanceText: string = GovernanceFiles.map((file) => readFileSync(file, "utf8")).join("\n");
+assert.equal(/from\s+["'][^"']*database/.test(GovernanceText), false, "governance must not import database");
+assert.equal(/node:sqlite/.test(GovernanceText), false, "governance must not import node:sqlite");
+assert.equal(/from\s+["'][^"']*\/runtime\//.test(GovernanceText), false, "governance must not import runtime");
+const RuntimeCoreFiles: string[] = RuntimeFiles.filter((file: string) => !file.endsWith("governedTask.ts"));
+const RuntimeCoreText: string = RuntimeCoreFiles.map((file: string) => readFileSync(file, "utf8")).join("\n");
+assert.equal(/from\s+["'][^"']*\/governance\//.test(RuntimeCoreText), false, "runtime core must not import governance directly; use governedTask.ts");
 
 const LegacyUsers: string[] = readdirSync("tools")
     .filter((name) => name.endsWith(".ts") && name !== "arch-check.ts")

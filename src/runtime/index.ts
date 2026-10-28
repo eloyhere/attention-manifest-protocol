@@ -12,3 +12,4 @@ export * from "./behavior.ts";
 export * from "./behaviorTuning.ts";
 export * from "./turnStore.ts";
 export * from "./replay.ts";
+export * from "./governedTask.ts";

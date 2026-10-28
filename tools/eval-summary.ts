@@ -128,46 +128,9 @@ if (astSummary !== null) {
     assert.equal(astSummary.detailRecovered, true);
 }
 
-const markdown = `# AMP eval summary
-
-Generated: ${summary.generatedAt}
-
-> Fixture labels only; not an independent human study. Recorded n=${summary.recorded.runs}; replay n=${summary.replay.cases}.
-
-| Surface | Metric | Value |
-|---|---|---|
-| replay | accuracy | ${(summary.replay.accuracy * 100).toFixed(1)}% |
-| replay | annotator agreement | ${(summary.replay.annotatorAgreement * 100).toFixed(0)}% |
-| replay | Cohen's kappa | ${summary.replay.cohenKappa.toFixed(3)} |
-| replay | Brier | ${summary.replay.brier.toFixed(3)} |
-| recorded | accuracy | ${(summary.recorded.accuracy * 100).toFixed(1)}% |
-| recorded | text ECE | ${Number(summary.recorded.textEce).toFixed(3)} |
-| recorded | calibrated ECE | ${summary.recorded.calibratedEce.toFixed(3)} |
-| recorded | calibration | ${summary.recorded.status} (${summary.recorded.method}${summary.recorded.temperature === null ? "" : ` T=${summary.recorded.temperature}`}${summary.recorded.ciLower === null ? "" : ` CI=[${summary.recorded.ciLower},${summary.recorded.ciUpper}]`}) |
-| recorded | oracle ECE | ${Number(summary.recorded.oracleEce).toFixed(3)} |
-| labels | coverage | ${(summary.labels.coverage * 100).toFixed(0)}% |
-| labels | disagreements | ${summary.labels.disagreements} |
-| labels | kappa | ${summary.labels.kappa === null ? "n/a" : summary.labels.kappa.toFixed(3)} |
-| labels | unresolved | ${summary.labels.unresolved} |
-${
-    astSummary === null
-        ? ""
-        : `| context AST | nodes | ${astSummary.nodes} |
-| context AST | summary tokens | ${astSummary.summaryTokens} |
-| context AST | flat tokens | ${astSummary.flatTokens} |
-| context AST | DeepSeek flat input | ${astSummary.flatApiTokens ?? "n/a"} |
-| context AST | DeepSeek AST input | ${astSummary.astApiTokens ?? "n/a"} |
-| context AST | DeepSeek AST+tool input | ${astSummary.astToolApiTokens ?? "n/a"} |
-| context AST | detail recovered | ${astSummary.detailRecovered ? "yes" : "no"} |`
-}
-
-Calibration map is activated only when cross-validated ECE beats raw by the registry margin. A \`raw\` status means the data did not justify a map.
-`;
-
 writeFileSync("docs/probes/eval-summary.json", `${JSON.stringify(summary, null, 2)}\n`, "utf8");
-writeFileSync("docs/eval-summary.md", markdown, "utf8");
 
 console.log(
     `replay=${summary.replay.cases} recorded=${summary.recorded.runs} kappa=${summary.replay.cohenKappa.toFixed(3)} calibration=${summary.recorded.status}/${summary.recorded.method} astTokens=${astSummary?.astApiTokens ?? "n/a"}/${astSummary?.flatApiTokens ?? "n/a"}`,
 );
-console.log("wrote docs/probes/eval-summary.json and docs/eval-summary.md");
+console.log("wrote docs/probes/eval-summary.json");
