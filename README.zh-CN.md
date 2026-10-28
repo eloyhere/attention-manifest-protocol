@@ -43,6 +43,25 @@ npm run verify
 npm run scenario
 ```
 
+## 作为库使用
+
+`npm install attention-manifest-protocol` 会安装 `lib/` 中的编译产物及其声明文件，同时附带源码、JSON Schema 与可执行检查。运行时要求 Node.js 24 及以上。包根入口提供文档中的协议核心接口，其余模块均可按子路径导入。
+
+```js
+import { generateSigningKey, signManifest, verifyManifest } from "attention-manifest-protocol";
+import { Ledger } from "attention-manifest-protocol/ledger";
+import { sha256Hex } from "attention-manifest-protocol/semantic/sha256.js";
+```
+
+| 说明符 | 解析结果 |
+| --- | --- |
+| `attention-manifest-protocol` | `lib/index.js`：attention、context、frame、ledger、manifest、receipt、warrant |
+| `attention-manifest-protocol/<module>` | `src/` 下每个模块对应 `lib/<module>/index.js` |
+| `attention-manifest-protocol/<module>/<file>.js` | 单个编译后的模块 |
+| `attention-manifest-protocol/schemas/<name>.json` | `docs/schemas/` 中的 JSON Schema |
+
+`npm run build:lib` 重新构建 `lib/`，发布前由 `prepublishOnly` 自动执行。该构建只编译库代码，Vite 演示入口（`src/main.ts`）不在其中。
+
 专项检查为 `npm run workspace-agent-check`、`workspace-context-check`、`document-context-check`、`tex-context-check`、`governance-check`、`typecheck` 与 `typecheck:tools`。`verify` 执行完整验证链和两份类型检查。评测输入/结果以 JSON 保存在 [docs/eval](docs/eval/) 与 [docs/probes](docs/probes/)，夹具与录制探针不等同于独立的人类研究或生产质量证明。
 
 ## Agent 工具

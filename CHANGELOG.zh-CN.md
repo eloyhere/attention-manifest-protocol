@@ -11,6 +11,20 @@
 
 - 将项目说明收敛到中英文 README；评测汇总只保留 JSON 格式。
 
+## [0.4.1] - 2026-10-29
+
+发布库构建：包现在提供可直接导入的 ESM 与类型声明。
+
+### 新增
+
+- `npm run build:lib` 将 ESM 与声明文件输出到 `lib/`；`prepublishOnly` 会在每次发布前重新构建。
+- `exports` 映射包根入口（`lib/index.js`）、各模块子路径、深层模块文件与 `schemas/*`；`main`、`types` 与 `types` 条件同时覆盖 `nodenext` 与 bundler 解析。
+- 为 `src/` 下其余目录补齐模块 barrel，使每个模块都有唯一导入路径。
+
+### 修复
+
+- 声明文件改用 JavaScript 扩展名。`tsc` 只会为 `.js` 输出重写相对 `.ts` 导入，因此由 `tools/rewrite-declaration-extensions.ts` 重写 `.d.ts`，若仍残留 TypeScript 扩展名则构建失败。
+
 ## [0.4.0] - 2026-10-29
 
 治理层 v0.4：持久化、轮换与真实 HTTP 互操作。

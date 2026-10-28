@@ -10,7 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+lib
 *.local
+
+# Local scratch (audit logs, ad-hoc pack output)
+.cache
 
 # Local typecheck scratch (TypeScript kept outside the workspace install)
 .tscheck

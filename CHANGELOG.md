@@ -11,6 +11,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Consolidated project guidance into the English and Chinese READMEs; evaluation summaries now remain JSON-only.
 
+## [0.4.1] - 2026-10-29
+
+Published library build: the package now exposes importable ESM with types.
+
+### Added
+
+- `npm run build:lib` emits ESM and declaration files to `lib/`; `prepublishOnly` rebuilds them before every publish.
+- `exports` maps the root entry (`lib/index.js`), per-module subpaths, deep module files and `schemas/*`; `main`, `types` and the `types` conditions cover both `nodenext` and bundler resolution.
+- Module barrels for the remaining `src/` directories, so every module imports through a single path.
+
+### Fixed
+
+- Declarations now carry JavaScript specifier extensions. `tsc` rewrites relative `.ts` imports only for `.js` output, so `tools/rewrite-declaration-extensions.ts` rewrites the `.d.ts` files and fails the build if a TypeScript extension survives.
+
 ## [0.4.0] - 2026-10-29
 
 Governance v0.4: persistence, key rotation and real HTTP interoperability.

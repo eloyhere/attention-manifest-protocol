@@ -43,6 +43,25 @@ npm run verify
 npm run scenario
 ```
 
+## Library usage
+
+`npm install attention-manifest-protocol` ships the compiled ESM build in `lib/` with its declarations, alongside the source, JSON Schemas and executable checks. Node.js 24 or later is required. The root entry exposes the documented protocol surfaces; every module is also reachable as a subpath.
+
+```js
+import { generateSigningKey, signManifest, verifyManifest } from "attention-manifest-protocol";
+import { Ledger } from "attention-manifest-protocol/ledger";
+import { sha256Hex } from "attention-manifest-protocol/semantic/sha256.js";
+```
+
+| Specifier | Resolves to |
+| --- | --- |
+| `attention-manifest-protocol` | `lib/index.js`: attention, context, frame, ledger, manifest, receipt and warrant |
+| `attention-manifest-protocol/<module>` | `lib/<module>/index.js` for every module under `src/` |
+| `attention-manifest-protocol/<module>/<file>.js` | one compiled module |
+| `attention-manifest-protocol/schemas/<name>.json` | the JSON Schema from `docs/schemas/` |
+
+`npm run build:lib` rebuilds `lib/` and `prepublishOnly` runs it before publishing. The build compiles only the library; the Vite demo entry (`src/main.ts`) is not part of it.
+
 Focused checks: `npm run workspace-agent-check`, `workspace-context-check`, `document-context-check`, `tex-context-check`, `governance-check`, `typecheck` and `typecheck:tools`. `verify` runs the full chain and both type checks. Evaluation inputs/reports remain in [docs/eval](docs/eval/) and [docs/probes](docs/probes/) as JSON; fixture and recorded-probe results are not independent human studies or production-quality evidence.
 
 ## Agent tools
