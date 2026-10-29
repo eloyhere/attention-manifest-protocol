@@ -11,6 +11,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Consolidated project guidance into the English and Chinese READMEs; evaluation summaries now remain JSON-only.
 
+## [0.4.2] - 2026-10-29
+
+### Fixed
+
+- `attention-manifest-protocol/window` now exports ledger compaction and pruning: `planPrune`, `compactLedger`, `verifyCompaction`, `CompactionRefused`, `PruneResult`, `Compaction`, `CompactionOptions`, and the policy types `PrunePolicy`, `PrunePlan`, `PruneDecision`, `PruneReason`, `Checkpoint` and `LedgerKind`. They compiled into `lib/` but were absent from the barrel, so only the deep `window/compaction.js` path could reach them.
+
+### Changed
+
+- Both READMEs document compaction and pruning as an architecture component, with the ledger and concept entry points named.
+
 ## [0.4.1] - 2026-10-29
 
 Published library build: the package now exposes importable ESM with types.

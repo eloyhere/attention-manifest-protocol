@@ -1,6 +1,6 @@
 {
   "name": "attention-manifest-protocol",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": false,
   "description": "A metacognitive protocol for agent attention and warrant: signed manifests, attention frames with explicit exclusions, receipts, T0-T4 evidence tiers, MCP execution, federation, persistence, agent governance (manifests, credentials, budgets, workflows) and multi-agent delegation.",
   "keywords": [

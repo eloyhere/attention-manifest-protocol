@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文** · [更新日志](CHANGELOG.zh-CN.md)
 
-AMP 是供 agent 使用的元认知协议：声明知识和义务，分配有限注意力，获取证据，记录成本与结果。当前参考实现为 `0.4.0`，要求 **Node.js 24 或以上**，使用 Apache-2.0 许可证。
+AMP 是供 agent 使用的元认知协议：声明知识和义务，分配有限注意力，获取证据，记录成本与结果。当前参考实现为 `0.4.2`，要求 **Node.js 24 或以上**，使用 Apache-2.0 许可证。
 
 ## 架构
 
@@ -15,6 +15,7 @@ AMP 是供 agent 使用的元认知协议：声明知识和义务，分配有限
 | Frame | 固化本轮引用、预算和显式排除项 `ignored` |
 | Context | 将分配物化为摘要、关系与受限的详情读取 |
 | Receipt | 记录实际成本和结果，支持审计与校准 |
+| Compaction（压缩与剪枝） | 按明确理由剪掉冷数据或已失效对象，再用检查点替换已验证的前缀 |
 
 ```text
 Attention 选择 → Frame 固化 → Context 物化 → Receipt 结算 → Ledger
@@ -31,6 +32,7 @@ Context 使用结构树和类型化关系图。项目依赖、导入、调用与
 - 项目树、项目依赖图、TS/JS 的部分静态导入/调用/引用图，以及知识库词法检索。
 - Markdown、TXT、DOCX、XLSX、PPTX、TeX/LaTeX/BibTeX 的结构提取、原生定位与摘要/详情分层。
 - `amp.workspace` v1 服务、7 个 agent 工具、本地运行时接入与 MCP stdio 服务端。
+- 两层压缩与剪枝。`planPrune()` 为每次丢弃给出理由和回看条件；`compactLedger()` 用检查点替换已验证的冷前缀，`verifyCompaction()` 重新推导该承诺，且不会埋掉保留尾部仍然引用的条目。`pruneConcept()` 与 `compactConceptHistory()` 对概念内容和版本历史执行同样的约束。
 
 离线解析器位于 `tools/support/`；运行时通过端口接入数据，不依赖数据库，持久化适配器与运行时核心分离。具体契约见 [Schema](docs/schemas/)、[协议示例](docs/examples/) 与 [可执行检查](tools/)。
 

@@ -11,6 +11,16 @@
 
 - 将项目说明收敛到中英文 README；评测汇总只保留 JSON 格式。
 
+## [0.4.2] - 2026-10-29
+
+### 修复
+
+- `attention-manifest-protocol/window` 现在导出账本层的压缩与剪枝：`planPrune`、`compactLedger`、`verifyCompaction`、`CompactionRefused`、`PruneResult`、`Compaction`、`CompactionOptions`，以及 `PrunePolicy`、`PrunePlan`、`PruneDecision`、`PruneReason`、`Checkpoint`、`LedgerKind` 等策略类型。这些实现此前虽已编译进 `lib/`，却未出现在 barrel 中，只能通过深层路径 `window/compaction.js` 访问。
+
+### 变更
+
+- 中英文 README 将压缩与剪枝补为架构构件，并点名账本层与概念层的入口函数。
+
 ## [0.4.1] - 2026-10-29
 
 发布库构建：包现在提供可直接导入的 ESM 与类型声明。

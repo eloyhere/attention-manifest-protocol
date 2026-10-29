@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
-AMP is a metacognitive protocol for agents: declare knowledge and obligations, allocate finite attention, obtain evidence, and record costs and outcomes. The reference implementation is version `0.4.0`, requires **Node.js 24 or later**, and uses Apache-2.0.
+AMP is a metacognitive protocol for agents: declare knowledge and obligations, allocate finite attention, obtain evidence, and record costs and outcomes. The reference implementation is version `0.4.2`, requires **Node.js 24 or later**, and uses Apache-2.0.
 
 ## Architecture
 
@@ -15,6 +15,7 @@ AMP is a metacognitive protocol for agents: declare knowledge and obligations, a
 | Frame | Freeze one allocation with refs, budgets and explicit exclusions (`ignored`) |
 | Context | Materialize summaries, relations and bounded detail access |
 | Receipt | Record actual costs and outcomes for audit and calibration |
+| Compaction | Prune cold or superseded objects with a reason, then replace a verified prefix with a checkpoint |
 
 ```text
 Attention → Frame → Context → Receipt → Ledger
@@ -31,6 +32,7 @@ Context combines a structural tree and typed relationships. Project dependencies
 - Project trees, project dependency graphs, partial TS/JS import/call/reference graphs and lexical knowledge retrieval.
 - Structured Markdown/TXT/DOCX/XLSX/PPTX and TeX/LaTeX/BibTeX input with native source locations and summary/detail separation.
 - `amp.workspace` v1 agent service, seven tools, local runtime integration and MCP stdio.
+- Compaction and pruning at two levels. `planPrune()` decides every drop with a reason and a revisit condition; `compactLedger()` replaces a verified cold prefix with a checkpoint, `verifyCompaction()` re-derives that commitment, and compaction refuses to bury an entry the retained tail still cites. `pruneConcept()` and `compactConceptHistory()` apply the same discipline to concept content and version history.
 
 Offline parsers live in `tools/support/`. The runtime stays database-free and uses ports; persistence adapters are separate. Concrete contracts remain in [schemas](docs/schemas/), [examples](docs/examples/) and executable [checks](tools/).
 
