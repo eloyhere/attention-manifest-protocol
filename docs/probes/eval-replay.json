@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-10-28T19:55:30.599Z",
+  "kind": "eval-replay",
+  "note": "fixture labels, not a human study",
+  "cases": [
+    {
+      "id": "r-arith-1",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "12"
+    },
+    {
+      "id": "r-arith-2",
+      "category": "arithmetic",
+      "actual": false,
+      "humanLabel": "incorrect",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "16"
+    },
+    {
+      "id": "r-arith-3",
+      "category": "arithmetic",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "16"
+    },
+    {
+      "id": "r-logic-1",
+      "category": "syllogism",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.5085995085995085,
+      "answer": "no"
+    },
+    {
+      "id": "r-logic-2",
+      "category": "syllogism",
+      "actual": false,
+      "humanLabel": "incorrect",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.5085995085995085,
+      "answer": "yes"
+    },
+    {
+      "id": "r-memory-1",
+      "category": "memory",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "code-3"
+    },
+    {
+      "id": "r-memory-2",
+      "category": "memory",
+      "actual": false,
+      "humanLabel": "incorrect",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "code-5"
+    },
+    {
+      "id": "r-role-1",
+      "category": "role",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.5085995085995085,
+      "answer": "Analyst; ground claims in evidence"
+    },
+    {
+      "id": "r-attention-1",
+      "category": "attention",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "2 foreground slots; safety floor 1"
+    },
+    {
+      "id": "r-bayes-1",
+      "category": "bayes",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "7.5%"
+    },
+    {
+      "id": "r-bayes-2",
+      "category": "bayes",
+      "actual": false,
+      "humanLabel": "incorrect",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.51278928136419,
+      "answer": "8.3%"
+    },
+    {
+      "id": "r-context-1",
+      "category": "context",
+      "actual": true,
+      "humanLabel": "correct",
+      "labelAgrees": true,
+      "predictedCorrectness": 0.5085995085995085,
+      "answer": "Check the payment service logs and the deploy diff."
+    }
+  ],
+  "metrics": {
+    "total": 12,
+    "accuracy": 0.6666666666666666,
+    "humanLabeled": 12,
+    "humanLabelAgreement": 1,
+    "annotatorAgreement": 0.8333333333333334,
+    "cohenKappa": 0.5714285714285715,
+    "brier": 0.24656889600064288
+  }
+}

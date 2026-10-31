@@ -1,0 +1,15 @@
+{
+  "amp": "0.1",
+  "kind": "concept-checkpoint",
+  "id": "cp.concept.c.deploy-drift.2",
+  "concept": "c.deploy-drift",
+  "from": 1,
+  "to": 2,
+  "count": 2,
+  "tip": "sha256:41b21b47ebbfc817b3189354ce5f467cbad06ba375050309efcdeb4727faa4df",
+  "root": "sha256:2030d40942f4820e46fa0d2ba57cdd4d1158dcc4f7a79d906d378c88768b2fbe",
+  "created": "2026-10-24T01:00:00Z",
+  "budget": {
+    "keepVersions": 1
+  }
+}

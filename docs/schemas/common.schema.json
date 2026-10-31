@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/common.schema.json",
+  "title": "AMP common definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._:-]{0,63}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "trust": {
+      "type": "string",
+      "enum": ["self", "verified", "trusted", "asserted", "inferred", "external"]
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["T0", "T1", "T2", "T3", "T4"]
+    },
+    "refKind": {
+      "type": "string",
+      "enum": [
+        "entity", "concept", "process", "thread", "question", "hypothesis", "claim",
+        "evidence", "goal", "plan", "task", "tool", "memory", "other",
+        "human", "event", "handle", "frame", "self", "unknown", "common-ground",
+        "capability", "agent", "receipt", "org"
+      ]
+    },
+    "ref": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/refKind" },
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["observation", "testimony", "inference", "tool", "memory", "document", "simulation"]
+        },
+        "trust": { "$ref": "#/$defs/trust" },
+        "at": { "$ref": "#/$defs/ts" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "tokens": { "type": "integer", "minimum": 0 },
+        "ms": { "type": "integer", "minimum": 0 },
+        "calls": { "type": "integer", "minimum": 0 },
+        "interrupts": { "type": "integer", "minimum": 0 },
+        "money": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "tokens": { "type": "integer", "minimum": 0 },
+        "ms": { "type": "integer", "minimum": 0 },
+        "calls": { "type": "integer", "minimum": 0 },
+        "interrupts": { "type": "integer", "minimum": 0 },
+        "money": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "object",
+      "required": ["role", "alg", "kid", "sig"],
+      "properties": {
+        "role": { "type": "string", "enum": ["self", "host", "registry", "org", "tenant"] },
+        "alg": { "type": "string", "const": "ed25519" },
+        "kid": { "type": "string" },
+        "sig": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "criterion": {
+      "type": "object",
+      "required": ["id", "statement", "check"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string" },
+        "check": { "type": "string" },
+        "kind": { "type": "string", "enum": ["observe", "query", "assert"] }
+      },
+      "additionalProperties": false
+    },
+    "handle": {
+      "type": "object",
+      "required": ["id", "kind", "scope"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["table", "text", "tree", "blob", "graph"] },
+        "tokens": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "preview": { "type": "string" },
+        "scope": { "type": "string", "enum": ["turn", "session", "task"] },
+        "ttl_ms": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

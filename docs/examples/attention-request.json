@@ -1,0 +1,16 @@
+{
+  "amp": "0.1",
+  "kind": "attention-request",
+  "id": "ar.5",
+  "from": { "kind": "agent", "id": "a.gamma" },
+  "to": { "kind": "human", "id": "u.li" },
+  "target": { "kind": "unknown", "id": "u.17" },
+  "class": "commitment",
+  "urgency": 3,
+  "why_now": "承诺 10:00 前给出结论，当前缺少发布窗口的对照数据",
+  "if_ignored": "将按 T0 假定继续，结论可能偏差",
+  "cost": { "interrupts": 1, "ms": 120000 },
+  "expected_value": 0.7,
+  "expires": "2026-10-24T01:40:00Z",
+  "fallback": "queue"
+}

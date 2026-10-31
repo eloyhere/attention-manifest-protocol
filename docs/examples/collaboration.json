@@ -1,0 +1,66 @@
+[
+  {
+    "amp": "0.1",
+    "kind": "delegation",
+    "id": "dl.1",
+    "granter": "a.lead",
+    "delegatee": "a.worker",
+    "goal_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "scope": [
+      "tool.logs.query",
+      "tool.metrics.query"
+    ],
+    "budget": {
+      "tokens": 4000,
+      "calls": 8
+    },
+    "deadline": "2026-10-24T12:00:00Z",
+    "may_redelegate": false,
+    "depth": 0
+  },
+  {
+    "amp": "0.1",
+    "kind": "lease",
+    "id": "ls.2",
+    "delegation": "dl.1",
+    "task_id": "t1",
+    "holder": "a.worker",
+    "fence": 1,
+    "goal_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "budget": {
+      "tokens": 1200,
+      "calls": 2
+    },
+    "deadline": "2026-10-24T11:00:00Z",
+    "status": "active"
+  },
+  {
+    "amp": "0.1",
+    "kind": "result-contract",
+    "id": "rc.1",
+    "lease": "ls.2",
+    "goal_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "claims": [
+      {
+        "kind": "claim",
+        "id": "cl.91"
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "evidence",
+        "id": "ev.1"
+      }
+    ],
+    "unknowns": [
+      "lane B 未采样"
+    ],
+    "artifacts": [
+      {
+        "id": "a.1",
+        "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ],
+    "status": "ok"
+  }
+]

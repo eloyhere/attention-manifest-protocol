@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/verb.schema.json",
+  "title": "AMP model-facing verbs (M-surface)",
+  "description": "Six cognitive verbs plus one mechanical read. Verbs are proposals: the host may decline and must record why.",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "target", "why"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "attend" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "target": { "$ref": "common.schema.json#/$defs/ref" },
+        "why": { "type": "string", "minLength": 1 },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "goal"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "plan" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "goal": { "$ref": "common.schema.json#/$defs/ref" },
+        "process": { "$ref": "common.schema.json#/$defs/ref" },
+        "mode": { "type": "string", "enum": ["draft", "commit"] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "action"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "act" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "action": { "type": "string", "minLength": 1 },
+        "ref": { "$ref": "common.schema.json#/$defs/ref" },
+        "args": { "type": "object" },
+        "expect": {
+          "type": "object",
+          "required": ["observation", "check"],
+          "properties": {
+            "observation": { "type": "string" },
+            "check": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "question"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "ask" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "question": { "type": "string", "minLength": 1 },
+        "to": { "$ref": "common.schema.json#/$defs/ref" },
+        "class": { "type": "string", "enum": ["safety", "commitment", "opportunity", "curiosity"] },
+        "urgency": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "expires": { "$ref": "common.schema.json#/$defs/ts" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "assertion", "as"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "note" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "assertion": { "type": "string", "minLength": 1 },
+        "as": { "type": "string", "enum": ["claim", "hypothesis", "unknown", "concept"] },
+        "tier": { "$ref": "common.schema.json#/$defs/tier" },
+        "evidence": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "refutes_if": { "type": "string" },
+        "label": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "reflect" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "scope": { "type": "string", "enum": ["turn", "task", "session"] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "verb", "handle", "cursor"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "call" },
+        "verb": { "const": "read" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "handle": { "type": "string", "minLength": 1 },
+        "cursor": { "type": "integer", "minimum": 0 },
+        "limit": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

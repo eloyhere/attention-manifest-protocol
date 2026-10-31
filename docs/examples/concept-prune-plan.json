@@ -1,0 +1,45 @@
+{
+  "amp": "0.1",
+  "kind": "concept-prune-plan",
+  "concept": "c.deploy-drift",
+  "version": 3,
+  "dropped": [
+    {
+      "slot": "example",
+      "index": 1,
+      "summary": "a config map edited by hand during an incident",
+      "reason": "duplicate",
+      "revisit_if": "if this example is rewritten with a detail the kept one lacks"
+    },
+    {
+      "slot": "example",
+      "index": 4,
+      "summary": "a cron schedule changed outside the pipeline",
+      "reason": "over-budget",
+      "revisit_if": "if the concept needs a broader extension again"
+    },
+    {
+      "slot": "relation",
+      "index": 1,
+      "summary": "causes → claim:cl.deploy-cause",
+      "reason": "duplicate",
+      "revisit_if": "if the duplicate gains a distinct provenance or weight"
+    },
+    {
+      "slot": "extension",
+      "index": 1,
+      "summary": "claim:cl.deploy-cause",
+      "reason": "duplicate",
+      "revisit_if": "if the duplicate comes from a different source"
+    }
+  ],
+  "reclaimedBytes": 265,
+  "budget": {
+    "amp": "0.1",
+    "kind": "concept-budget",
+    "maxExamples": 3,
+    "minExamples": 1,
+    "maxRelations": 2,
+    "keepVersions": 1
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/social.schema.json",
+  "title": "AMP social objects (other-model | common-ground | attention-request)",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "subject", "beliefs", "confidence", "updated", "privacy"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "other-model" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "subject": {
+          "type": "object",
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["human", "agent"] },
+            "id": { "$ref": "common.schema.json#/$defs/id" },
+            "label": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "beliefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slot", "order", "proposition", "confidence", "source", "volatility", "ttl"],
+            "properties": {
+              "slot": { "$ref": "common.schema.json#/$defs/id" },
+              "order": { "type": "integer", "minimum": 1, "maximum": 3 },
+              "proposition": { "type": "string", "minLength": 1 },
+              "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+              "source": { "type": "string" },
+              "volatility": { "type": "string", "enum": ["low", "medium", "high"] },
+              "ttl": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["goal", "priority", "confidence"],
+            "properties": {
+              "goal": { "type": "string" },
+              "priority": { "type": "integer", "minimum": 0 },
+              "confidence": { "$ref": "common.schema.json#/$defs/confidence" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "knowledge": {
+          "type": "object",
+          "properties": {
+            "known": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+            "unknown": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+            "uncertain": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } }
+          },
+          "additionalProperties": false
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "value", "confidence"],
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+              "source": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "attention": {
+          "type": "object",
+          "required": ["state"],
+          "properties": {
+            "state": { "type": "string", "enum": ["idle", "busy", "interruptible"] },
+            "load": { "$ref": "common.schema.json#/$defs/confidence" },
+            "last_interaction": { "$ref": "common.schema.json#/$defs/ts" }
+          },
+          "additionalProperties": false
+        },
+        "trust": {
+          "type": "object",
+          "required": ["level"],
+          "properties": {
+            "domain": { "type": "string" },
+            "level": { "$ref": "common.schema.json#/$defs/confidence" },
+            "basis": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "common_ground": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "privacy": {
+          "type": "object",
+          "required": ["scope"],
+          "properties": {
+            "scope": { "type": "string", "enum": ["turn", "session", "task", "persistent"] },
+            "retention_days": { "type": "integer", "minimum": 0 },
+            "redact": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+        "updated": { "$ref": "common.schema.json#/$defs/ts" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "proposition", "established_by", "participants", "confidence", "established_at"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "common-ground" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "proposition": { "type": "string", "minLength": 1 },
+        "established_by": {
+          "type": "string",
+          "enum": ["assertion", "confirmation", "repair", "shared_observation", "assumption"]
+        },
+        "participants": { "type": "array", "minItems": 2, "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+        "established_at": { "$ref": "common.schema.json#/$defs/ts" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "from", "to", "target", "class", "urgency", "why_now", "if_ignored", "cost", "fallback"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "attention-request" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "from": { "$ref": "common.schema.json#/$defs/ref" },
+        "to": { "$ref": "common.schema.json#/$defs/ref" },
+        "target": { "$ref": "common.schema.json#/$defs/ref" },
+        "class": { "type": "string", "enum": ["safety", "commitment", "opportunity", "curiosity"] },
+        "urgency": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "why_now": { "type": "string", "minLength": 1 },
+        "if_ignored": { "type": "string", "minLength": 1 },
+        "cost": { "$ref": "common.schema.json#/$defs/budget" },
+        "expected_value": { "$ref": "common.schema.json#/$defs/confidence" },
+        "expires": { "$ref": "common.schema.json#/$defs/ts" },
+        "fallback": { "type": "string", "enum": ["queue", "drop", "escalate"] }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

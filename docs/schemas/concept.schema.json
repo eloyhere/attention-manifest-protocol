@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/concept.schema.json",
+  "title": "AMP Concept",
+  "type": "object",
+  "required": ["amp", "kind", "id", "label", "definition", "intension", "status", "confidence", "provenance", "version", "created"],
+  "properties": {
+    "amp": { "const": "0.1" },
+    "kind": { "const": "concept" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "label": { "type": "string", "minLength": 1 },
+    "definition": { "type": "string", "minLength": 1 },
+    "intension": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["feature"],
+        "properties": {
+          "feature": { "type": "string" },
+          "weight": { "$ref": "common.schema.json#/$defs/confidence" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "scale": { "type": "string", "enum": ["nominal", "ordinal", "interval", "ratio"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "theory_refs": { "type": "array", "items": { "type": "string" } },
+    "extension": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+    "prototype": { "type": "string" },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "ref": { "$ref": "common.schema.json#/$defs/ref" },
+          "description": { "type": "string" },
+          "typicality": { "$ref": "common.schema.json#/$defs/confidence" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "ref": { "$ref": "common.schema.json#/$defs/ref" },
+          "description": { "type": "string" },
+          "typicality": { "$ref": "common.schema.json#/$defs/confidence" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": { "type": "string", "enum": ["is-a", "part-of", "causes", "enables", "contrasts-with", "derived-from", "precedes"] },
+          "target": { "$ref": "common.schema.json#/$defs/ref" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "grounded_in": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+    "status": { "type": "string", "enum": ["proposed", "active", "deprecated", "merged", "split"] },
+    "confidence": { "$ref": "common.schema.json#/$defs/confidence" },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" },
+    "version": { "type": "integer", "minimum": 1 },
+    "created": { "$ref": "common.schema.json#/$defs/ts" },
+    "revision": {
+      "type": "object",
+      "required": ["op", "at"],
+      "properties": {
+        "op": { "type": "string", "enum": ["merge", "split", "refine", "retire"] },
+        "at": { "$ref": "common.schema.json#/$defs/ts" },
+        "from": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

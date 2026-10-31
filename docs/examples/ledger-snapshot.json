@@ -1,0 +1,108 @@
+{
+  "amp": "0.1",
+  "kind": "ledger-snapshot",
+  "agent": "a.gamma",
+  "tip": "sha256:14d774949ecf4c71eb442334db7e8cfca44dd93562e37991279e27f4751fd2f4",
+  "count": 3,
+  "entries": [
+    {
+      "seq": 0,
+      "kind": "unknown",
+      "payload": {
+        "amp": "0.1",
+        "kind": "unknown",
+        "id": "u.1",
+        "question": "错误率上升是发布引起还是流量引起？",
+        "importance": 0.9,
+        "blocking": true,
+        "since": "2026-10-24T01:00:01Z",
+        "status": "open"
+      },
+      "prev": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "sha256:04554421abf76f2b1df8729e6fe261c1fc18cfe9ebaa0f6504c1ab3b9336f7c8"
+    },
+    {
+      "seq": 1,
+      "kind": "frame",
+      "payload": {
+        "amp": "0.1",
+        "kind": "frame",
+        "id": "f.101",
+        "agent": "a.gamma",
+        "cycle": 1,
+        "ts": "2026-10-24T01:00:03Z",
+        "mode": "triage",
+        "slots": [
+          {
+            "target": {
+              "kind": "unknown",
+              "id": "u.1"
+            },
+            "role": "question",
+            "salience": 0.9,
+            "voi": 0.9,
+            "cost": {
+              "tokens": 200
+            },
+            "budget": {
+              "tokens": 200
+            },
+            "why": "blocking unknown",
+            "state": "active"
+          }
+        ],
+        "ignored": [],
+        "budget": {
+          "allocated": {
+            "tokens": 2000
+          },
+          "spent": {
+            "tokens": 0,
+            "calls": 0,
+            "ms": 0
+          }
+        },
+        "digest": "sha256:002a51f21975c015b6f8d9f6fe8a671a366a0e2b4c48935af653268ff7edb99c"
+      },
+      "prev": "sha256:04554421abf76f2b1df8729e6fe261c1fc18cfe9ebaa0f6504c1ab3b9336f7c8",
+      "hash": "sha256:25360b7ad43530780946f4711cc544a1a619abe417e355fdf5798e1b2014b068"
+    },
+    {
+      "seq": 2,
+      "kind": "claim",
+      "payload": {
+        "amp": "0.1",
+        "kind": "claim",
+        "id": "cl.1",
+        "statement": "发布导致错误率上升",
+        "tier": "T2",
+        "status": "held",
+        "warrant": {
+          "evidence": [
+            {
+              "id": "ev.1",
+              "kind": "observation",
+              "trust": "self",
+              "independence": 0.9,
+              "entails": true,
+              "origin": "a",
+              "at": "2026-10-24T01:00:05Z"
+            }
+          ],
+          "inference": "abduction",
+          "strength": 0.7
+        },
+        "provenance": {
+          "source": "a.gamma",
+          "kind": "inference",
+          "trust": "self",
+          "at": "2026-10-24T01:00:05Z"
+        },
+        "created": "2026-10-24T01:00:06Z",
+        "confidence": 0.882
+      },
+      "prev": "sha256:25360b7ad43530780946f4711cc544a1a619abe417e355fdf5798e1b2014b068",
+      "hash": "sha256:14d774949ecf4c71eb442334db7e8cfca44dd93562e37991279e27f4751fd2f4"
+    }
+  ]
+}

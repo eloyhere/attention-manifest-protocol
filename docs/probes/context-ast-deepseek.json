@@ -1,0 +1,1577 @@
+{
+  "generatedAt": "2026-10-26T20:11:44.977Z",
+  "model": "deepseek-flash",
+  "context": {
+    "nodes": 148,
+    "viewTokens": 1792,
+    "flatTokens": 18076,
+    "refs": 111,
+    "budgetTokens": 1800
+  },
+  "conditions": [
+    {
+      "id": "flat",
+      "label": "flat summaries+details",
+      "inputTokens": 30193,
+      "summary": {
+        "text": "LAYER=database — only layer with a concrete critical finding: lock-wait blocking chain (blocking_pid=4711, blocked_pid=4820, ShareLock, 94s transaction age), consistent with DB CPU 92% and thread/pool saturation downstream.",
+        "layer": "database",
+        "expectedLayer": "database",
+        "latencyMs": 2123,
+        "toolCalls": []
+      },
+      "detail": {
+        "text": "PID=4711 LOCK=ShareLock",
+        "pid": "4711",
+        "lock": "ShareLock",
+        "expectedPid": "4711",
+        "expectedLock": "ShareLock",
+        "latencyMs": 594,
+        "toolCalls": []
+      }
+    },
+    {
+      "id": "ast-summary",
+      "label": "AST summaries only",
+      "inputTokens": 7521,
+      "summary": {
+        "text": "LAYER=database — the only critical signal is a database lock-wait with a blocking chain (layer.database.probe.3), consistent with DB CPU 92% and pool saturation.",
+        "layer": "database",
+        "expectedLayer": "database",
+        "latencyMs": 906,
+        "toolCalls": []
+      },
+      "detail": {
+        "text": "PID=UNKNOWN LOCK=UNKNOWN",
+        "pid": null,
+        "lock": null,
+        "expectedPid": "4711",
+        "expectedLock": "ShareLock",
+        "latencyMs": 364,
+        "toolCalls": []
+      }
+    },
+    {
+      "id": "ast-tool",
+      "label": "AST summaries + read_detail",
+      "inputTokens": 7611,
+      "summary": {
+        "text": "LAYER=database — the only critical signal is a database lock-wait with a blocking chain (layer.database.probe.3), consistent with DB CPU 92% and pool saturation.",
+        "layer": "database",
+        "expectedLayer": "database",
+        "latencyMs": 906,
+        "toolCalls": []
+      },
+      "detail": {
+        "text": "PID=4711 LOCK=ShareLock",
+        "pid": "4711",
+        "lock": "ShareLock",
+        "expectedPid": "4711",
+        "expectedLock": "ShareLock",
+        "latencyMs": 1156,
+        "toolCalls": [
+          "read_detail"
+        ]
+      }
+    }
+  ],
+  "tree": [
+    {
+      "id": "incident",
+      "kind": "goal",
+      "summary": "payment API p99 2.8s, 5xx 8%, thread/pool saturated, DB CPU 92%, 12m after release",
+      "depth": 0,
+      "order": 0
+    },
+    {
+      "id": "layer.thread_pool",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "thread_pool: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 1
+    },
+    {
+      "id": "layer.thread_pool.probe.0",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 0: warn signal",
+      "detailRef": "layer.thread_pool.probe.0",
+      "depth": 2,
+      "order": 10
+    },
+    {
+      "id": "layer.thread_pool.probe.1",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 1: normal signal",
+      "detailRef": "layer.thread_pool.probe.1",
+      "depth": 2,
+      "order": 11
+    },
+    {
+      "id": "layer.thread_pool.probe.2",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 2: normal signal",
+      "detailRef": "layer.thread_pool.probe.2",
+      "depth": 2,
+      "order": 12
+    },
+    {
+      "id": "layer.thread_pool.probe.3",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 3: warn signal",
+      "detailRef": "layer.thread_pool.probe.3",
+      "depth": 2,
+      "order": 13
+    },
+    {
+      "id": "layer.thread_pool.probe.4",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 4: normal signal",
+      "detailRef": "layer.thread_pool.probe.4",
+      "depth": 2,
+      "order": 14
+    },
+    {
+      "id": "layer.thread_pool.probe.5",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 5: normal signal",
+      "detailRef": "layer.thread_pool.probe.5",
+      "depth": 2,
+      "order": 15
+    },
+    {
+      "id": "layer.thread_pool.probe.6",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 6: warn signal",
+      "detailRef": "layer.thread_pool.probe.6",
+      "depth": 2,
+      "order": 16
+    },
+    {
+      "id": "layer.thread_pool.probe.7",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 7: normal signal",
+      "detailRef": "layer.thread_pool.probe.7",
+      "depth": 2,
+      "order": 17
+    },
+    {
+      "id": "layer.thread_pool.probe.8",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 8: normal signal",
+      "detailRef": "layer.thread_pool.probe.8",
+      "depth": 2,
+      "order": 18
+    },
+    {
+      "id": "layer.thread_pool.probe.9",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 9: warn signal",
+      "detailRef": "layer.thread_pool.probe.9",
+      "depth": 2,
+      "order": 19
+    },
+    {
+      "id": "layer.thread_pool.probe.10",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 10: normal signal",
+      "detailRef": "layer.thread_pool.probe.10",
+      "depth": 2,
+      "order": 20
+    },
+    {
+      "id": "layer.thread_pool.probe.11",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 11: normal signal",
+      "detailRef": "layer.thread_pool.probe.11",
+      "depth": 2,
+      "order": 21
+    },
+    {
+      "id": "layer.thread_pool.probe.12",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 12: warn signal",
+      "detailRef": "layer.thread_pool.probe.12",
+      "depth": 2,
+      "order": 22
+    },
+    {
+      "id": "layer.thread_pool.probe.13",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 13: normal signal",
+      "detailRef": "layer.thread_pool.probe.13",
+      "depth": 2,
+      "order": 23
+    },
+    {
+      "id": "layer.thread_pool.probe.14",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 14: normal signal",
+      "detailRef": "layer.thread_pool.probe.14",
+      "depth": 2,
+      "order": 24
+    },
+    {
+      "id": "layer.thread_pool.probe.15",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 15: warn signal",
+      "detailRef": "layer.thread_pool.probe.15",
+      "depth": 2,
+      "order": 25
+    },
+    {
+      "id": "layer.thread_pool.probe.16",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 16: normal signal",
+      "detailRef": "layer.thread_pool.probe.16",
+      "depth": 2,
+      "order": 26
+    },
+    {
+      "id": "layer.thread_pool.probe.17",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 17: normal signal",
+      "detailRef": "layer.thread_pool.probe.17",
+      "depth": 2,
+      "order": 27
+    },
+    {
+      "id": "layer.thread_pool.probe.18",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 18: warn signal",
+      "detailRef": "layer.thread_pool.probe.18",
+      "depth": 2,
+      "order": 28
+    },
+    {
+      "id": "layer.thread_pool.probe.19",
+      "parentId": "layer.thread_pool",
+      "kind": "observation",
+      "summary": "thread_pool probe 19: normal signal",
+      "detailRef": "layer.thread_pool.probe.19",
+      "depth": 2,
+      "order": 29
+    },
+    {
+      "id": "layer.connection_pool.probe.0",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 0: warn signal",
+      "detailRef": "layer.connection_pool.probe.0",
+      "depth": 2,
+      "order": 110
+    },
+    {
+      "id": "layer.connection_pool.probe.1",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 1: normal signal",
+      "detailRef": "layer.connection_pool.probe.1",
+      "depth": 2,
+      "order": 111
+    },
+    {
+      "id": "layer.connection_pool.probe.2",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 2: normal signal",
+      "detailRef": "layer.connection_pool.probe.2",
+      "depth": 2,
+      "order": 112
+    },
+    {
+      "id": "layer.connection_pool.probe.3",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 3: warn signal",
+      "detailRef": "layer.connection_pool.probe.3",
+      "depth": 2,
+      "order": 113
+    },
+    {
+      "id": "layer.connection_pool.probe.4",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 4: normal signal",
+      "detailRef": "layer.connection_pool.probe.4",
+      "depth": 2,
+      "order": 114
+    },
+    {
+      "id": "layer.connection_pool.probe.5",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 5: normal signal",
+      "detailRef": "layer.connection_pool.probe.5",
+      "depth": 2,
+      "order": 115
+    },
+    {
+      "id": "layer.connection_pool.probe.6",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 6: warn signal",
+      "detailRef": "layer.connection_pool.probe.6",
+      "depth": 2,
+      "order": 116
+    },
+    {
+      "id": "layer.connection_pool.probe.7",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 7: normal signal",
+      "detailRef": "layer.connection_pool.probe.7",
+      "depth": 2,
+      "order": 117
+    },
+    {
+      "id": "layer.connection_pool.probe.8",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 8: normal signal",
+      "detailRef": "layer.connection_pool.probe.8",
+      "depth": 2,
+      "order": 118
+    },
+    {
+      "id": "layer.connection_pool.probe.9",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 9: warn signal",
+      "detailRef": "layer.connection_pool.probe.9",
+      "depth": 2,
+      "order": 119
+    },
+    {
+      "id": "layer.connection_pool.probe.10",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 10: normal signal",
+      "detailRef": "layer.connection_pool.probe.10",
+      "depth": 2,
+      "order": 120
+    },
+    {
+      "id": "layer.connection_pool.probe.11",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 11: normal signal",
+      "detailRef": "layer.connection_pool.probe.11",
+      "depth": 2,
+      "order": 121
+    },
+    {
+      "id": "layer.connection_pool.probe.12",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 12: warn signal",
+      "detailRef": "layer.connection_pool.probe.12",
+      "depth": 2,
+      "order": 122
+    },
+    {
+      "id": "layer.connection_pool.probe.13",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 13: normal signal",
+      "detailRef": "layer.connection_pool.probe.13",
+      "depth": 2,
+      "order": 123
+    },
+    {
+      "id": "layer.connection_pool.probe.14",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 14: normal signal",
+      "detailRef": "layer.connection_pool.probe.14",
+      "depth": 2,
+      "order": 124
+    },
+    {
+      "id": "layer.connection_pool.probe.15",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 15: warn signal",
+      "detailRef": "layer.connection_pool.probe.15",
+      "depth": 2,
+      "order": 125
+    },
+    {
+      "id": "layer.connection_pool.probe.16",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 16: normal signal",
+      "detailRef": "layer.connection_pool.probe.16",
+      "depth": 2,
+      "order": 126
+    },
+    {
+      "id": "layer.connection_pool.probe.17",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 17: normal signal",
+      "detailRef": "layer.connection_pool.probe.17",
+      "depth": 2,
+      "order": 127
+    },
+    {
+      "id": "layer.connection_pool.probe.18",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 18: warn signal",
+      "detailRef": "layer.connection_pool.probe.18",
+      "depth": 2,
+      "order": 128
+    },
+    {
+      "id": "layer.connection_pool.probe.19",
+      "parentId": "layer.connection_pool",
+      "kind": "observation",
+      "summary": "connection_pool probe 19: normal signal",
+      "detailRef": "layer.connection_pool.probe.19",
+      "depth": 2,
+      "order": 129
+    },
+    {
+      "id": "layer.connect.probe.0",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 0: warn signal",
+      "detailRef": "layer.connect.probe.0",
+      "depth": 2,
+      "order": 210
+    },
+    {
+      "id": "layer.connect.probe.1",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 1: normal signal",
+      "detailRef": "layer.connect.probe.1",
+      "depth": 2,
+      "order": 211
+    },
+    {
+      "id": "layer.connect.probe.2",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 2: normal signal",
+      "detailRef": "layer.connect.probe.2",
+      "depth": 2,
+      "order": 212
+    },
+    {
+      "id": "layer.connect.probe.3",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 3: warn signal",
+      "detailRef": "layer.connect.probe.3",
+      "depth": 2,
+      "order": 213
+    },
+    {
+      "id": "layer.connect.probe.4",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 4: normal signal",
+      "detailRef": "layer.connect.probe.4",
+      "depth": 2,
+      "order": 214
+    },
+    {
+      "id": "layer.connect.probe.5",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 5: normal signal",
+      "detailRef": "layer.connect.probe.5",
+      "depth": 2,
+      "order": 215
+    },
+    {
+      "id": "layer.connect.probe.6",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 6: warn signal",
+      "detailRef": "layer.connect.probe.6",
+      "depth": 2,
+      "order": 216
+    },
+    {
+      "id": "layer.connect.probe.7",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 7: normal signal",
+      "detailRef": "layer.connect.probe.7",
+      "depth": 2,
+      "order": 217
+    },
+    {
+      "id": "layer.connect.probe.8",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 8: normal signal",
+      "detailRef": "layer.connect.probe.8",
+      "depth": 2,
+      "order": 218
+    },
+    {
+      "id": "layer.connect.probe.9",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 9: warn signal",
+      "detailRef": "layer.connect.probe.9",
+      "depth": 2,
+      "order": 219
+    },
+    {
+      "id": "layer.connect.probe.10",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 10: normal signal",
+      "detailRef": "layer.connect.probe.10",
+      "depth": 2,
+      "order": 220
+    },
+    {
+      "id": "layer.connect.probe.11",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 11: normal signal",
+      "detailRef": "layer.connect.probe.11",
+      "depth": 2,
+      "order": 221
+    },
+    {
+      "id": "layer.connect.probe.12",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 12: warn signal",
+      "detailRef": "layer.connect.probe.12",
+      "depth": 2,
+      "order": 222
+    },
+    {
+      "id": "layer.connect.probe.13",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 13: normal signal",
+      "detailRef": "layer.connect.probe.13",
+      "depth": 2,
+      "order": 223
+    },
+    {
+      "id": "layer.connect.probe.14",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 14: normal signal",
+      "detailRef": "layer.connect.probe.14",
+      "depth": 2,
+      "order": 224
+    },
+    {
+      "id": "layer.connect.probe.15",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 15: warn signal",
+      "detailRef": "layer.connect.probe.15",
+      "depth": 2,
+      "order": 225
+    },
+    {
+      "id": "layer.connect.probe.16",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 16: normal signal",
+      "detailRef": "layer.connect.probe.16",
+      "depth": 2,
+      "order": 226
+    },
+    {
+      "id": "layer.connect.probe.17",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 17: normal signal",
+      "detailRef": "layer.connect.probe.17",
+      "depth": 2,
+      "order": 227
+    },
+    {
+      "id": "layer.connect.probe.18",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 18: warn signal",
+      "detailRef": "layer.connect.probe.18",
+      "depth": 2,
+      "order": 228
+    },
+    {
+      "id": "layer.connect.probe.19",
+      "parentId": "layer.connect",
+      "kind": "observation",
+      "summary": "connect probe 19: normal signal",
+      "detailRef": "layer.connect.probe.19",
+      "depth": 2,
+      "order": 229
+    },
+    {
+      "id": "layer.database.probe.0",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 0: warn signal",
+      "detailRef": "layer.database.probe.0",
+      "depth": 2,
+      "order": 310
+    },
+    {
+      "id": "layer.database.probe.1",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 1: normal signal",
+      "detailRef": "layer.database.probe.1",
+      "depth": 2,
+      "order": 311
+    },
+    {
+      "id": "layer.database.probe.2",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 2: normal signal",
+      "detailRef": "layer.database.probe.2",
+      "depth": 2,
+      "order": 312
+    },
+    {
+      "id": "layer.database.probe.3",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database lock-wait: critical; blocking chain found; query plan pending",
+      "detailRef": "layer.database.probe.3",
+      "depth": 2,
+      "order": 313
+    },
+    {
+      "id": "layer.database.probe.4",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 4: normal signal",
+      "detailRef": "layer.database.probe.4",
+      "depth": 2,
+      "order": 314
+    },
+    {
+      "id": "layer.database.probe.5",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 5: normal signal",
+      "detailRef": "layer.database.probe.5",
+      "depth": 2,
+      "order": 315
+    },
+    {
+      "id": "layer.database.probe.6",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 6: warn signal",
+      "detailRef": "layer.database.probe.6",
+      "depth": 2,
+      "order": 316
+    },
+    {
+      "id": "layer.database.probe.7",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 7: normal signal",
+      "detailRef": "layer.database.probe.7",
+      "depth": 2,
+      "order": 317
+    },
+    {
+      "id": "layer.database.probe.8",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 8: normal signal",
+      "detailRef": "layer.database.probe.8",
+      "depth": 2,
+      "order": 318
+    },
+    {
+      "id": "layer.database.probe.9",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 9: warn signal",
+      "detailRef": "layer.database.probe.9",
+      "depth": 2,
+      "order": 319
+    },
+    {
+      "id": "layer.database.probe.10",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 10: normal signal",
+      "detailRef": "layer.database.probe.10",
+      "depth": 2,
+      "order": 320
+    },
+    {
+      "id": "layer.database.probe.11",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 11: normal signal",
+      "detailRef": "layer.database.probe.11",
+      "depth": 2,
+      "order": 321
+    },
+    {
+      "id": "layer.database.probe.12",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 12: warn signal",
+      "detailRef": "layer.database.probe.12",
+      "depth": 2,
+      "order": 322
+    },
+    {
+      "id": "layer.database.probe.13",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 13: normal signal",
+      "detailRef": "layer.database.probe.13",
+      "depth": 2,
+      "order": 323
+    },
+    {
+      "id": "layer.database.probe.14",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 14: normal signal",
+      "detailRef": "layer.database.probe.14",
+      "depth": 2,
+      "order": 324
+    },
+    {
+      "id": "layer.database.probe.15",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 15: warn signal",
+      "detailRef": "layer.database.probe.15",
+      "depth": 2,
+      "order": 325
+    },
+    {
+      "id": "layer.database.probe.16",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 16: normal signal",
+      "detailRef": "layer.database.probe.16",
+      "depth": 2,
+      "order": 326
+    },
+    {
+      "id": "layer.database.probe.17",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 17: normal signal",
+      "detailRef": "layer.database.probe.17",
+      "depth": 2,
+      "order": 327
+    },
+    {
+      "id": "layer.database.probe.18",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 18: warn signal",
+      "detailRef": "layer.database.probe.18",
+      "depth": 2,
+      "order": 328
+    },
+    {
+      "id": "layer.database.probe.19",
+      "parentId": "layer.database",
+      "kind": "observation",
+      "summary": "database probe 19: normal signal",
+      "detailRef": "layer.database.probe.19",
+      "depth": 2,
+      "order": 329
+    },
+    {
+      "id": "layer.queue.probe.0",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 0: warn signal",
+      "detailRef": "layer.queue.probe.0",
+      "depth": 2,
+      "order": 410
+    },
+    {
+      "id": "layer.queue.probe.1",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 1: normal signal",
+      "detailRef": "layer.queue.probe.1",
+      "depth": 2,
+      "order": 411
+    },
+    {
+      "id": "layer.queue.probe.2",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 2: normal signal",
+      "detailRef": "layer.queue.probe.2",
+      "depth": 2,
+      "order": 412
+    },
+    {
+      "id": "layer.queue.probe.3",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 3: warn signal",
+      "detailRef": "layer.queue.probe.3",
+      "depth": 2,
+      "order": 413
+    },
+    {
+      "id": "layer.queue.probe.4",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 4: normal signal",
+      "detailRef": "layer.queue.probe.4",
+      "depth": 2,
+      "order": 414
+    },
+    {
+      "id": "layer.queue.probe.5",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 5: normal signal",
+      "detailRef": "layer.queue.probe.5",
+      "depth": 2,
+      "order": 415
+    },
+    {
+      "id": "layer.queue.probe.6",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 6: warn signal",
+      "detailRef": "layer.queue.probe.6",
+      "depth": 2,
+      "order": 416
+    },
+    {
+      "id": "layer.queue.probe.7",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 7: normal signal",
+      "detailRef": "layer.queue.probe.7",
+      "depth": 2,
+      "order": 417
+    },
+    {
+      "id": "layer.queue.probe.8",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 8: normal signal",
+      "detailRef": "layer.queue.probe.8",
+      "depth": 2,
+      "order": 418
+    },
+    {
+      "id": "layer.queue.probe.9",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 9: warn signal",
+      "detailRef": "layer.queue.probe.9",
+      "depth": 2,
+      "order": 419
+    },
+    {
+      "id": "layer.queue.probe.10",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 10: normal signal",
+      "detailRef": "layer.queue.probe.10",
+      "depth": 2,
+      "order": 420
+    },
+    {
+      "id": "layer.queue.probe.11",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 11: normal signal",
+      "detailRef": "layer.queue.probe.11",
+      "depth": 2,
+      "order": 421
+    },
+    {
+      "id": "layer.queue.probe.12",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 12: warn signal",
+      "detailRef": "layer.queue.probe.12",
+      "depth": 2,
+      "order": 422
+    },
+    {
+      "id": "layer.queue.probe.13",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 13: normal signal",
+      "detailRef": "layer.queue.probe.13",
+      "depth": 2,
+      "order": 423
+    },
+    {
+      "id": "layer.queue.probe.14",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 14: normal signal",
+      "detailRef": "layer.queue.probe.14",
+      "depth": 2,
+      "order": 424
+    },
+    {
+      "id": "layer.queue.probe.15",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 15: warn signal",
+      "detailRef": "layer.queue.probe.15",
+      "depth": 2,
+      "order": 425
+    },
+    {
+      "id": "layer.queue.probe.16",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 16: normal signal",
+      "detailRef": "layer.queue.probe.16",
+      "depth": 2,
+      "order": 426
+    },
+    {
+      "id": "layer.queue.probe.17",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 17: normal signal",
+      "detailRef": "layer.queue.probe.17",
+      "depth": 2,
+      "order": 427
+    },
+    {
+      "id": "layer.queue.probe.18",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 18: warn signal",
+      "detailRef": "layer.queue.probe.18",
+      "depth": 2,
+      "order": 428
+    },
+    {
+      "id": "layer.queue.probe.19",
+      "parentId": "layer.queue",
+      "kind": "observation",
+      "summary": "queue probe 19: normal signal",
+      "detailRef": "layer.queue.probe.19",
+      "depth": 2,
+      "order": 429
+    },
+    {
+      "id": "layer.application.probe.0",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 0: warn signal",
+      "detailRef": "layer.application.probe.0",
+      "depth": 2,
+      "order": 510
+    },
+    {
+      "id": "layer.application.probe.1",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 1: normal signal",
+      "detailRef": "layer.application.probe.1",
+      "depth": 2,
+      "order": 511
+    },
+    {
+      "id": "layer.application.probe.2",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 2: normal signal",
+      "detailRef": "layer.application.probe.2",
+      "depth": 2,
+      "order": 512
+    },
+    {
+      "id": "layer.application.probe.3",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 3: warn signal",
+      "detailRef": "layer.application.probe.3",
+      "depth": 2,
+      "order": 513
+    },
+    {
+      "id": "layer.application.probe.4",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 4: normal signal",
+      "detailRef": "layer.application.probe.4",
+      "depth": 2,
+      "order": 514
+    },
+    {
+      "id": "layer.application.probe.5",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 5: normal signal",
+      "detailRef": "layer.application.probe.5",
+      "depth": 2,
+      "order": 515
+    },
+    {
+      "id": "layer.application.probe.6",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 6: warn signal",
+      "detailRef": "layer.application.probe.6",
+      "depth": 2,
+      "order": 516
+    },
+    {
+      "id": "layer.application.probe.7",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 7: normal signal",
+      "detailRef": "layer.application.probe.7",
+      "depth": 2,
+      "order": 517
+    },
+    {
+      "id": "layer.application.probe.8",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 8: normal signal",
+      "detailRef": "layer.application.probe.8",
+      "depth": 2,
+      "order": 518
+    },
+    {
+      "id": "layer.application.probe.9",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 9: warn signal",
+      "detailRef": "layer.application.probe.9",
+      "depth": 2,
+      "order": 519
+    },
+    {
+      "id": "layer.application.probe.10",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 10: normal signal",
+      "detailRef": "layer.application.probe.10",
+      "depth": 2,
+      "order": 520
+    },
+    {
+      "id": "layer.application.probe.11",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 11: normal signal",
+      "detailRef": "layer.application.probe.11",
+      "depth": 2,
+      "order": 521
+    },
+    {
+      "id": "layer.application.probe.12",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 12: warn signal",
+      "detailRef": "layer.application.probe.12",
+      "depth": 2,
+      "order": 522
+    },
+    {
+      "id": "layer.application.probe.13",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 13: normal signal",
+      "detailRef": "layer.application.probe.13",
+      "depth": 2,
+      "order": 523
+    },
+    {
+      "id": "layer.application.probe.14",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 14: normal signal",
+      "detailRef": "layer.application.probe.14",
+      "depth": 2,
+      "order": 524
+    },
+    {
+      "id": "layer.application.probe.15",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 15: warn signal",
+      "detailRef": "layer.application.probe.15",
+      "depth": 2,
+      "order": 525
+    },
+    {
+      "id": "layer.application.probe.16",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 16: normal signal",
+      "detailRef": "layer.application.probe.16",
+      "depth": 2,
+      "order": 526
+    },
+    {
+      "id": "layer.application.probe.17",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 17: normal signal",
+      "detailRef": "layer.application.probe.17",
+      "depth": 2,
+      "order": 527
+    },
+    {
+      "id": "layer.application.probe.18",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 18: warn signal",
+      "detailRef": "layer.application.probe.18",
+      "depth": 2,
+      "order": 528
+    },
+    {
+      "id": "layer.application.probe.19",
+      "parentId": "layer.application",
+      "kind": "observation",
+      "summary": "application probe 19: normal signal",
+      "detailRef": "layer.application.probe.19",
+      "depth": 2,
+      "order": 529
+    },
+    {
+      "id": "layer.release.probe.0",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 0: warn signal",
+      "detailRef": "layer.release.probe.0",
+      "depth": 2,
+      "order": 610
+    },
+    {
+      "id": "layer.release.probe.1",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 1: normal signal",
+      "detailRef": "layer.release.probe.1",
+      "depth": 2,
+      "order": 611
+    },
+    {
+      "id": "layer.release.probe.2",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 2: normal signal",
+      "detailRef": "layer.release.probe.2",
+      "depth": 2,
+      "order": 612
+    },
+    {
+      "id": "layer.release.probe.3",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 3: warn signal",
+      "detailRef": "layer.release.probe.3",
+      "depth": 2,
+      "order": 613
+    },
+    {
+      "id": "layer.release.probe.4",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 4: normal signal",
+      "detailRef": "layer.release.probe.4",
+      "depth": 2,
+      "order": 614
+    },
+    {
+      "id": "layer.release.probe.5",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 5: normal signal",
+      "detailRef": "layer.release.probe.5",
+      "depth": 2,
+      "order": 615
+    },
+    {
+      "id": "layer.release.probe.6",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 6: warn signal",
+      "detailRef": "layer.release.probe.6",
+      "depth": 2,
+      "order": 616
+    },
+    {
+      "id": "layer.release.probe.7",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 7: normal signal",
+      "detailRef": "layer.release.probe.7",
+      "depth": 2,
+      "order": 617
+    },
+    {
+      "id": "layer.release.probe.8",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 8: normal signal",
+      "detailRef": "layer.release.probe.8",
+      "depth": 2,
+      "order": 618
+    },
+    {
+      "id": "layer.release.probe.9",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 9: warn signal",
+      "detailRef": "layer.release.probe.9",
+      "depth": 2,
+      "order": 619
+    },
+    {
+      "id": "layer.release.probe.10",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 10: normal signal",
+      "detailRef": "layer.release.probe.10",
+      "depth": 2,
+      "order": 620
+    },
+    {
+      "id": "layer.release.probe.11",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 11: normal signal",
+      "detailRef": "layer.release.probe.11",
+      "depth": 2,
+      "order": 621
+    },
+    {
+      "id": "layer.release.probe.12",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 12: warn signal",
+      "detailRef": "layer.release.probe.12",
+      "depth": 2,
+      "order": 622
+    },
+    {
+      "id": "layer.release.probe.13",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 13: normal signal",
+      "detailRef": "layer.release.probe.13",
+      "depth": 2,
+      "order": 623
+    },
+    {
+      "id": "layer.release.probe.14",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 14: normal signal",
+      "detailRef": "layer.release.probe.14",
+      "depth": 2,
+      "order": 624
+    },
+    {
+      "id": "layer.release.probe.15",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 15: warn signal",
+      "detailRef": "layer.release.probe.15",
+      "depth": 2,
+      "order": 625
+    },
+    {
+      "id": "layer.release.probe.16",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 16: normal signal",
+      "detailRef": "layer.release.probe.16",
+      "depth": 2,
+      "order": 626
+    },
+    {
+      "id": "layer.release.probe.17",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 17: normal signal",
+      "detailRef": "layer.release.probe.17",
+      "depth": 2,
+      "order": 627
+    },
+    {
+      "id": "layer.release.probe.18",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 18: warn signal",
+      "detailRef": "layer.release.probe.18",
+      "depth": 2,
+      "order": 628
+    },
+    {
+      "id": "layer.release.probe.19",
+      "parentId": "layer.release",
+      "kind": "observation",
+      "summary": "release probe 19: normal signal",
+      "detailRef": "layer.release.probe.19",
+      "depth": 2,
+      "order": 629
+    },
+    {
+      "id": "layer.connection_pool",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "connection_pool: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 2
+    },
+    {
+      "id": "layer.connect",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "connect: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 3
+    },
+    {
+      "id": "layer.database",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "database: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 4
+    },
+    {
+      "id": "layer.queue",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "queue: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 5
+    },
+    {
+      "id": "layer.application",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "application: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 6
+    },
+    {
+      "id": "layer.release",
+      "parentId": "incident",
+      "kind": "frame",
+      "summary": "release: USE checklist pending; correlate with version and queue",
+      "depth": 1,
+      "order": 7
+    }
+  ],
+  "edges": [
+    {
+      "from": "layer.thread_pool",
+      "to": "layer.connection_pool",
+      "kind": "before"
+    },
+    {
+      "from": "layer.connection_pool",
+      "to": "layer.connect",
+      "kind": "before"
+    },
+    {
+      "from": "layer.connect",
+      "to": "layer.database",
+      "kind": "before"
+    },
+    {
+      "from": "layer.database",
+      "to": "layer.queue",
+      "kind": "before"
+    },
+    {
+      "from": "layer.queue",
+      "to": "layer.application",
+      "kind": "before"
+    },
+    {
+      "from": "layer.application",
+      "to": "layer.release",
+      "kind": "before"
+    }
+  ],
+  "details": {
+    "layer.thread_pool.probe.0": "thread_pool probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.1": "thread_pool probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.2": "thread_pool probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.3": "thread_pool probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.4": "thread_pool probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.5": "thread_pool probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.6": "thread_pool probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.7": "thread_pool probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.8": "thread_pool probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.9": "thread_pool probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.10": "thread_pool probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.11": "thread_pool probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.12": "thread_pool probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.13": "thread_pool probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.14": "thread_pool probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.15": "thread_pool probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.16": "thread_pool probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.17": "thread_pool probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.18": "thread_pool probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.thread_pool.probe.19": "thread_pool probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.0": "connection_pool probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.1": "connection_pool probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.2": "connection_pool probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.3": "connection_pool probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.4": "connection_pool probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.5": "connection_pool probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.6": "connection_pool probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.7": "connection_pool probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.8": "connection_pool probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.9": "connection_pool probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.10": "connection_pool probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.11": "connection_pool probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.12": "connection_pool probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.13": "connection_pool probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.14": "connection_pool probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.15": "connection_pool probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.16": "connection_pool probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.17": "connection_pool probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.18": "connection_pool probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connection_pool.probe.19": "connection_pool probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.0": "connect probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.1": "connect probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.2": "connect probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.3": "connect probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.4": "connect probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.5": "connect probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.6": "connect probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.7": "connect probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.8": "connect probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.9": "connect probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.10": "connect probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.11": "connect probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.12": "connect probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.13": "connect probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.14": "connect probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.15": "connect probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.16": "connect probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.17": "connect probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.18": "connect probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.connect.probe.19": "connect probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.0": "database probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.1": "database probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.2": "database probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.3": "pg_locks: blocking_pid=4711, blocked_pid=4820, lock_mode=ShareLock, wait_event=Lock, transaction_age=94s",
+    "layer.database.probe.4": "database probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.5": "database probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.6": "database probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.7": "database probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.8": "database probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.9": "database probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.10": "database probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.11": "database probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.12": "database probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.13": "database probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.14": "database probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.15": "database probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.16": "database probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.17": "database probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.18": "database probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.database.probe.19": "database probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.0": "queue probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.1": "queue probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.2": "queue probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.3": "queue probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.4": "queue probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.5": "queue probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.6": "queue probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.7": "queue probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.8": "queue probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.9": "queue probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.10": "queue probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.11": "queue probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.12": "queue probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.13": "queue probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.14": "queue probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.15": "queue probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.16": "queue probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.17": "queue probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.18": "queue probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.queue.probe.19": "queue probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.0": "application probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.1": "application probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.2": "application probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.3": "application probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.4": "application probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.5": "application probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.6": "application probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.7": "application probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.8": "application probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.9": "application probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.10": "application probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.11": "application probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.12": "application probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.13": "application probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.14": "application probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.15": "application probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.16": "application probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.17": "application probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.18": "application probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.application.probe.19": "application probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.0": "release probe 0: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.1": "release probe 1: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.2": "release probe 2: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.3": "release probe 3: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.4": "release probe 4: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.5": "release probe 5: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.6": "release probe 6: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.7": "release probe 7: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.8": "release probe 8: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.9": "release probe 9: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.10": "release probe 10: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.11": "release probe 11: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.12": "release probe 12: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.13": "release probe 13: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.14": "release probe 14: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.15": "release probe 15: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.16": "release probe 16: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.17": "release probe 17: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.18": "release probe 18: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span ",
+    "layer.release.probe.19": "release probe 19: raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span raw metric, stack sample, dependency span "
+  }
+}

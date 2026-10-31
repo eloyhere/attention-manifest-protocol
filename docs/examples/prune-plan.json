@@ -1,0 +1,48 @@
+{
+  "amp": "0.1",
+  "kind": "prune-plan",
+  "agent": "a.worker",
+  "sourceTip": "sha256:21daabb77c849c0fe795b23e1d2bbbc5ffc600f32463287d527a2d36dcad70fe",
+  "sourceCount": 6,
+  "kept": [
+    1,
+    3,
+    5
+  ],
+  "dropped": [
+    {
+      "seq": 0,
+      "kind": "unknown",
+      "id": "u.cause",
+      "reason": "resolved",
+      "revisit_if": "if unknown u.cause reopens",
+      "bytes": 371
+    },
+    {
+      "seq": 2,
+      "kind": "hypothesis",
+      "id": "h.cache",
+      "reason": "closed",
+      "revisit_if": "if new evidence contradicts hypothesis h.cache",
+      "bytes": 446
+    },
+    {
+      "seq": 4,
+      "kind": "claim",
+      "id": "cl.v1",
+      "reason": "superseded",
+      "revisit_if": "if claim cl.v2 is retracted or contested",
+      "bytes": 405
+    }
+  ],
+  "reclaimedBytes": 1222,
+  "estimatedTokens": 306,
+  "policy": {
+    "amp": "0.1",
+    "kind": "prune-policy",
+    "keepRecent": 0,
+    "dropSupersededClaims": true,
+    "dropClosedHypotheses": true,
+    "dropResolvedUnknowns": true
+  }
+}

@@ -1,0 +1,14 @@
+[
+  { "id": "r-arith-1", "label": "correct" },
+  { "id": "r-arith-2", "label": "correct" },
+  { "id": "r-arith-3", "label": "correct" },
+  { "id": "r-logic-1", "label": "correct" },
+  { "id": "r-logic-2", "label": "incorrect" },
+  { "id": "r-memory-1", "label": "correct" },
+  { "id": "r-memory-2", "label": "correct" },
+  { "id": "r-role-1", "label": "correct" },
+  { "id": "r-attention-1", "label": "correct" },
+  { "id": "r-bayes-1", "label": "correct" },
+  { "id": "r-bayes-2", "label": "incorrect" },
+  { "id": "r-context-1", "label": "correct" }
+]

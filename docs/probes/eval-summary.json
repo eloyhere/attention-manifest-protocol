@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-10-28T19:55:31.193Z",
+  "replay": {
+    "cases": 12,
+    "accuracy": 0.6666666666666666,
+    "humanLabelAgreement": 1,
+    "annotatorAgreement": 0.8333333333333334,
+    "cohenKappa": 0.5714285714285715,
+    "brier": 0.24656889600064288
+  },
+  "recorded": {
+    "runs": 40,
+    "accuracy": 0.825,
+    "textEce": 0.31409611637991663,
+    "calibratedEce": 0.2814990155194531,
+    "method": "temperature",
+    "status": "activated",
+    "oracleEce": 0.22222222222222185,
+    "labels": 10,
+    "temperature": 0.25,
+    "ciLower": -0.03446510913785705,
+    "ciUpper": -0.03041775787017087
+  },
+  "labels": {
+    "cases": 12,
+    "annotations": 24,
+    "coverage": 1,
+    "duplicates": 0,
+    "disagreements": 2,
+    "kappa": 0.5714285714285715,
+    "unresolved": 2
+  },
+  "contextAst": {
+    "nodes": 148,
+    "summaryTokens": 1792,
+    "flatTokens": 18076,
+    "flatApiTokens": 30193,
+    "astApiTokens": 7521,
+    "astToolApiTokens": 7611,
+    "detailRecovered": true
+  }
+}

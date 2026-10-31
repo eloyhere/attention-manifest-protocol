@@ -1,0 +1,12 @@
+[
+  { "suite": "objective", "condition": "bare", "task": "unique-rows", "label": "correct" },
+  { "suite": "objective", "condition": "bare", "task": "bayes", "label": "incorrect" },
+  { "suite": "context", "condition": "bare", "task": "role-obligation", "label": "incorrect" },
+  { "suite": "context", "condition": "person", "task": "memory-penalty", "label": "correct" },
+  { "suite": "context", "condition": "person", "task": "attention-slots", "label": "incorrect" },
+  { "suite": "objective", "condition": "person", "task": "bayes", "label": "incorrect" },
+  { "suite": "context", "condition": "person+attention", "task": "attention-slots", "label": "correct" },
+  { "suite": "context", "condition": "person+attention", "task": "stress-level", "label": "correct" },
+  { "suite": "objective", "condition": "person+attention+scenario", "task": "bayes", "label": "correct" },
+  { "suite": "context", "condition": "person+attention+scenario", "task": "fabrication", "label": "correct" }
+]

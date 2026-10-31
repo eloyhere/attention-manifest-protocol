@@ -1,0 +1,573 @@
+[
+  {
+    "amp": "0.1",
+    "kind": "manifest",
+    "agent": {
+      "id": "a.gamma",
+      "name": "Gamma",
+      "version": "0.1.0",
+      "role": "on-call analyst"
+    },
+    "issued": "2026-10-24T01:10:16.000Z",
+    "expires": "2026-10-25T01:10:00.000Z",
+    "identity": {
+      "values": [
+        {
+          "id": "v.honesty",
+          "statement": "不确定时明确说明，不把假设包装成结论",
+          "weight": 0.95
+        }
+      ],
+      "constraints": [
+        {
+          "id": "c.no_irreversible",
+          "statement": "未经确认不执行不可回滚操作",
+          "enforcement": "hard"
+        }
+      ]
+    },
+    "capabilities": [
+      {
+        "id": "logs.query",
+        "label": "查询日志",
+        "kind": "tool",
+        "confidence": 0.92,
+        "tier": "T2",
+        "cost": {
+          "tokens": 400,
+          "ms": 900,
+          "calls": 1
+        },
+        "limits": [
+          "仅最近 30 天",
+          "不支持正则"
+        ]
+      },
+      {
+        "id": "metrics.query",
+        "label": "查询指标",
+        "kind": "tool",
+        "confidence": 0.88,
+        "tier": "T2",
+        "cost": {
+          "tokens": 260,
+          "ms": 400,
+          "calls": 1
+        },
+        "limits": [
+          "1 分钟粒度"
+        ]
+      }
+    ],
+    "concepts": [],
+    "commitments": [],
+    "unknowns": [
+      {
+        "id": "u.1",
+        "question": "错误率上升是发布引起还是流量引起？",
+        "importance": 0.9,
+        "blocking": true,
+        "since": "2026-10-24T01:10:01.000Z"
+      }
+    ],
+    "attention": {
+      "policy_digest": "sha256:fbfc615c4189b092bd8f69669e9ef188747453d554cd4ec3069e8ff263acffad",
+      "frame": {
+        "kind": "frame",
+        "id": "f.102"
+      },
+      "budget": {
+        "tokens": 24000,
+        "ms": 600000,
+        "calls": 40,
+        "interrupts": 2
+      }
+    },
+    "self": {
+      "calibration": {
+        "ece": 0.06,
+        "buckets": []
+      },
+      "limits": [
+        "reference runtime: no signing",
+        "no sandbox execution",
+        "in-memory ledger only"
+      ],
+      "state": {
+        "load": 0.4,
+        "mode": "exploit"
+      }
+    },
+    "digest": "sha256:302eb92c69cca8095925423fc62ec049268f1727bc593718ee869b2c115a73d2",
+    "signatures": [
+      {
+        "role": "self",
+        "alg": "ed25519",
+        "kid": "a.gamma#1",
+        "sig": "81stsS58wx8nfBNR3bINoEZvC5fr23GBeSW_QYCiN0E1b0DWt4fU6KUgHh_OHgOZCNLn6yYPRvFYTQwYatT7DQ"
+      }
+    ]
+  },
+  {
+    "amp": "0.1",
+    "kind": "unknown",
+    "id": "u.1",
+    "question": "错误率上升是发布引起还是流量引起？",
+    "importance": 0.9,
+    "blocking": true,
+    "since": "2026-10-24T01:10:01.000Z",
+    "resolve_cost": {
+      "calls": 4,
+      "ms": 900000
+    },
+    "status": "open"
+  },
+  {
+    "amp": "0.1",
+    "kind": "claim",
+    "id": "cl.4",
+    "statement": "01:04 的发布导致错误率上升",
+    "claim_scope": "interventional",
+    "tier": "T2",
+    "status": "held",
+    "would_be_false_if": "回滚后错误率不下降，或发布前错误率已同幅度上升",
+    "check_run_id": "run.1",
+    "looks": 2,
+    "causal": {
+      "assignment_mechanism": "natural_experiment",
+      "identification_strategy": "difference_in_differences",
+      "identifying_assumption": "无发布时两组趋势平行",
+      "adjustment_set": [
+        "service",
+        "region",
+        "hour_of_day"
+      ],
+      "dag_digest": "sha256:cb7a429e15621da740156380f765bb69aa973da31d92c6a61f4f02af70949c93"
+    },
+    "warrant": {
+      "evidence": [
+        {
+          "id": "ev.1",
+          "kind": "observation",
+          "trust": "self",
+          "independence": 0.9,
+          "entails": true,
+          "origin": "logs.query@run.1",
+          "at": "2026-10-24T01:12:41.000Z",
+          "excerpt": "发布窗口内 5xx 占比 6.1%，前一窗口 0.4%"
+        },
+        {
+          "id": "ev.2",
+          "kind": "testimony",
+          "trust": "trusted",
+          "independence": 0.4,
+          "origin": "u.li@chat",
+          "at": "2026-10-24T01:14:02.000Z",
+          "excerpt": "发布后看起来就不对了"
+        }
+      ],
+      "inference": "abduction",
+      "auxiliary_assumptions": [
+        "发布窗口内无其他配置变更",
+        "指标采集未中断"
+      ],
+      "strength": 0.7
+    },
+    "alternatives": [
+      {
+        "statement": "流量突增导致连接池耗尽",
+        "confidence": 0.2,
+        "reason_rejected": "QPS 与昨日同期持平"
+      }
+    ],
+    "base_rate": {
+      "value": 0.55,
+      "source": "过去 12 个月的 47 次同类事件"
+    },
+    "scope": "2026-10-24 01:00–01:30，prod-cn-east",
+    "provenance": {
+      "source": "a.gamma",
+      "kind": "inference",
+      "trust": "self",
+      "at": "2026-10-24T01:10:06.000Z"
+    },
+    "created": "2026-10-24T01:10:07.000Z",
+    "confidence": 0.85
+  },
+  {
+    "amp": "0.1",
+    "kind": "hypothesis",
+    "id": "h.6",
+    "question": {
+      "kind": "unknown",
+      "id": "u.1"
+    },
+    "statement": "错误率上升由 01:04 的发布引入",
+    "prediction": "回滚后 5 分钟内错误率回到基线 ±10%",
+    "refutes_if": "回滚完成 10 分钟后错误率仍高于基线 3 倍",
+    "auxiliary_assumptions": [
+      "日志保留 30 天",
+      "指标口径未变"
+    ],
+    "prereg": {
+      "hash": "sha256:32f7d98bdfbdf77519feeb495f3a53deb48da00bf45f62e63ad741b580cdcd53",
+      "registered_at": "2026-10-24T01:16:00.000Z",
+      "metric": "5xx_rate",
+      "stopping": "fixed_n_10m",
+      "exclusions": [],
+      "looks": 2
+    },
+    "labels": [
+      "confirmatory"
+    ],
+    "status": "testing",
+    "created": "2026-10-24T01:10:09.000Z"
+  },
+  {
+    "amp": "0.1",
+    "kind": "goal",
+    "id": "g.8",
+    "statement": "在 10:00 前把错误率恢复到基线",
+    "success": [
+      {
+        "id": "c1",
+        "statement": "5xx rate < 0.5% 持续 10 分钟",
+        "check": "metrics.query",
+        "kind": "query"
+      }
+    ],
+    "value": 0.9,
+    "priority": 1,
+    "horizon": "task"
+  },
+  {
+    "amp": "0.1",
+    "kind": "plan",
+    "goal": {
+      "kind": "goal",
+      "id": "g.8"
+    },
+    "tasks": [
+      {
+        "id": "t1",
+        "intent": "对比发布前后两个窗口的错误分布",
+        "actor": "tool",
+        "ref": {
+          "kind": "tool",
+          "id": "logs.query"
+        },
+        "pre": [
+          "日志可用",
+          "已获得时间窗口"
+        ],
+        "expect": {
+          "observation": "两个窗口的 5xx 计数",
+          "check": "logs.query"
+        },
+        "irreversibility": 0,
+        "status": "done"
+      },
+      {
+        "id": "t2",
+        "intent": "回滚到上一版本",
+        "actor": "self",
+        "pre": [
+          "t1 支持发布为因"
+        ],
+        "expect": {
+          "observation": "版本号回到 v41 且错误率下降",
+          "check": "metrics.query"
+        },
+        "irreversibility": 2,
+        "status": "pending"
+      }
+    ],
+    "edges": [
+      [
+        "t1",
+        "t2"
+      ]
+    ],
+    "commitment_window": 1,
+    "budget": {
+      "calls": 8,
+      "ms": 1800000
+    },
+    "abandon_if": [
+      {
+        "id": "a1",
+        "statement": "回滚 10 分钟后错误率仍高于基线 3 倍",
+        "check": "metrics.query",
+        "kind": "query"
+      }
+    ],
+    "rollback": "保留上一版本镜像与数据库向后兼容",
+    "status": "committed",
+    "created": "2026-10-24T01:10:11.000Z",
+    "id": "pl.9"
+  },
+  {
+    "amp": "0.1",
+    "kind": "frame",
+    "id": "f.101",
+    "agent": "a.gamma",
+    "cycle": 1,
+    "ts": "2026-10-24T01:10:03.000Z",
+    "mode": "triage",
+    "slots": [
+      {
+        "target": {
+          "kind": "unknown",
+          "id": "u.1"
+        },
+        "role": "question",
+        "tier": "T0",
+        "salience": 0.801,
+        "voi": 0.88,
+        "cost": {
+          "tokens": 600
+        },
+        "budget": {
+          "tokens": 600
+        },
+        "why": "错误率与发布时间的相关性会决定回滚还是扩容",
+        "state": "active"
+      },
+      {
+        "target": {
+          "kind": "tool",
+          "id": "logs.query"
+        },
+        "role": "tool",
+        "tier": "T2",
+        "salience": 0.327,
+        "voi": 0.55,
+        "cost": {
+          "tokens": 400
+        },
+        "budget": {
+          "tokens": 400
+        },
+        "why": "唯一能验证时间段内错误分布的来源",
+        "state": "active"
+      }
+    ],
+    "ignored": [
+      {
+        "target": {
+          "kind": "concept",
+          "id": "c.dns_failover"
+        },
+        "reason": "low_voi",
+        "revisit_if": "VOI 上升或目标改变"
+      }
+    ],
+    "budget": {
+      "allocated": {
+        "tokens": 4000
+      },
+      "spent": {
+        "tokens": 0,
+        "calls": 0,
+        "ms": 0
+      }
+    },
+    "digest": "sha256:ffad68eb224bb51cdbea25c3f519024590e2cb39da532c7e84c2c5553675ef32"
+  },
+  {
+    "amp": "0.1",
+    "kind": "frame",
+    "id": "f.102",
+    "agent": "a.gamma",
+    "cycle": 2,
+    "ts": "2026-10-24T01:10:13.000Z",
+    "parent": {
+      "kind": "frame",
+      "id": "f.101"
+    },
+    "mode": "exploit",
+    "slots": [
+      {
+        "target": {
+          "kind": "claim",
+          "id": "cl.4"
+        },
+        "role": "evidence",
+        "tier": "T2",
+        "salience": 0.242,
+        "voi": 0.4,
+        "cost": {
+          "tokens": 320
+        },
+        "budget": {
+          "tokens": 320
+        },
+        "why": "已验证的相关性支持回滚决策",
+        "state": "active"
+      },
+      {
+        "target": {
+          "kind": "hypothesis",
+          "id": "h.6"
+        },
+        "role": "question",
+        "tier": "T1",
+        "salience": 0.193,
+        "voi": 0.3,
+        "cost": {
+          "tokens": 200
+        },
+        "budget": {
+          "tokens": 200
+        },
+        "why": "回滚后用于验证或推翻假设",
+        "state": "active"
+      }
+    ],
+    "ignored": [
+      {
+        "target": {
+          "kind": "concept",
+          "id": "c.dns_failover"
+        },
+        "reason": "low_voi",
+        "revisit_if": "VOI 上升或目标改变"
+      }
+    ],
+    "budget": {
+      "allocated": {
+        "tokens": 4000
+      },
+      "spent": {
+        "tokens": 0,
+        "calls": 0,
+        "ms": 0
+      }
+    },
+    "digest": "sha256:18a50b0c3ca31157f9299121f44aa29a9d893002652398df37fde30867e5c210"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.3",
+    "op": "attend",
+    "target": {
+      "kind": "frame",
+      "id": "f.101"
+    },
+    "at": "2026-10-24T01:10:04.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.11",
+    "op": "attend",
+    "target": {
+      "kind": "frame",
+      "id": "f.102"
+    },
+    "at": "2026-10-24T01:10:14.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.exec.1",
+    "op": "act",
+    "target": {
+      "kind": "tool",
+      "id": "mcp.logs.query"
+    },
+    "at": "2026-10-24T01:10:05.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 1,
+      "ms": 900
+    },
+    "outcome": "success",
+    "handle": {
+      "id": "h.94e9798e5f",
+      "kind": "text",
+      "tokens": 3409,
+      "scope": "session",
+      "ttl_ms": 900000
+    },
+    "predicted_voi": 0.55,
+    "realized_voi": 0.61,
+    "note": "result 3409 tokens > budget 1200; handle emitted, nothing truncated"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.5",
+    "op": "note",
+    "target": {
+      "kind": "claim",
+      "id": "cl.4"
+    },
+    "at": "2026-10-24T01:10:08.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.7",
+    "op": "note",
+    "target": {
+      "kind": "hypothesis",
+      "id": "h.6"
+    },
+    "at": "2026-10-24T01:10:10.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.10",
+    "op": "plan",
+    "target": {
+      "kind": "plan",
+      "id": "pl.9"
+    },
+    "at": "2026-10-24T01:10:12.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success"
+  },
+  {
+    "amp": "0.1",
+    "kind": "receipt",
+    "id": "rc.12",
+    "op": "reflect",
+    "target": {
+      "kind": "self",
+      "id": "a.gamma"
+    },
+    "at": "2026-10-24T01:10:15.000Z",
+    "usage": {
+      "tokens": 0,
+      "calls": 0
+    },
+    "outcome": "success",
+    "note": "voi_mae=0.06 over 1 samples"
+  }
+]

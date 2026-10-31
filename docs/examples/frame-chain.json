@@ -1,0 +1,77 @@
+[
+  {
+    "amp": "0.1",
+    "kind": "frame",
+    "id": "f.101",
+    "agent": "a.gamma",
+    "cycle": 41,
+    "ts": "2026-10-24T01:11:00Z",
+    "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "mode": "triage",
+    "goal": { "kind": "goal", "id": "g.7" },
+    "slots": [
+      {
+        "target": { "kind": "unknown", "id": "u.17" },
+        "role": "question",
+        "tier": "T0",
+        "salience": 0.94,
+        "voi": 0.88,
+        "cost": { "tokens": 600, "calls": 2 },
+        "why": "错误率与发布时间的相关性会决定回滚还是扩容",
+        "state": "active"
+      },
+      {
+        "target": { "kind": "tool", "id": "logs.query" },
+        "role": "tool",
+        "tier": "T2",
+        "salience": 0.71,
+        "voi": 0.55,
+        "cost": { "tokens": 400, "ms": 900, "calls": 1 },
+        "why": "唯一能验证时间段内错误分布的来源",
+        "state": "active"
+      }
+    ],
+    "ignored": [
+      {
+        "target": { "kind": "concept", "id": "c.dns_failover" },
+        "reason": "low_voi",
+        "revisit_if": "错误码中出现 DNS 相关项"
+      }
+    ],
+    "budget": { "allocated": { "tokens": 4000, "calls": 6 }, "spent": { "tokens": 0, "calls": 0 } },
+    "open_questions": [{ "kind": "unknown", "id": "u.17" }]
+  },
+  {
+    "amp": "0.1",
+    "kind": "frame",
+    "id": "f.102",
+    "agent": "a.gamma",
+    "cycle": 42,
+    "ts": "2026-10-24T01:12:03Z",
+    "parent": { "kind": "frame", "id": "f.101" },
+    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "mode": "exploit",
+    "goal": { "kind": "goal", "id": "g.7" },
+    "slots": [
+      {
+        "target": { "kind": "claim", "id": "cl.91" },
+        "role": "evidence",
+        "tier": "T2",
+        "salience": 0.88,
+        "voi": 0.4,
+        "cost": { "tokens": 320 },
+        "why": "已验证的相关性支持回滚决策",
+        "state": "active"
+      }
+    ],
+    "ignored": [
+      {
+        "target": { "kind": "hypothesis", "id": "h.12" },
+        "reason": "deferred",
+        "revisit_if": "回滚后错误率未下降"
+      }
+    ],
+    "budget": { "allocated": { "tokens": 4000, "calls": 6 }, "spent": { "tokens": 1520, "calls": 3 } },
+    "impasse": { "state": "UNVERIFIED", "detail": "回滚效果需等 10 分钟窗口" }
+  }
+]

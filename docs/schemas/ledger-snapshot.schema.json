@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/ledger-snapshot.schema.json",
+  "title": "AMP ledger snapshot (append-only hash chain)",
+  "type": "object",
+  "required": ["amp", "kind", "agent", "tip", "count", "entries"],
+  "properties": {
+    "amp": { "const": "0.1" },
+    "kind": { "const": "ledger-snapshot" },
+    "agent": { "$ref": "common.schema.json#/$defs/id" },
+    "tip": { "$ref": "common.schema.json#/$defs/digest" },
+    "count": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["seq", "kind", "payload", "prev", "hash"],
+        "properties": {
+          "seq": { "type": "integer", "minimum": 0 },
+          "kind": { "enum": ["event", "frame", "receipt", "claim", "hypothesis", "unknown", "goal", "plan"] },
+          "payload": { "type": "object" },
+          "prev": { "$ref": "common.schema.json#/$defs/digest" },
+          "hash": { "$ref": "common.schema.json#/$defs/digest" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

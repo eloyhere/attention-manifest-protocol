@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp.dev/schema/0.1/collaboration.schema.json",
+  "title": "AMP collaboration objects (delegation | lease | result-contract)",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "granter", "delegatee", "goal_digest", "scope", "budget", "deadline", "may_redelegate", "depth"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "delegation" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "parent": { "$ref": "common.schema.json#/$defs/id" },
+        "granter": { "$ref": "common.schema.json#/$defs/id" },
+        "delegatee": { "$ref": "common.schema.json#/$defs/id" },
+        "goal_digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "scope": { "type": "array", "items": { "type": "string" } },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" },
+        "deadline": { "$ref": "common.schema.json#/$defs/ts" },
+        "may_redelegate": { "type": "boolean" },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 2 }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "delegation", "task_id", "holder", "fence", "goal_digest", "budget", "deadline", "status"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "lease" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "delegation": { "$ref": "common.schema.json#/$defs/id" },
+        "task_id": { "$ref": "common.schema.json#/$defs/id" },
+        "holder": { "$ref": "common.schema.json#/$defs/id" },
+        "fence": { "type": "integer", "minimum": 1 },
+        "goal_digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "budget": { "$ref": "common.schema.json#/$defs/budget" },
+        "deadline": { "$ref": "common.schema.json#/$defs/ts" },
+        "status": { "type": "string", "enum": ["active", "done", "cancelled"] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["amp", "kind", "id", "lease", "goal_digest", "claims", "evidence", "unknowns", "artifacts", "status"],
+      "properties": {
+        "amp": { "const": "0.1" },
+        "kind": { "const": "result-contract" },
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "lease": { "$ref": "common.schema.json#/$defs/id" },
+        "goal_digest": { "$ref": "common.schema.json#/$defs/digest" },
+        "claims": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "evidence": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+        "unknowns": { "type": "array", "items": { "type": "string" } },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "digest"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/$defs/id" },
+              "digest": { "$ref": "common.schema.json#/$defs/digest" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "status": { "type": "string", "enum": ["ok", "partial", "failed"] }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

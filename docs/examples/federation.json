@@ -1,0 +1,126 @@
+[
+  {
+    "amp": "0.1",
+    "kind": "bundle",
+    "manifest": {
+      "amp": "0.1",
+      "kind": "manifest",
+      "agent": {
+        "id": "a.gamma",
+        "name": "Gamma",
+        "version": "0.1.0",
+        "role": "analyst"
+      },
+      "issued": "2026-10-24T07:00:00Z",
+      "expires": "2026-10-25T07:00:00Z",
+      "capabilities": [
+        {
+          "id": "logs.query",
+          "label": "查询日志",
+          "kind": "tool",
+          "confidence": 0.9,
+          "tier": "T2",
+          "cost": {
+            "calls": 1
+          }
+        }
+      ],
+      "attention": {
+        "policy_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "budget": {
+          "tokens": 24000,
+          "calls": 40
+        }
+      },
+      "self": {
+        "calibration": {
+          "ece": 0.1,
+          "buckets": []
+        },
+        "limits": [],
+        "state": {
+          "load": 0.4,
+          "mode": "exploit"
+        }
+      },
+      "digest": "sha256:10262478ed728d6a38b6b53eabb0594b7478b04d1ff121f82a7c44c9114ae02e",
+      "signatures": [
+        {
+          "role": "self",
+          "alg": "ed25519",
+          "kid": "a.gamma#1",
+          "sig": "nqGTczmJ3Y0lCDZAyYyyFAnNRLqQ7wIvQBUUVDQQZHvbxRCoDfS33gckz_9zUwZlBA6YMEaI4kssybQA6nLrAg"
+        }
+      ]
+    },
+    "keys": [
+      {
+        "kid": "a.gamma#1",
+        "alg": "ed25519",
+        "publicKey": "Cj3vw5MoefoopbYYu2hNsxIDoyds11dfb4C6_4QDoQI"
+      }
+    ],
+    "revoked": [],
+    "issued": "2026-10-24T07:00:00Z",
+    "expires": "2026-10-26T07:00:00Z",
+    "digest": "sha256:cc8699348c06d445768306d9a2d0f944beb0e06c4334c9e4c14d9685c416b602",
+    "attestations": [
+      {
+        "amp": "0.1",
+        "kind": "attestation",
+        "id": "at.7",
+        "issuer": {
+          "kind": "org",
+          "id": "org.acme"
+        },
+        "subject": {
+          "kind": "manifest",
+          "id": "a.gamma",
+          "digest": "sha256:10262478ed728d6a38b6b53eabb0594b7478b04d1ff121f82a7c44c9114ae02e"
+        },
+        "scope": [
+          "reviewed",
+          "read-only-ok"
+        ],
+        "issued": "2026-10-24T07:05:00Z",
+        "expires": "2027-01-24T07:05:00Z",
+        "signatures": [
+          {
+            "role": "org",
+            "alg": "ed25519",
+            "kid": "org.acme#2",
+            "sig": "ktHzHL0swh0NofjDA9ETUQhOcgtwcOtNkX-7B5VRTbihCkje8G27VJmj7sjHv_a0N7x2wuh9OzcyV3P7I3GMBA"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "amp": "0.1",
+    "kind": "attestation",
+    "id": "at.7",
+    "issuer": {
+      "kind": "org",
+      "id": "org.acme"
+    },
+    "subject": {
+      "kind": "manifest",
+      "id": "a.gamma",
+      "digest": "sha256:10262478ed728d6a38b6b53eabb0594b7478b04d1ff121f82a7c44c9114ae02e"
+    },
+    "scope": [
+      "reviewed",
+      "read-only-ok"
+    ],
+    "issued": "2026-10-24T07:05:00Z",
+    "expires": "2027-01-24T07:05:00Z",
+    "signatures": [
+      {
+        "role": "org",
+        "alg": "ed25519",
+        "kid": "org.acme#2",
+        "sig": "ktHzHL0swh0NofjDA9ETUQhOcgtwcOtNkX-7B5VRTbihCkje8G27VJmj7sjHv_a0N7x2wuh9OzcyV3P7I3GMBA"
+      }
+    ]
+  }
+]
