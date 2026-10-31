@@ -13,7 +13,7 @@ import type { ContentStore } from "../src/context/contentStore.ts";
 import type { WorkspaceSnapshot } from "../src/context/workspace.ts";
 import { WorkspaceAgentService } from "../src/context/workspaceService.ts";
 import type { WorkspaceServiceLimits } from "../src/context/workspaceService.ts";
-import type { WorkspaceResponse } from "../src/context/workspaceProtocol.ts";
+import type { WorkspaceResponse } from "../src/protocol/workspace.ts";
 import type { Frame } from "../src/frame/frame.ts";
 import type { Receipt } from "../src/receipt/receipt.ts";
 import { McpClient } from "../src/module/mcp/client.ts";
@@ -84,7 +84,7 @@ test("discovery and graph/tree navigation reveal only the host scope without con
     const host: WorkspaceAgentService = service();
     const discovered: Record<string, unknown> = data(host.call("amp_workspace_capabilities", {}));
     assert.deepEqual(discovered.projectIds, ["project:app"]);
-    assert.equal((discovered.tools as string[]).length, 7);
+    assert.equal((discovered.tools as string[]).length, 16);
     const tree: Record<string, unknown> = data(call(host, "tree", { parentId: "project:app", limit: 1 }));
     assert.equal((tree.items as unknown[]).length, 1);
     assert.equal(tree.nextOffset, 1);
@@ -239,10 +239,11 @@ test("registered tools work through the actual local executor and existing MCP c
     const host: WorkspaceAgentService = service();
     host.registerFrame(frame(), Revision);
     const registry: ToolRegistry = new ToolRegistry();
-    assert.equal(registerWorkspaceTools(registry, host).length, 7);
-    assert.ok(registry.list().every((tool): boolean => tool.risk === "read"));
+    assert.equal(registerWorkspaceTools(registry, host).length, 16);
+    assert.equal(registry.list().filter((tool): boolean => tool.risk === "read").length, 12);
+    assert.equal(registry.list().filter((tool): boolean => tool.risk === "write").length, 4);
     assert.throws(() => registerWorkspaceTools(registry, host));
-    assert.equal(registry.size, 7);
+    assert.equal(registry.size, 16);
     const local: WorkspaceToolExecutor = new WorkspaceToolExecutor(host, {
         execute: async (): Promise<{ ok: boolean; content: string; }> => ({ ok: true, content: "fallback" }),
     });
@@ -254,20 +255,20 @@ test("registered tools work through the actual local executor and existing MCP c
     assert.equal((await client.negotiate()).mode, "stateless");
     const remoteRegistry: ToolRegistry = new ToolRegistry();
     await registerMcpTools(remoteRegistry, client);
-    assert.equal(remoteRegistry.size, 7);
+    assert.equal(remoteRegistry.size, 16);
     const remote: McpToolExecutor = new McpToolExecutor(client);
     const result: Awaited<ReturnType<McpToolExecutor["execute"]>> = await remote.execute({
-        tool: "amp_workspace_materialize",
+        tool: "amp_tool_workspace_materialize",
         args: { revision: Revision, frameId: "f.agent", budgetTokens: 500 },
     });
     assert.equal(result.ok, true);
     const view: Record<string, unknown> = data(JSON.parse(result.content) as WorkspaceResponse);
     assert.equal(
-        (await remote.execute({ tool: "amp_workspace_read", args: { revision: Revision, contextId: view.contextId, nodeId: Target, maxChars: 16 } })).ok,
+        (await remote.execute({ tool: "amp_tool_workspace_read", args: { revision: Revision, contextId: view.contextId, nodeId: Target, maxChars: 16 } })).ok,
         true,
     );
     assert.equal(
-        (await remote.execute({ tool: "amp_workspace_read", args: { revision: Revision, contextId: view.contextId, nodeId: "file:private/secret.ts" } })).ok,
+        (await remote.execute({ tool: "amp_tool_workspace_read", args: { revision: Revision, contextId: view.contextId, nodeId: "file:private/secret.ts" } })).ok,
         false,
     );
     assert.match(textOf(await client.callTool("amp_workspace_capabilities", {})), /amp.workspace/);
@@ -323,7 +324,7 @@ test("the real CognitiveRuntime advertises and executes workspace tools, returni
     let round: number = 0;
     const llm: LlmClient = {
         complete: async (request: LlmRequest): Promise<LlmResponse> => {
-            assert.equal(request.tools!.length, 7);
+            assert.equal(request.tools!.length, 16);
             round += 1;
             const toolMessages: typeof request.messages = request.messages.filter((message): boolean => message.role === "tool");
             if (round === 1) {
@@ -334,7 +335,7 @@ test("the real CognitiveRuntime advertises and executes workspace tools, returni
                     toolCalls: [
                         {
                             id: "call.materialize",
-                            name: "amp_workspace_materialize",
+                            name: "amp_tool_workspace_materialize",
                             arguments: JSON.stringify({ revision: Revision, frameId: "f.agent", budgetTokens: 500 }),
                         },
                     ],
@@ -351,7 +352,7 @@ test("the real CognitiveRuntime advertises and executes workspace tools, returni
                     toolCalls: [
                         {
                             id: "call.read",
-                            name: "amp_workspace_read",
+                            name: "amp_tool_workspace_read",
                             arguments: JSON.stringify({ revision: Revision, contextId: view.contextId, nodeId: Target, maxChars: 6000 }),
                         },
                     ],
@@ -443,7 +444,7 @@ test("real stdio process handles malformed/oversized lines, legacy initializatio
                 jsonrpc: "2.0",
                 id: 3,
                 method: "tools/call",
-                params: { name: "amp_workspace_materialize", arguments: { revision: Revision, frameId: "f.agent", budgetTokens: 500 } },
+                params: { name: "amp_tool_workspace_materialize", arguments: { revision: Revision, frameId: "f.agent", budgetTokens: 500 } },
             }),
             JSON.stringify({
                 jsonrpc: "2.0",
@@ -468,7 +469,7 @@ test("real stdio process handles malformed/oversized lines, legacy initializatio
         assert.equal(replies[0].error!.code, -32700);
         assert.equal(replies[1].error!.code, -32600);
         assert.equal(replies[2].id, "init");
-        assert.equal((replies[3].result!.tools as unknown[]).length, 7);
+        assert.equal((replies[3].result!.tools as unknown[]).length, 16);
         assert.equal(replies[4].result!.isError, false);
         assert.deepEqual(replies[5].result!.supportedVersions, [ProtocolVersion]);
         contents[Object.keys(contents)[0]] = "tampered";
