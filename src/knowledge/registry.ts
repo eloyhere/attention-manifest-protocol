@@ -43,6 +43,22 @@ export class KnowledgeRegistry {
         return this.entries.register(knowledge);
     }
 
+    /** Replace an existing knowledge entry. The id must stay the same. */
+    update(knowledge: KnowledgeEntry): KnowledgeEntry {
+        validateKnowledge(knowledge);
+        return this.entries.update(knowledge.id, knowledge);
+    }
+
+    /** Remove one knowledge entry; the result says whether it existed. */
+    remove(id: string): boolean {
+        return this.entries.remove(id);
+    }
+
+    /** Remove every knowledge entry and report how many were dropped. */
+    clear(): number {
+        return this.entries.clear();
+    }
+
     get(id: string): KnowledgeEntry | undefined {
         return this.entries.get(id);
     }

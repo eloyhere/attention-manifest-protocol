@@ -185,6 +185,48 @@ export class SqlDialectRegistry {
     }
 
     /**
+     * Replace one dialect definition, keeping its detection position.
+     *
+     * @param dialect - Dialect id; must already be registered.
+     * @param definition - Replacement label and markers.
+     */
+    update(dialect: SqlDialect, definition: SqlDialectDefinition): void {
+        if (!this.definitions.has(dialect)) {
+            throw new Error(`unknown SQL dialect: ${dialect}`);
+        }
+        if (definition.dialect !== dialect) {
+            throw new Error(`SQL dialect mismatch: ${dialect}`);
+        }
+        if (!Array.isArray(definition.markers) || definition.markers.length === 0) {
+            throw new Error(`SQL dialect has no markers: ${dialect}`);
+        }
+        const compiled: CompiledSqlMarker[] = definition.markers.map(
+            (marker: string | SqlDialectMarker): CompiledSqlMarker => compileSqlMarker(dialect, marker),
+        );
+        this.definitions.set(dialect, definition);
+        this.compiled.set(dialect, compiled);
+    }
+
+    /**
+     * Remove one dialect.
+     *
+     * @param dialect - Dialect id.
+     * @returns `true` when it was registered.
+     */
+    remove(dialect: SqlDialect): boolean {
+        if (!this.definitions.has(dialect)) {
+            return false;
+        }
+        const index: number = this.order.indexOf(dialect);
+        if (index >= 0) {
+            this.order.splice(index, 1);
+        }
+        this.definitions.delete(dialect);
+        this.compiled.delete(dialect);
+        return true;
+    }
+
+    /**
      * Definitions in registration order.
      *
      * @returns Registered definitions.

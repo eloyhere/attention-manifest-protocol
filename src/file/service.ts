@@ -33,12 +33,13 @@ import { wireSyntaxTree } from "../syntax/syntaxTree.ts";
 import type { SyntaxTree } from "../syntax/syntaxTree.ts";
 import { buildDependencyReport, graphFromImports } from "./dependency.ts";
 import type { DependencyGraph } from "./dependency.ts";
-import { isFilesystemError } from "./errors.ts";
+import { fail, isFilesystemError } from "./errors.ts";
 import { readPage } from "./read.ts";
 import { writeFile } from "./write.ts";
 import { SessionRuntime } from "./runtime.ts";
 import type { AnnotationMap } from "./runtime.ts";
-import type { DependencyReport, ExportReport, ExportSymbol, ImportEdge, ImportReport, ReadPage, TreeNode, WriteResult } from "./types.ts";
+import type { DependencyReport, ExportReport, ExportSymbol, ImportEdge, ImportReport, ReadPage, RootedPath, TreeNode, WriteResult } from "./types.ts";
+import type { SessionRoot } from "../session/types.ts";
 import type { OutlineResult } from "../outline/types.ts";
 
 /**
@@ -390,7 +391,54 @@ export class FilesystemService {
         };
         const result: WriteResult = await writeFile(runtime.sandbox, runtime.descriptor.id, request, settings);
         runtime.persist(rooted.root, tree.snapshot());
+        this.refreshOutline(runtime, rooted.root, request.path);
         return result;
+    }
+
+    /**
+     * Rebuild the outline cache of one written file.
+     *
+     * A write changes the file's fingerprint, and the cache is keyed by that
+     * fingerprint, so a stale row can never be read — but the old generation
+     * would linger in storage forever and the next read would parse again. This
+     * replaces every generation of the file with the outline of the new content
+     * at write time, so "the file changed" and "its outline changed" happen
+     * together. A file that cannot be outlined (binary, oversized, Office) is
+     * dropped from the cache and is not an error for the write itself.
+     *
+     * @param runtime - Session runtime owning the root.
+     * @param root - The root the written path belongs to.
+     * @param path - Caller path of the written file.
+     */
+    private refreshOutline(runtime: SessionRuntime, root: SessionRoot, path: string): void {
+        let relative: string;
+        let node: TreeNode | undefined;
+        try {
+            const rooted: RootedPath = runtime.sandbox.resolve(path, "read");
+            relative = rooted.relative;
+            node = runtime.treeFor(root).node(relative);
+        } catch {
+            return;
+        }
+        if (node === (void 0) || node.type !== "File") {
+            return;
+        }
+        try {
+            runtime.removeOutline(root.id, relative);
+        } catch {
+            return fail("store_failure");
+        }
+        try {
+            const outline: OutlineResult = buildOutline(
+                runtime.sandbox,
+                relative,
+                { anchor: { file: node } },
+                { file: node },
+            );
+            runtime.saveOutline(root.id, outline);
+        } catch {
+            // An unoutlinable file stays uncached; the write already succeeded.
+        }
     }
 
     outline(runtime: SessionRuntime, request: OutlineRequest): OutlineResult {

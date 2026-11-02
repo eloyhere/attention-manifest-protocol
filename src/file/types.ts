@@ -409,6 +409,12 @@ export interface FilesystemStore {
     listWrites(sessionId: string, limit: number): WriteJournalEntry[];
     loadOutline(rootId: string, path: string, fingerprint: string): OutlineResult | undefined;
     saveOutline(rootId: string, outline: OutlineResult): void;
+    /**
+     * Drop every cached outline of one file. A writer calls this before saving
+     * the rebuilt outline so one file keeps one cache row instead of one per
+     * edited fingerprint. Optional: in-memory stores may only keep the latest.
+     */
+    removeOutline?(rootId: string, path: string): void;
     loadImports(rootId: string, path: string, fingerprint: string): ImportReport | undefined;
     saveImports(rootId: string, report: ImportReport): void;
     loadExports(rootId: string, path: string, fingerprint: string): ExportReport | undefined;

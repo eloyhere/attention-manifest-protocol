@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-03
+
+### Added
+
+- `outlineAddress(range, charset, bounds)` and the related line/byte request helpers convert an outline node's `range` into the `startLine`/`endLine` and `offsetBytes`/`endBytes` fields the workspace read and write tools accept, removing the UTF-8 BOM prefix and failing closed on reversed, out-of-bounds or non-representable values.
+- Every mutable registry is read-write: `SkillRegistry`, `KnowledgeRegistry`, `ProtocolRegistry`, `ToolRegistry`, `OutlineRegistry`, `OutlineKeywordRegistry`, `SyntaxRegistry`, `SqlDialectRegistry`, `CalibrationRegistry`, `BehaviorRegistry` and `EntityRegistry` expose `update` and `remove` (plus `clear` for list-shaped containers) on top of `register`.
+
+### Changed
+
+- Writing a file now rebuilds that file's outline and drops its previous cache generation in the same call, so a later outline read never serves the pre-write tree and storage keeps one cache row per file instead of one per edit.
+- `SyntaxRegistry.updateLanguage` and `removeLanguage` release the language's extensions so a new language can claim them.
+
+### Fixed
+
+- The session-scoped filesystem store did not forward `removeOutline`, silently dropping cache invalidation; it now scopes and forwards it.
+- The calibration registry now accepts a host-supplied model for a scope it has never fitted, so persisted calibration can be restored.
+
+### Validation
+
+- Joint regression: 168/168 across registry, discovery, outline, runtime and database suites; source and tools typechecks passed.
+
 ## [0.5.0] - 2026-11-03
 
 ### Added

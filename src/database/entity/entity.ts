@@ -893,6 +893,35 @@ export class EntityRegistry {
     }
 
     /**
+     * Replace one registered entity, keeping its registration position.
+     *
+     * @param entity - Validated replacement metadata with the same name.
+     * @returns This registry, for chaining.
+     * @throws EntityMetadataError for invalid metadata or an unknown name.
+     */
+    update(entity: Entity): this {
+        const problems: string[] = validateEntity(entity);
+        if (problems.length > 0) {
+            throw new EntityMetadataError(entity.name, problems);
+        }
+        if (!this.entities.has(entity.name)) {
+            throw new EntityMetadataError(entity.name, ["no entity with this name is registered"]);
+        }
+        this.entities.set(entity.name, entity);
+        return this;
+    }
+
+    /**
+     * Remove one entity.
+     *
+     * @param name - Logical entity name.
+     * @returns `true` when it was registered.
+     */
+    remove(name: EntityName): boolean {
+        return this.entities.delete(name);
+    }
+
+    /**
      * Look up an entity by logical name.
      *
      * @param name - Logical entity name.

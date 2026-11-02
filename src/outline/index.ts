@@ -2,6 +2,7 @@
 export * from "./types.ts";
 export * from "./outline.ts";
 export * from "./outlineIndex.ts";
+export * from "./rangeBridge.ts";
 export * from "./outlineKeywords.ts";
 export { builtinOutlineStrategies } from "./outlineStrategies.ts";
 export { hasOfficeOutlineParser, registerOfficeOutlineParser } from "./officeBridge.ts";

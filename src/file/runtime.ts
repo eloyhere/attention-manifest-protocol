@@ -67,6 +67,8 @@ export class SessionRuntime {
 
     loadOutline(rootId: string, path: string, fingerprint: string) { return this.store?.loadOutline(rootId, path, fingerprint); }
     saveOutline(rootId: string, outline: import("../outline/types.ts").OutlineResult): void { this.store?.saveOutline(rootId, outline); }
+    /** Drop every cached generation of one file's outline after it changed. */
+    removeOutline(rootId: string, path: string): void { this.store?.removeOutline?.(rootId, path); }
 
     /**
      * Resolve a caller path and return the tree that owns it.

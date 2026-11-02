@@ -95,6 +95,21 @@ export class FileOutlineRepository extends BaseRepository<FileOutlineRow, string
     }
 
     /**
+     * Drop every cached outline of one file regardless of fingerprint.
+     *
+     * The cache is keyed by content fingerprint, so a write leaves the previous
+     * generation behind forever. A writer calls this after it replaces the file
+     * and saves the new outline, keeping one row per file instead of one row per
+     * edit.
+     *
+     * @param rootId - Session root id.
+     * @param path - Root-relative POSIX path.
+     */
+    remove(rootId: string, path: string): void {
+        this.deleteWhere(conditions(FileOutlineTable, ["root_id", "path"]), rootId, path);
+    }
+
+    /**
      * Load the outline of one exact fingerprint.
      *
      * @param rootId - Session root id.

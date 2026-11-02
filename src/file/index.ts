@@ -83,6 +83,18 @@ export type {
 } from "../syntax/syntaxTree.ts";
 export { OutlineIndex, buildOutlineIndex, filterOutline, hasLabelPrefix, wireOutline, wireOutlineNode, wireOutlineRange, outlineFromWire } from "../outline/outlineIndex.ts";
 export type { OutlinePayload } from "../outline/outlineIndex.ts";
+export {
+    OutlineRangeError,
+    outlineAddress,
+    outlineBomOffset,
+    outlineByteRange,
+    outlineLineRange,
+    readByteRequest,
+    readLineRequest,
+    writeByteRequest,
+    writeLineRequest,
+} from "../outline/rangeBridge.ts";
+export type { OutlineAddress, OutlineByteRange, OutlineLineRange, OutlineRangeErrorCode } from "../outline/rangeBridge.ts";
 export { extractImports, importedBy, isParseableSource, readSourceFile, resolveImportSpecifier, tokenizeSource } from "./importGraph.ts";
 export type { ResolvedSpecifier, SourceFileSnapshot, SourceToken } from "./importGraph.ts";
 export { extractExports } from "./exportGraph.ts";

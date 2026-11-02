@@ -105,6 +105,31 @@ export class CalibrationRegistry {
         return this.models.get(scope);
     }
 
+    /**
+     * Set the model of one scope.
+     *
+     * Unlike `register`, which fits a model from samples, this stores a complete
+     * model as-is: it replaces the scope's current model or creates it. Hosts
+     * that persist or hand-author a calibration use this to restore it.
+     */
+    update(model: CalibrationModel): CalibrationModel {
+        const stored: CalibrationModel = { ...model };
+        this.models.set(stored.scope, stored);
+        return { ...stored };
+    }
+
+    /** Remove one scope's model, returning it to raw probabilities. */
+    remove(scope: string): boolean {
+        return this.models.delete(scope);
+    }
+
+    /** Remove every calibrated scope. */
+    clear(): number {
+        const count: number = this.models.size;
+        this.models.clear();
+        return count;
+    }
+
     scopes(): string[] {
         return [...this.models.keys()];
     }

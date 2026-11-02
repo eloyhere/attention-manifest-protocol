@@ -211,6 +211,33 @@ export class BehaviorRegistry {
         return this;
     }
 
+    /** Replace one behavior rule in place, keeping its arbitration position. */
+    update(rule: BehaviorRule): this {
+        const index: number = this.rules.findIndex((entry) => entry.behavior.id === rule.behavior.id);
+        if (index < 0) {
+            throw new Error(`unknown behavior ${rule.behavior.id}`);
+        }
+        this.rules[index] = rule;
+        return this;
+    }
+
+    /** Remove one behavior rule. */
+    remove(id: string): boolean {
+        const index: number = this.rules.findIndex((entry) => entry.behavior.id === id);
+        if (index < 0) {
+            return false;
+        }
+        this.rules.splice(index, 1);
+        return true;
+    }
+
+    /** Remove every behavior rule. */
+    clear(): number {
+        const count: number = this.rules.length;
+        this.rules.length = 0;
+        return count;
+    }
+
     list(): Behavior[] {
         return this.rules.map((rule) => rule.behavior);
     }

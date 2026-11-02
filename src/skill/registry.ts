@@ -39,6 +39,22 @@ export class SkillRegistry {
         return this.entries.register(skill);
     }
 
+    /** Replace an existing skill. The id must stay the same. */
+    update(skill: SkillEntry): SkillEntry {
+        validateSkill(skill);
+        return this.entries.update(skill.id, skill);
+    }
+
+    /** Remove one skill; the result says whether it existed. */
+    remove(id: string): boolean {
+        return this.entries.remove(id);
+    }
+
+    /** Remove every skill and report how many were dropped. */
+    clear(): number {
+        return this.entries.clear();
+    }
+
     get(id: string): SkillEntry | undefined {
         return this.entries.get(id);
     }

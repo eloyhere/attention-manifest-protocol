@@ -51,6 +51,22 @@ export class ProtocolRegistry {
         return this.entries.register(protocol);
     }
 
+    /** Replace an existing protocol. The id must stay the same. */
+    update(protocol: ProtocolEntry): ProtocolEntry {
+        validateProtocol(protocol);
+        return this.entries.update(protocol.id, protocol);
+    }
+
+    /** Remove one protocol; the result says whether it existed. */
+    remove(id: string): boolean {
+        return this.entries.remove(id);
+    }
+
+    /** Remove every protocol and report how many were dropped. */
+    clear(): number {
+        return this.entries.clear();
+    }
+
     get(id: string): ProtocolEntry | undefined {
         return this.entries.get(id);
     }

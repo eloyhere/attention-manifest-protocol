@@ -1,6 +1,6 @@
 {
   "name": "attention-manifest-protocol",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "files": [
     "lib",
     "docs/schemas",

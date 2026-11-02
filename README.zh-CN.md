@@ -59,6 +59,8 @@ Context 使用结构树和类型化关系图。项目依赖、导入、调用与
 
 这些 registry 是各自领域的宿主目录，不要求每个概念都复制成同构 registry。Ability、cognition、progress 等若已有运行时状态、策略或事件模型，应由现有领域模块维护；需要统一枚举时增加只读 catalog/discovery 投影即可。Agent 默认只读正式目录；可选的登记工作流应先创建带来源、版本和提案状态的候选项，再经宿主权限校验、人工审核与审计后发布，不授予模型直接改写已生效条目的能力。
 
+每个可变的注册中心对宿主都是可读写的：`SkillRegistry`、`KnowledgeRegistry`、`ProtocolRegistry`、`ToolRegistry`、`OutlineRegistry`、`OutlineKeywordRegistry`、`SyntaxRegistry`（语言、token 类别与节点类别）、`SqlDialectRegistry`、`CalibrationRegistry`、`BehaviorRegistry` 与 `EntityRegistry` 都在 `register` 和读取接口之外提供 `update`/`remove`（列表型容器另有 `clear`）。更新保留原登记位置并执行与注册相同的校验，宿主可以原地修改或删除条目，而不必再建一份与前者不一致的注册中心；`SyntaxRegistry.updateLanguage`/`removeLanguage` 会释放并允许复用扩展名。写这些目录的仍只能是宿主。
+
 `environment` 模块将运行时、应用程序、编程语言与项目类型作为 `HostCatalog` 的 module 条目维护。`category` 为 `runtime`、`application`、`language` 或 `projectType`；`availability` 为 `unknown`、`available` 或 `unavailable`，与组件生命周期 `status` 分开。可选的 `platforms`、`extensions`、`relatedIds`、`skillIds`、`knowledgeIds`、`toolIds`、`protocolIds` 描述平台、格式与关联，不授予执行权限。可用性由宿主确认，登记目录不会安装软件或探测本机。
 
 ```ts
@@ -188,7 +190,7 @@ import { ToolIds, parseId } from "attention-manifest-protocol/naming";
 | `amp_tool_filesystem_ast` | 无损语法树：每个非空白 token、声明/块/标签层级、UTF-8 字节与行范围；只读，不执行 |
 
 全局变体为 `amp_tool_globalfs_*`，由 [src/global/filesystem.ts](src/global/filesystem.ts) 做命名适配；它不扩大任何根或权限。
-大纲节点带 `isFile`/`isDirectory`/`file?`/`directory?`/`path`（如 `add.py#add`）与 `range`（UTF-8 字节 + 1-based 行，bigint；JSON 中为十进制字符串）。策略覆盖代码、Vue、项目清单、Markdown/TeX/纯文本、CSS/SCSS/Sass、HTML、XML/OPML 与 Office；Office 文件由 `office.ts` 解析 DOCX/XLSX/PPTX，DOC/XLS/PPT/PUB/ACCDB 为 CFB best-effort。
+大纲节点带 `isFile`/`isDirectory`/`file?`/`directory?`/`path`（如 `add.py#add`）与 `range`（UTF-8 字节 + 1-based 行，bigint；JSON 中为十进制字符串）。`outlineAddress(range, charset, bounds)`（[src/outline/rangeBridge.ts](src/outline/rangeBridge.ts)）把该 range 转成 workspace `read`、`write`、`diff_write` 接受的 `startLine`/`endLine` 与 `offsetBytes`/`endBytes`：扣除 UTF-8 BOM 前缀，字节半开、行闭区间；倒序、越界或无法精确表示时直接报错而不做静默裁剪。文件写入成功后会在同一次调用内重建该文件大纲并删除旧的缓存代次，之后读取大纲不会返回写入前的树。策略覆盖代码、Vue、项目清单、Markdown/TeX/纯文本、CSS/SCSS/Sass、HTML、XML/OPML 与 Office；Office 文件由 `office.ts` 解析 DOCX/XLSX/PPTX，DOC/XLS/PPT/PUB/ACCDB 为 CFB best-effort。
 
 ### Hooks
 

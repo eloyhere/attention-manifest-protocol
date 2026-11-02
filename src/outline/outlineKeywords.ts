@@ -49,6 +49,42 @@ export class OutlineKeywordRegistry {
     }
 
     /**
+     * Move one word to another category, replacing its previous classification.
+     */
+    update(category: OutlineKeywordCategory, word: string): this {
+        if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(word)) {
+            throw new RangeError(`invalid outline keyword ${JSON.stringify(word)}`);
+        }
+        const existing: OutlineKeywordCategory | undefined = this.categoryByWord.get(word);
+        if (existing !== (void 0)) {
+            this.byCategory.get(existing)?.delete(word);
+        }
+        const set: Set<string> | undefined = this.byCategory.get(category);
+        if (set === (void 0)) {
+            this.byCategory.set(category, new Set<string>([word]));
+        } else {
+            set.add(word);
+        }
+        this.categoryByWord.set(word, category);
+        return this;
+    }
+
+    /**
+     * Remove one word.
+     *
+     * @returns `true` when it was registered.
+     */
+    remove(word: string): boolean {
+        const existing: OutlineKeywordCategory | undefined = this.categoryByWord.get(word);
+        if (existing === (void 0)) {
+            return false;
+        }
+        this.byCategory.get(existing)?.delete(word);
+        this.categoryByWord.delete(word);
+        return true;
+    }
+
+    /**
      * Category of one word, or `undefined`.
      */
     categoryOf(word: string): OutlineKeywordCategory | undefined {

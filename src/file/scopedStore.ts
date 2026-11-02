@@ -16,6 +16,7 @@ export const scopeFilesystemStore = (store: FilesystemStore, session: SessionDes
         }),
         loadOutline: (rootId, path, fingerprint) => store.loadOutline(key(rootId), path, fingerprint),
         saveOutline: (rootId, outline) => store.saveOutline(key(rootId), outline),
+        ...(store.removeOutline === (void 0) ? {} : { removeOutline: (rootId: string, path: string): void => store.removeOutline!(key(rootId), path) }),
         loadImports: (rootId, path, fingerprint) => store.loadImports(key(rootId), path, fingerprint),
         saveImports: (rootId, report) => store.saveImports(key(rootId), report),
         loadExports: (rootId, path, fingerprint) => store.loadExports(key(rootId), path, fingerprint),

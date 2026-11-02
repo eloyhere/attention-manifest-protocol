@@ -5,6 +5,27 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] - 2026-11-03
+
+### 新增
+
+- `outlineAddress(range, charset, bounds)` 及配套的行/字节请求辅助函数，把大纲节点的 `range` 转成 workspace 读写工具接受的 `startLine`/`endLine` 与 `offsetBytes`/`endBytes`，扣除 UTF-8 BOM 前缀；倒序、越界或无法精确表示时报错而不静默裁剪。
+- 所有可变注册中心均可读写：`SkillRegistry`、`KnowledgeRegistry`、`ProtocolRegistry`、`ToolRegistry`、`OutlineRegistry`、`OutlineKeywordRegistry`、`SyntaxRegistry`、`SqlDialectRegistry`、`CalibrationRegistry`、`BehaviorRegistry` 与 `EntityRegistry` 在 `register` 之外提供 `update` 与 `remove`（列表型容器另有 `clear`）。
+
+### 变更
+
+- 写入文件时在同一次调用内重建该文件大纲并删除旧缓存代次，之后读取大纲不会返回写入前的树，存储中也保持每个文件一条缓存而非每次编辑一条。
+- `SyntaxRegistry.updateLanguage` 与 `removeLanguage` 会释放语言的扩展名，允许新语言重新占用。
+
+### 修复
+
+- 会话限定的文件存储未转发 `removeOutline`，导致缓存失效被静默丢弃；现已按会话键转发。
+- 校准注册中心现在接受宿主为从未拟合过的 scope 提供模型，便于恢复已持久化的校准。
+
+### 验证
+
+- 联合回归 168/168 通过（注册中心、发现、大纲、运行时与数据库套件）；源代码与工具两套类型检查通过。
+
 ## [0.5.0] - 2026-11-03
 
 ### 新增

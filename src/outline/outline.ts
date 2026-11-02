@@ -703,6 +703,51 @@ export class OutlineRegistry {
     }
 
     /**
+     * Replace one registered strategy in place, keeping its selection position.
+     *
+     * @param strategy - Replacement; its `id` must already be registered.
+     */
+    update(strategy: OutlineStrategy): void {
+        if (typeof(strategy) !== "object" || strategy === null || typeof(strategy.id) !== "string" || strategy.id.trim().length === 0) {
+            throw new Error("invalid outline strategy");
+        }
+        const index: number = this.strategies.findIndex((current: OutlineStrategy): boolean => current.id === strategy.id);
+        if (index < 0) {
+            throw new Error(`unknown outline strategy: ${strategy.id}`);
+        }
+        this.strategies[index] = strategy;
+        this.byId.set(strategy.id, strategy);
+    }
+
+    /**
+     * Remove one strategy.
+     *
+     * @param id - Strategy id.
+     * @returns `true` when it was registered.
+     */
+    remove(id: string): boolean {
+        const index: number = this.strategies.findIndex((current: OutlineStrategy): boolean => current.id === id);
+        if (index < 0) {
+            return false;
+        }
+        this.strategies.splice(index, 1);
+        this.byId.delete(id);
+        return true;
+    }
+
+    /**
+     * Remove every strategy.
+     *
+     * @returns Number of removed strategies.
+     */
+    clear(): number {
+        const count: number = this.strategies.length;
+        this.strategies.length = 0;
+        this.byId.clear();
+        return count;
+    }
+
+    /**
      * Strategies in selection order.
      */
     list(): readonly OutlineStrategy[] {

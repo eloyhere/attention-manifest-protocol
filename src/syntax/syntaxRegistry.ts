@@ -162,6 +162,97 @@ export class SyntaxRegistry {
     }
 
     /**
+     * Replace a registered language, keeping its id and registration slot. Its
+     * old extensions are released first so the new set cannot alias a stale one.
+     */
+    updateLanguage(definition: SyntaxLanguageDefinition): this {
+        const previous: SyntaxLanguageDefinition | undefined = this.languageById.get(definition.id);
+        if (previous === (void 0)) {
+            throw new Error(`unknown syntax language ${definition.id}`);
+        }
+        for (const extension of previous.extensions) {
+            if (this.languageByExtension.get(extension) === definition.id) {
+                this.languageByExtension.delete(extension);
+            }
+        }
+        this.languageById.delete(definition.id);
+        try {
+            return this.registerLanguage(definition);
+        } catch (error: unknown) {
+            this.languageById.set(definition.id, previous);
+            for (const extension of previous.extensions) {
+                this.languageByExtension.set(extension, definition.id);
+            }
+            throw error;
+        }
+    }
+
+    /** Remove one language and release its extensions. */
+    removeLanguage(id: SyntaxLanguage): boolean {
+        const previous: SyntaxLanguageDefinition | undefined = this.languageById.get(id);
+        if (previous === (void 0)) {
+            return false;
+        }
+        for (const extension of previous.extensions) {
+            if (this.languageByExtension.get(extension) === id) {
+                this.languageByExtension.delete(extension);
+            }
+        }
+        this.languageById.delete(id);
+        return true;
+    }
+
+    /** Remove every language and extension. Token and node kinds are kept. */
+    clearLanguages(): number {
+        const count: number = this.languageById.size;
+        this.languageById.clear();
+        this.languageByExtension.clear();
+        return count;
+    }
+
+    /**
+     * Replace a token category in place.
+     */
+    updateTokenKind(definition: SyntaxTokenKindDefinition): this {
+        if (!this.tokenKinds.has(definition.id)) {
+            throw new Error(`unknown syntax token kind ${definition.id}`);
+        }
+        this.tokenKinds.delete(definition.id);
+        try {
+            return this.registerTokenKind(definition);
+        } catch (error: unknown) {
+            this.tokenKinds.set(definition.id, Object.freeze({ ...definition }));
+            throw error;
+        }
+    }
+
+    /** Remove one token category. */
+    removeTokenKind(id: SyntaxTokenKind): boolean {
+        return this.tokenKinds.delete(id);
+    }
+
+    /**
+     * Replace a node category in place.
+     */
+    updateNodeKind(definition: SyntaxNodeKindDefinition): this {
+        if (!this.nodeKinds.has(definition.id)) {
+            throw new Error(`unknown syntax node kind ${definition.id}`);
+        }
+        this.nodeKinds.delete(definition.id);
+        try {
+            return this.registerNodeKind(definition);
+        } catch (error: unknown) {
+            this.nodeKinds.set(definition.id, Object.freeze({ ...definition }));
+            throw error;
+        }
+    }
+
+    /** Remove one node category. */
+    removeNodeKind(id: SyntaxNodeKind): boolean {
+        return this.nodeKinds.delete(id);
+    }
+
+    /**
      * Look up a language by id.
      */
     language(id: SyntaxLanguage): SyntaxLanguageDefinition | undefined {

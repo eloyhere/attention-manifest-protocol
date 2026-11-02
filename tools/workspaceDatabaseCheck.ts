@@ -788,6 +788,8 @@ test("filesystem adapter round-trips tree, annotations, journal, outline, graphs
         store.saveOutline("root.1", outline);
         assert.deepEqual(store.loadOutline("root.1", "src/a.ts", "sha256:file-a"), outline);
         assert.equal(store.loadOutline("root.1", "src/a.ts", "sha256:stale"), (void 0));
+        store.removeOutline("root.1", "src/a.ts");
+        assert.equal(store.loadOutline("root.1", "src/a.ts", "sha256:file-a"), (void 0), "a changed file drops every cached outline generation");
 
         const report: ImportReport = { ...importReport("src/a.ts", "sha256:file-a"), truncated: true };
         store.saveImports("root.1", report);

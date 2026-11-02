@@ -273,6 +273,16 @@ export class SqliteFilesystemStore implements FilesystemStore {
     }
 
     /**
+     * Drop every cached outline of one file, whatever its fingerprint.
+     *
+     * @param rootId - Session root id.
+     * @param path - Root-relative POSIX path.
+     */
+    removeOutline(rootId: string, path: string): void {
+        this.outlines.remove(rootId, path);
+    }
+
+    /**
      * Load a cached import report by exact fingerprint.
      *
      * @param rootId - Session root id.

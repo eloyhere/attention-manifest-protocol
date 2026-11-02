@@ -39,6 +39,27 @@ export class ToolRegistry {
         return this;
     }
 
+    /** Replace an existing tool descriptor, keeping its registration slot. */
+    update(descriptor: ToolDescriptor): this {
+        if (!this.tools.has(descriptor.name)) {
+            throw new Error(`unknown tool ${descriptor.name}`);
+        }
+        this.tools.set(descriptor.name, descriptor);
+        return this;
+    }
+
+    /** Remove one tool descriptor. */
+    remove(name: string): boolean {
+        return this.tools.delete(name);
+    }
+
+    /** Remove every tool descriptor. */
+    clear(): number {
+        const count: number = this.tools.size;
+        this.tools.clear();
+        return count;
+    }
+
     get(name: string): ToolDescriptor | undefined {
         return this.tools.get(name);
     }

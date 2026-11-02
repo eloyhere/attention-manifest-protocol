@@ -23,6 +23,47 @@ export class InMemoryRegistry<T extends { id: string }> {
         return this.cloneEntry(stored);
     }
 
+    /**
+     * Replace an existing entry in place, keeping its id.
+     *
+     * @param id - Id of the entry to replace; must already exist.
+     * @param entry - Complete replacement entry.
+     * @returns The stored copy.
+     * @throws When the id is absent or the replacement names a different id.
+     */
+    update(id: string, entry: T): T {
+        if (id !== entry.id) {
+            throw new Error(`registry entry id ${entry.id} does not match ${id}`);
+        }
+        if (!this.entries.has(id)) {
+            throw new Error(`registry entry ${id} is not registered`);
+        }
+        const stored: T = this.cloneEntry(entry);
+        this.entries.set(stored.id, stored);
+        return this.cloneEntry(stored);
+    }
+
+    /**
+     * Remove one entry.
+     *
+     * @param id - Entry id.
+     * @returns `true` when an entry was removed.
+     */
+    remove(id: string): boolean {
+        return this.entries.delete(id);
+    }
+
+    /**
+     * Drop every entry.
+     *
+     * @returns Number of removed entries.
+     */
+    clear(): number {
+        const count: number = this.entries.size;
+        this.entries.clear();
+        return count;
+    }
+
     get(id: string): T | undefined {
         const entry: T | undefined = this.entries.get(id);
         return entry === (void 0) ? undefined : this.cloneEntry(entry);
