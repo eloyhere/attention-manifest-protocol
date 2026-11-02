@@ -513,7 +513,7 @@ test("registered tools work through the actual local executor and existing MCP c
      * `ToolRegistry` is backed by an unordered map, so only membership is
      * stable; sorting keeps this assertion independent of hash order.
      */
-    assert.deepEqual(writeRisk.sort(), [ToolIds.workspaceWrite, ToolIds.workspaceProject, ToolIds.workspaceReactiveWrite, ToolIds.workspaceDiffWrite].sort());
+    assert.deepEqual(writeRisk.sort(), [ToolIds.workspaceWrite, ToolIds.workspaceProject, ToolIds.workspaceReactiveWrite, ToolIds.workspaceDiffWrite, ToolIds.workspaceAdjust, ToolIds.workspaceInteraction, ToolIds.workspaceScenario].sort());
     assert.throws(() => registerWorkspaceTools(registry, host));
     assert.equal(registry.size, ToolCount);
     const local: WorkspaceToolExecutor = new WorkspaceToolExecutor(host, {

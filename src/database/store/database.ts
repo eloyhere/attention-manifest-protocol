@@ -13,6 +13,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { Digest } from "../../types/common.ts";
 import { canonical, digestOf } from "../../semantic/canonical.ts";
 import { MetaSchema, Schema } from "../sql/schema.ts";
+import { registerCatalogWriteGuard } from "./catalogGuard.ts";
 
 export const GENESIS: Digest = `sha256:${"0".repeat(64)}`;
 
@@ -87,6 +88,7 @@ const ensureColumn: EnsureColumn = (db, table, column, definition): void => {
  */
 export const openStore: (path: string) => DatabaseSync = (path: string): DatabaseSync => {
     const db: DatabaseSync = new DatabaseSync(path);
+    registerCatalogWriteGuard(db);
     db.exec("PRAGMA foreign_keys = ON");
     db.exec("PRAGMA synchronous = NORMAL");
     /**
@@ -98,6 +100,14 @@ export const openStore: (path: string) => DatabaseSync = (path: string): Databas
     }
     db.exec(MetaSchema);
     const version: SchemaVersionRow | undefined = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as SchemaVersionRow | undefined;
+    if (version?.value !== undefined && !["1", "2", "3", "4", "5"].includes(version.value)) {
+        db.close();
+        throw new Error(`unsupported schema version: ${version.value}`);
+    }
+    const rebuildScheduler = version?.value !== undefined && !["4", "5"].includes(version.value);
+    if (rebuildScheduler) db.exec("PRAGMA foreign_keys = OFF");
+    db.exec("BEGIN IMMEDIATE");
+    try {
     if (version?.value === "1") {
         /**
          * Pre-release stores kept the v1 message and handle shapes. They carry
@@ -106,24 +116,64 @@ export const openStore: (path: string) => DatabaseSync = (path: string): Databas
         db.exec("DROP TABLE IF EXISTS messages");
         db.exec("DROP TABLE IF EXISTS handles");
     }
-    if (version?.value !== (void 0) && version.value !== "4") {
+    if (version?.value !== (void 0) && version.value !== "4" && version.value !== "5") {
         /**
          * v4 inverted the kernel semantics: process = agent, thread = task.
          * Pre-release data has no durable contract, so rebuild the scheduler
          * tables instead of pretending old rows mean the same thing.
          */
-        db.exec("PRAGMA foreign_keys = OFF");
         db.exec("DROP TABLE IF EXISTS messages");
         db.exec("DROP TABLE IF EXISTS process_objects");
         db.exec("DROP TABLE IF EXISTS steps");
         db.exec("DROP TABLE IF EXISTS threads");
         db.exec("DROP TABLE IF EXISTS processes");
-        db.exec("PRAGMA foreign_keys = ON");
+    }
+    // Add the v5 binding before Schema creates its workspace_id index.
+    const hasSessions = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='workspace_sessions'").get();
+    if (hasSessions) ensureColumn(db, "workspace_sessions", "workspace_id", "workspace_id TEXT NOT NULL DEFAULT 'default'");
+    const legacyRegistry = (db.prepare("PRAGMA table_info(registry_entries)").all() as unknown as ColumnInfo[]).some(column => column.name === "workspace_id");
+    if (legacyRegistry) {
+        db.exec("DROP INDEX IF EXISTS registry_entries_scope");
+        db.exec("ALTER TABLE registry_entries RENAME TO registry_entries_v5_draft");
+        db.exec("ALTER TABLE registry_defaults RENAME TO registry_defaults_v5_draft");
+    }
+    // Root handles are session-local. Preserve existing values while replacing
+    // the historical globally unique key so a persisted fork can copy handles.
+    const rootColumns = db.prepare("PRAGMA table_info(session_roots)").all() as Array<{ name: string; pk: number }>;
+    const migrateRoots = rootColumns.some(column => column.name === "root_id" && column.pk === 1)
+        && !rootColumns.some(column => column.name === "session_id" && column.pk > 0);
+    if (migrateRoots) {
+        db.exec("DROP INDEX IF EXISTS session_roots_session");
+        db.exec("ALTER TABLE session_roots RENAME TO session_roots_legacy");
     }
     db.exec(Schema);
+    if (migrateRoots) {
+        db.exec("INSERT INTO session_roots(root_id,session_id,path,writable,excludes_json) SELECT root_id,session_id,path,writable,excludes_json FROM session_roots_legacy");
+        db.exec("DROP TABLE session_roots_legacy");
+    }
     ensureColumn(db, "modules", "content_digest", "content_digest TEXT");
-    db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', '4') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+    const now = new Date().toISOString();
+    if (!db.prepare("SELECT 1 FROM workspaces WHERE is_default=1").get()) {
+        db.prepare("INSERT OR IGNORE INTO workspaces(workspace_id,name,status,is_default,version,created_at,updated_at) VALUES ('default','Default workspace','active',1,1,?,?)").run(now, now);
+        db.prepare("UPDATE workspaces SET is_default=1 WHERE workspace_id='default'").run();
+    }
+    db.prepare("INSERT OR IGNORE INTO control_scopes(scope_key,kind) VALUES ('global','global')").run();
+    if (legacyRegistry) {
+        db.exec("INSERT OR IGNORE INTO control_scopes(scope_key,kind,workspace_id) SELECT 'workspace:' || workspace_id,'workspace',workspace_id FROM workspaces");
+        db.exec("INSERT INTO registry_entries SELECT 'workspace:' || workspace_id,registry,entry_id,value_json,status,version,updated_at FROM registry_entries_v5_draft");
+        db.exec("INSERT INTO registry_defaults SELECT 'workspace:' || workspace_id,registry,default_key,value_json,version,updated_at FROM registry_defaults_v5_draft");
+        db.exec("DROP TABLE registry_entries_v5_draft");
+        db.exec("DROP TABLE registry_defaults_v5_draft");
+    }
+    db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', '5') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+    db.exec("COMMIT");
+    if (rebuildScheduler) db.exec("PRAGMA foreign_keys = ON");
     return db;
+    } catch (error) {
+        db.exec("ROLLBACK");
+        db.close();
+        throw error;
+    }
 };
 
 /**

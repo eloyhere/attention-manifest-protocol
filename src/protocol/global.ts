@@ -9,6 +9,7 @@
 import { ProtocolIds, ServiceIds, ToolIds } from "../naming/index.ts";
 import { workspaceToolDefinitions, workspaceToolLeaves } from "./workspace.ts";
 import type { WorkspaceErrorCode, WorkspaceToolDefinition } from "./workspace.ts";
+import { controlInputSchema, controlToolDomain } from "./control.ts";
 
 type GlobalProtocolName = "amp_protocol_global";
 type GlobalServiceName = "amp_service_global";
@@ -24,6 +25,9 @@ export type GlobalResponse = {
 } & ({ ok: true; data: Record<string, unknown>; } | { ok: false; error: { code: WorkspaceErrorCode; message: string; }; });
 
 const GlobalIdByLeaf: Record<string, string> = {
+    adjust: ToolIds.globalAdjust,
+    interaction: ToolIds.globalInteraction,
+    scenario: ToolIds.globalScenario,
     capabilities: ToolIds.globalCapabilities,
     tree: ToolIds.globalTree,
     query: ToolIds.globalQuery,
@@ -54,7 +58,8 @@ export const globalToolDefinitions: () => WorkspaceToolDefinition[] = (): Worksp
         if (leaf === (void 0) || globalName === (void 0)) {
             throw new Error(`workspace tool ${tool.name} has no global counterpart`);
         }
-        return { ...tool, name: globalName, description: `Global scope: ${tool.description}` };
+        const domain = controlToolDomain(tool.name);
+        return { ...tool, name: globalName, description: `Global scope: ${tool.description}`, ...(domain === undefined ? {} : { inputSchema: controlInputSchema("global", domain) }) };
     });
 
 /**

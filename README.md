@@ -53,22 +53,74 @@ Offline parsers live in `tools/support/`. The runtime stays database-free and us
 
 ### Discovery
 
-`amp_tool_workspace_discover` returns one structural tree over authorized projects, host components, skills, knowledge and protocols. File nodes carry a module kind (`service`, `tool`, `controller`, `route`, `repository`, `model`, `config`, `test`, `middleware`, `component`, `util`), an extension and bounded content matches. Hosts register projects and components through `HostCatalog`, reusable instructions through `SkillRegistry`, source-aware entries through `KnowledgeRegistry`, and protocol metadata through `ProtocolRegistry`. Discovery exposes skill/knowledge/protocol metadata only; full entries are fetched from their registries by ID. Discovery is read-only, never widens `projectIds`, and returns snippets as discovery evidence rather than as a Frame-allocated detail read.
+`amp_tool_workspace_discover` and its global counterpart search a unified catalog through Elasticsearch. Pass `queries` as one string or up to eight strings. Each matching entry becomes the root of a separate structural tree, so a single query can return multiple trees. The response is `{ trees: [{ query, tree, total, totalRelation, took, timedOut, truncated }] }`; no matches produce an empty `trees` array. Each tree contains current metadata and `children` expanded from SQLite entity relations, without skill instructions or knowledge bodies. `limit` bounds hits per query; `maxDepth` and `nodeLimit` bound each tree. Optional `kinds` and `tags` filter metadata. Hosts project `HostCatalog`, `SkillRegistry`, `KnowledgeRegistry` and `ProtocolRegistry` entries into `CatalogRecord`; other modules use the same record and relation contract.
+
+The catalog follows `entity → cache → service → repository → SQL → SQLite`. SQLite stores complete entries, directed relations and synchronization generations; Elasticsearch stores a rebuildable search projection. Hosts explicitly synchronize after snapshot changes. Failed builds or concurrent catalog updates leave the index dirty, and discover refuses stale results. Hits and every related node are checked against service-owned project authorization and workspace revision; global records are controlled by `includeGlobal`. Discovery grants no detail-read or execution access. `buildDiscoveryTree` remains available as a local structure-building API.
 
 These registries are domain-owned catalogs, not a mandate to duplicate every concept as a generic registry. Existing runtime state and policies for ability, cognition, progress and behavior should stay in their domain models; add a read-only catalog/discovery projection only when enumeration is needed. Agents should not write directly to active registries by default. A future contribution flow should create a sourced, versioned proposal and require host authorization, review and audit before activation.
+
+The `environment` module describes runtimes, applications, languages and project types as `HostCatalog` modules. `category` is `runtime`, `application`, `language` or `projectType`; `availability` is `unknown`, `available` or `unavailable`, independent of the component lifecycle `status`. Optional `platforms`, `extensions`, `relatedIds`, `skillIds`, `knowledgeIds`, `toolIds` and `protocolIds` link metadata without granting execution access. Hosts explicitly confirm availability; catalog registration does not install software or probe the machine.
+
+```ts
+import { HostCatalog, loadDefaultEnvironments, WorkspaceAgentService } from "attention-manifest-protocol";
+
+const host = new HostCatalog();
+loadDefaultEnvironments(host);
+// Project host into the catalog, synchronize Elasticsearch, then inject search into the service.
+// Discover with { revision, queries: "runtime", kinds: ["module"] }.
+```
+
+Defaults cover PowerShell 7/Windows PowerShell 5.1, sh/bash/zsh, Word/Excel/PowerPoint/Publisher/Access/Microsoft Project, common programming languages and project types such as npm/Maven/CMake. All defaults start with `availability: "unknown"`. `getDefaultEnvironments()` returns independent definitions; `loadDefaultEnvironments(host)` returns only newly added entries and skips existing IDs, preserving host overrides. Register host-confirmed entries before loading defaults. Category, availability and platform metadata enter the search projection and can be searched through `queries`, with `kinds: ["module"]` restricting the entry type. Local `buildDiscoveryTree` retains category and availability filters.
+
+Host wiring example (requires a running Elasticsearch 9 service; `index` is the prefix for independent namespace snapshots):
+
+```ts
+import { CatalogSearch, projectSearchRecords, WorkspaceAgentService } from "attention-manifest-protocol";
+import { Database } from "attention-manifest-protocol/database/service";
+
+const database = new Database("catalog.sqlite");
+const search = CatalogSearch.create({
+    namespace: "host-catalog",
+    catalog: database.catalogService,
+    cache: database.catalogStore,
+    elasticsearch: {
+        connection: { node: "http://127.0.0.1:9200" },
+        index: "amp-host-catalog",
+    },
+});
+search.replaceSnapshot(projectSearchRecords({
+    namespace: "host-catalog", revision: snapshot.revision,
+    workspace: snapshot.entities, relations: snapshot.relations,
+    projects: host.projects(), host: host.components(),
+    skills: skills.list(), knowledge: knowledge.list(), protocols: protocols.list(),
+    // records: [...CatalogRecord entries provided by other modules]
+}));
+await search.sync();
+const service = new WorkspaceAgentService({ ...options, snapshot, search });
+const response = await service.callAsync("amp_tool_workspace_discover", {
+    revision: snapshot.revision, queries: ["repository", "runtime"],
+    limit: 10, maxDepth: 3, nodeLimit: 50,
+});
+// Multiple roots and their relation trees can share the same query in response.data.trees.
+// On shutdown: await search.close(), then database.close().
+```
+
+`replaceSnapshot` replaces the complete namespace snapshot, pruning removed entries and outgoing relations. Its synchronous SQLite SAVEPOINT never spans network awaits. Each `sync` creates a separate namespace-owned concrete index, verifies its contents and write block, then publishes its index/digest/generation through a SQLite epoch CAS. A later attempt fences an earlier build, so failed or timed-out builds can be retried immediately; late remote writes affect only their unpublished indices. Configured indices and aliases are not cleared or adopted. Discovery rechecks concrete index ownership, the write block, document count and content digest before and after its search, and checks SQLite generation again before returning. `CatalogSearch` queues its own synchronization and discovery, while independent coordinators use separate builds and publication CAS. Sync cancellation and timeout include queue wait. Commit any outer SQLite transaction before synchronizing or searching, and do not open one on the shared connection while an operation awaits Elasticsearch. Failed attempts and older snapshots can leave unused indices; hosts manage their retention without deleting a currently published index or an active build. The write block and namespace marker do not isolate a privileged Elasticsearch administrator who can remove or alter them. Hosts configure SDK connection, authentication and TLS through `connection`; credentials do not enter the catalog. Without search configuration, discover returns `search_unavailable`; synchronous `call` returns `async_required` when search is configured. MCP integrations use `handleAsync`. Old discover tool parameters such as `text` and `scope` have been removed.
+
+Scoped control adds eight canonical tools: global/workspace `adjust`, and global/workspace/session `interaction` and `scenario`. Host-bound identities, persistent workspace isolation, inherited settings, CAS, dry-run and stdio configuration are documented in [the scoped control guide](docs/scoped-control.zh-CN.md).
 
 ## Quick start
 
 ```sh
 npm ci
 npm run build
-npm run verify
-npm run scenario
+npm run build:lib
+node --test tools/controlProtocolCheck.ts tools/controlPersistenceCheck.ts tools/controlIntegrationCheck.ts
 ```
 
 ## Library usage
 
-`npm install attention-manifest-protocol` ships the compiled ESM build in `lib/` with its declarations, alongside the source, JSON Schemas and executable checks. Node.js 24 or later is required. The root entry exposes the documented protocol surfaces; every module is also reachable as a subpath.
+`npm install attention-manifest-protocol` ships the compiled ESM build in `lib/` with its declarations, JSON Schemas and the scoped control guide. Source and executable checks are available in the GitHub repository. Node.js 24 or later is required. The root entry exposes the documented protocol surfaces; every module is also reachable as a subpath.
 
 ```js
 import { generateSigningKey, signManifest, verifyManifest } from "attention-manifest-protocol";
@@ -225,6 +277,7 @@ Service errors: `invalid_arguments`, `unknown_tool`, `revision_mismatch`, `not_a
 | [src/syntax](src/syntax/) | Charset detection/encoding, byte/line indexing, syntax registry and lossless read-only syntax trees |
 | [src/outline](src/outline/) | Code/document outlines, range and label indexes, keyword/strategy registries, React/Shell/SQL/Visual Basic strategies and Office parsing |
 | [src/hook](src/hook/) | Agent-facing composition hooks and run records |
+| [src/environment](src/environment/) | Explicit defaults and availability/link metadata for runtimes, applications, languages and project types |
 | [src/protocol](src/protocol/) | Wire contracts: envelopes, A2A, channels and the `amp_protocol_workspace` surface |
 | [src/module](src/module/) | LLM/tool ports, MCP adapters and execution policies |
 | [src/runtime](src/runtime/) | Agent turn/tool loop and governance integration |

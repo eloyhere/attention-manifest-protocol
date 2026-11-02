@@ -18,6 +18,18 @@ const constructorName: (value: object) => string = (value: object): string => {
     return typeof(name) === "string" && name.length > 0 ? name : "object";
 };
 
+/** Inspect array properties without reading element values or invoking accessors. */
+export const jsonArrayShapeProblem = (value: readonly unknown[], at: string = "$"): string | undefined => {
+    if (Object.getOwnPropertySymbols(value).length > 0) return `${at} has symbol keys`;
+    for (const key of Object.getOwnPropertyNames(value)) {
+        if (key === "length") continue;
+        const index = Number(key);
+        if (!Number.isInteger(index) || index < 0 || index >= value.length || String(index) !== key)
+            return `${at} has a non-index array property: ${key}`;
+    }
+    return undefined;
+};
+
 const problemAt: (value: unknown, at: string, seen: Set<object>) => string | undefined = (
     value: unknown,
     at: string,
@@ -46,11 +58,13 @@ const problemAt: (value: unknown, at: string, seen: Set<object>) => string | und
     seen.add(object);
     try {
         if (Array.isArray(value)) {
+            const shapeProblem: string | undefined = jsonArrayShapeProblem(value, at);
+            if (shapeProblem !== (void 0)) return shapeProblem;
             for (let index: number = 0; index < value.length; index += 1) {
-                if (!(index in value)) {
-                    return `${at}[${index}] is a hole`;
-                }
-                const problem: string | undefined = problemAt(value[index], `${at}[${index}]`, seen);
+                const descriptor: PropertyDescriptor | undefined = Object.getOwnPropertyDescriptor(value, String(index));
+                if (descriptor === (void 0)) return `${at}[${index}] is a hole`;
+                if (!("value" in descriptor)) return `${at}[${index}] is an accessor`;
+                const problem: string | undefined = problemAt(descriptor.value, `${at}[${index}]`, seen);
                 if (problem !== (void 0)) {
                     return problem;
                 }
@@ -64,13 +78,14 @@ const problemAt: (value: unknown, at: string, seen: Set<object>) => string | und
         if (Object.getOwnPropertySymbols(object).length > 0) {
             return `${at} has symbol keys`;
         }
-        const keys: string[] = Object.keys(object);
+        const keys: string[] = Object.getOwnPropertyNames(object);
         for (let index: number = 0; index < keys.length; index += 1) {
             const key: string = keys[index];
             const descriptor: PropertyDescriptor | undefined = Object.getOwnPropertyDescriptor(object, key);
             if (descriptor === (void 0) || !("value" in descriptor)) {
                 return `${at}.${key} is an accessor`;
             }
+            if (!descriptor.enumerable) return `${at}.${key} is not enumerable`;
             const problem: string | undefined = problemAt(descriptor.value, `${at}.${key}`, seen);
             if (problem !== (void 0)) {
                 return problem;
@@ -111,7 +126,18 @@ export const assertJsonValue: (value: unknown, at?: string) => void = (value: un
  */
 export const cloneJson: <T>(value: T) => T = <T>(value: T): T => {
     assertJsonValue(value);
-    return JSON.parse(JSON.stringify(value)) as T;
+    // Copy inspected data descriptors directly; JSON.stringify may execute a
+    // toJSON hook inherited from Object.prototype between validation and cloning.
+    const copy = (item: unknown): unknown => {
+        if (item === null || typeof item !== "object") return item;
+        if (Array.isArray(item)) return Array.from({ length: item.length }, (_, index) => copy(Object.getOwnPropertyDescriptor(item, String(index))!.value));
+        const result: Record<string, unknown> = {};
+        for (const key of Object.getOwnPropertyNames(item)) {
+            Object.defineProperty(result, key, { value: copy(Object.getOwnPropertyDescriptor(item, key)!.value), enumerable: true, writable: true, configurable: true });
+        }
+        return result;
+    };
+    return copy(value) as T;
 };
 
 /**

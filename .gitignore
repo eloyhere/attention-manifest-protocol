@@ -15,6 +15,7 @@ lib
 
 # Local scratch (audit logs, ad-hoc pack output)
 .cache
+.local-es-test/
 
 # Local typecheck scratch (TypeScript kept outside the workspace install)
 .tscheck

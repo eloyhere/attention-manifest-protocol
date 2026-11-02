@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-03
+
+### Added
+
+- Eight canonical scoped control tools for registry metadata, defaults, interaction and scenario settings across global, workspace and session scopes; host-bound identities, CAS, dry-run and atomic session batches.
+- SQLite workspace ownership, default workspace selection, inherited settings and v4-to-v5 migration, with authenticated runtime settings applied on the next turn.
+- Elasticsearch catalog search with independent immutable snapshot indices, verified namespace ownership, SQLite publication CAS, retryable timeout/restart recovery and guarded Catalog SQL writes.
+- Environment defaults, typed catalog projections and serial module boundary audit reports.
+
+### Changed
+
+- **Breaking:** workspace/global discover now requires `queries` and asynchronous calls, returning a separate relation tree for each match. Migrate from the old `text`/`scope` filter arguments; configure and synchronize the host search backend before discovery.
+
+### Fixed
+
+- Isolate session root storage while preserving public root IDs; prevent stale session registries from reviving revoked credentials, authentication reentry and revision overflow.
+- Reject hidden JSON callbacks and mutable protocol schemas; enforce workspace ownership even when a stdio host is configured with search only.
+
+### Validation
+
+- Joint functional and boundary regression: 366/366; final audit recheck: 48/48; source/tools typechecks, library build and patch checks passed. Real Elasticsearch 9.2.0 single-node faults were previously verified 9/9; fixture tests are reported separately.
+- Known repository limitation: the architecture check still fails on coexisting legacy dashed and camelCase scripts; it is excluded from the functional counts above.
+
 ## [0.4.6] - 2026-11-02
 
 ### Added
@@ -23,6 +46,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+
+- Elasticsearch search module using the official SDK, explicit strict index mapping, scoped metadata search, full snapshot synchronization and defensive response projection.
+- Unified catalog entities, directed relations, cache, service, repository and SQLite tables with atomic snapshot replacement, persistent synchronization generations and retryable dirty states.
+- Workspace/global discover now accepts one or multiple `queries` and returns a separate bounded relation tree for every matching root; services, executors and MCP support asynchronous search. This replaces the previous discover tool filter schema.
+- Typed catalog projections for workspace, host projects/components, skills, knowledge, protocols, environments and generic module records; SDK wire, SQLite, projection and multi-tree isolation checks.
+- Explicit environment defaults for runtimes, applications, languages and project types, backed by `HostCatalog`, with category/availability metadata and links.
 
 - `amp_tool_workspace_project`: offline brand detection from manifest/lockfile evidence (npm/pnpm/yarn/bun, Maven, Gradle, CMake, Cargo, Go, Python, Make, Composer, .NET, Bundler, Swift, sbt) plus host-delegated `build`/`compile`/`run`/`test`. The agent never supplies a command string; the brand table produces one and `WorkspaceServiceOptions.runner` decides whether to run it (`run_unavailable`, `unsupported_action`, bounded tail of stdout/stderr).
 - `amp_tool_workspace_outline`: one cascading project → directory → file → symbol/knowledge outline with 1-based ranges, bounded `maxDepth`/`limit`, `childCount`, `includeSymbols` and path/extension filters.

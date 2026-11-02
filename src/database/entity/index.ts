@@ -1,3 +1,4 @@
+export * from "./catalog.ts";
 export type { TableMeta } from "./meta.ts";
 export type { ObjectEntity } from "./object.ts";
 export { ObjectTable } from "./object.ts";

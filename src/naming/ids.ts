@@ -88,22 +88,24 @@ export const MaxWireLength: number = 64;
  * Protocol identity. It has no leaf because a protocol is a whole surface, not
  * a single operation.
  */
-export const ProtocolIds: { readonly workspace: string; readonly global: string; readonly filesystem: string; readonly globalfs: string; } = Object.freeze({
+export const ProtocolIds: { readonly workspace: string; readonly global: string; readonly filesystem: string; readonly globalfs: string; readonly session: string; } = Object.freeze({
     workspace: "amp_protocol_workspace",
     global: "amp_protocol_global",
     filesystem: "amp_protocol_filesystem",
     globalfs: "amp_protocol_globalfs",
+    session: "amp_protocol_session",
 });
 
 /**
  * Service identity published as `serverInfo.name`; it has no leaf because
  * routing is per server, not per operation.
  */
-export const ServiceIds: { readonly workspace: string; readonly global: string; readonly filesystem: string; readonly globalfs: string; } = Object.freeze({
+export const ServiceIds: { readonly workspace: string; readonly global: string; readonly filesystem: string; readonly globalfs: string; readonly session: string; } = Object.freeze({
     workspace: "amp_service_workspace",
     global: "amp_service_global",
     filesystem: "amp_service_filesystem",
     globalfs: "amp_service_globalfs",
+    session: "amp_service_session",
 });
 
 /**
@@ -112,6 +114,14 @@ export const ServiceIds: { readonly workspace: string; readonly global: string; 
  * `aliases.ts`.
  */
 export const ToolIds: {
+    readonly workspaceAdjust: string;
+    readonly workspaceInteraction: string;
+    readonly workspaceScenario: string;
+    readonly globalAdjust: string;
+    readonly globalInteraction: string;
+    readonly globalScenario: string;
+    readonly sessionInteraction: string;
+    readonly sessionScenario: string;
     readonly workspaceCapabilities: string;
     readonly workspaceTree: string;
     readonly workspaceQuery: string;
@@ -217,4 +227,12 @@ export const ToolIds: {
     globalfsExport: "amp_tool_globalfs_export",
     globalfsDependency: "amp_tool_globalfs_dependency",
     globalfsAst: "amp_tool_globalfs_ast",
+    workspaceAdjust: "amp_tool_workspace_adjust",
+    workspaceInteraction: "amp_tool_workspace_interaction",
+    workspaceScenario: "amp_tool_workspace_scenario",
+    globalAdjust: "amp_tool_global_adjust",
+    globalInteraction: "amp_tool_global_interaction",
+    globalScenario: "amp_tool_global_scenario",
+    sessionInteraction: "amp_tool_session_interaction",
+    sessionScenario: "amp_tool_session_scenario",
 });

@@ -78,6 +78,8 @@ export interface SessionRoot {
 export interface SessionDescriptor {
     readonly id: SessionId;
     readonly agentId: AgentId;
+    /** Host-owned workspace binding. Legacy descriptors imply `default`. */
+    readonly workspaceId?: string;
     readonly label: string;
     readonly status: SessionStatus;
     readonly roots: readonly SessionRoot[];
@@ -96,6 +98,8 @@ export interface SessionDescriptor {
  */
 export interface SessionOpenInput {
     readonly agentId: AgentId;
+    /** Host-owned workspace binding. Legacy descriptors imply `default`. */
+    readonly workspaceId?: string;
     readonly label?: string;
     readonly roots: readonly SessionRoot[];
     readonly permissions?: Partial<SessionPermissions>;
@@ -160,6 +164,8 @@ export interface SessionForkInput {
  * because some hosts persist session identity but never persist workspace data.
  */
 export interface SessionStore {
+    /** Host-configured default workspace for new sessions. */
+    defaultWorkspaceId?(): string;
     load(sessionId: SessionId): SessionDescriptor | undefined;
     /**
      * Token hash needed to restore authentication after a restart. A store that
@@ -248,6 +254,8 @@ export type SessionErrorCode =
 export interface SessionSummary {
     readonly id: SessionId;
     readonly agentId: AgentId;
+    /** Host-owned workspace binding. Legacy descriptors imply `default`. */
+    readonly workspaceId?: string;
     readonly label: string;
     readonly status: SessionStatus;
     readonly roots: readonly Pick<SessionRoot, "id" | "writable">[];

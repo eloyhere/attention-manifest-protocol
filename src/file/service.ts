@@ -334,7 +334,8 @@ export class FilesystemService {
     graphFor(runtime: SessionRuntime, rootId: string): GraphCache {
         const tree = runtime.treeFor(runtime.descriptor.roots.find((root) => root.id === rootId)!);
         const revision: string = tree.revision();
-        const cached: GraphCache | undefined = this.graphs.get(rootId);
+        const cacheKey = runtime.persistenceKey(rootId);
+        const cached: GraphCache | undefined = this.graphs.get(cacheKey);
         if (cached !== (void 0) && cached.revision === revision) {
             return cached;
         }
@@ -366,7 +367,7 @@ export class FilesystemService {
         const graph: DependencyGraph = graphFromImports(revision, reports, true);
         const byPath: Map<string, ImportReport> = new Map<string, ImportReport>(reports.map((report): [string, ImportReport] => [report.path, report]));
         const entry: GraphCache = { revision, graph, reports: byPath };
-        this.graphs.set(rootId, entry);
+        this.graphs.set(cacheKey, entry);
         return entry;
     }
 
@@ -395,7 +396,7 @@ export class FilesystemService {
     outline(runtime: SessionRuntime, request: OutlineRequest): OutlineResult {
         const { rooted, node, tree } = runtime.node(request.path, "read");
         const cached: OutlineResult | undefined =
-            this.store === (void 0) ? (void 0) : this.store.loadOutline(rooted.root.id, rooted.relative, node.fingerprint);
+            runtime.loadOutline(rooted.root.id, rooted.relative, node.fingerprint);
         const result: OutlineResult =
             cached ??
             buildOutline(
@@ -410,7 +411,7 @@ export class FilesystemService {
                 node.type === "File" ? { file: node } : { directory: node },
             );
         if (cached === (void 0) && this.store !== (void 0)) {
-            this.store.saveOutline(rooted.root.id, result);
+            runtime.saveOutline(rooted.root.id, result);
         }
         const filtered: OutlineResult =
             request.query === (void 0) && request.startLine === (void 0) && request.endLine === (void 0)

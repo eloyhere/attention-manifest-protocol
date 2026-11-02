@@ -6,9 +6,13 @@
  * see which tables an operation touches.
  */
 import type { DatabaseSync } from "node:sqlite";
+import { ScopedControlService } from "../../control/service.ts";
 
 import { closeStore, openStore, transaction } from "../store/database.ts";
 import { DatabaseAdapters } from "../adapter/adapters.ts";
+import { CatalogRepository } from "../repository/catalogRepository.ts";
+import { CatalogStore } from "../store/catalogStore.ts";
+import { CatalogService } from "./catalogService.ts";
 import { FileAnnotationRepository } from "../repository/fileAnnotationRepository.ts";
 import { FileGraphRepository } from "../repository/fileGraphRepository.ts";
 import { FileNodeRepository } from "../repository/fileNodeRepository.ts";
@@ -36,7 +40,11 @@ import { WorkerService } from "./workerService.ts";
 
 export class Database {
     readonly db: DatabaseSync;
+    readonly controlService: ScopedControlService;
     readonly adapters: DatabaseAdapters;
+    readonly catalog: CatalogRepository;
+    readonly catalogService: CatalogService;
+    readonly catalogStore: CatalogStore;
     readonly objects: ObjectRepository;
     readonly workspaceSessions: WorkspaceSessionRepository;
     readonly fileNodes: FileNodeRepository;
@@ -69,7 +77,11 @@ export class Database {
 
     constructor(path: string) {
         this.db = openStore(path);
+        this.controlService = new ScopedControlService(this.db);
         this.adapters = new DatabaseAdapters(this.db);
+        this.catalog = new CatalogRepository(this.db);
+        this.catalogService = new CatalogService(this.catalog);
+        this.catalogStore = new CatalogStore(this.catalogService);
         this.objects = new ObjectRepository(this.db);
         this.workspaceSessions = new WorkspaceSessionRepository(this.db);
         this.fileNodes = new FileNodeRepository(this.db);
@@ -106,6 +118,7 @@ export class Database {
     }
 
     close(): void {
+        this.catalogStore.dispose();
         closeStore(this.db);
     }
 }

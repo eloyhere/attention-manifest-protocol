@@ -5,7 +5,11 @@
 export * from "./attention/index.ts";
 export * from "./assignment/index.ts";
 export * from "./context/index.ts";
+export * from "./control/sessionService.ts";
+export * from "./control/types.ts";
 export * from "./discover/index.ts";
+export * from "./search/index.ts";
+export * from "./environment/index.ts";
 export * as file from "./file/index.ts";
 export * as filesystem from "./file/index.ts";
 export * as syntax from "./syntax/index.ts";

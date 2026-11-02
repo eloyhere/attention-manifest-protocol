@@ -28,6 +28,18 @@ export class WorkspaceMcpServer {
     }
 
     handle(raw: unknown): WorkspaceRpcResponse | undefined {
+        const response = this.handleInternal(raw, false);
+        if (response instanceof Promise) {
+            throw new Error("synchronous MCP handler returned a promise");
+        }
+        return response;
+    }
+
+    async handleAsync(raw: unknown): Promise<WorkspaceRpcResponse | undefined> {
+        return await this.handleInternal(raw, true) as WorkspaceRpcResponse | undefined;
+    }
+
+    private handleInternal(raw: unknown, asynchronous: boolean): WorkspaceRpcResponse | undefined | Promise<WorkspaceRpcResponse | undefined> {
         const request: Record<string, unknown> = isRecord(raw) ? raw : {};
         const id: number | string | null =
             typeof(request.id) === "string" || (typeof(request.id) === "number" && Number.isSafeInteger(request.id)) ? request.id : null;
@@ -118,11 +130,17 @@ export class WorkspaceMcpServer {
             if (typeof(params.name) !== "string") {
                 return error(-32602, "tool name is required");
             }
-            const response: WorkspaceResponse = this.service.call(params.name, Object.hasOwn(params, "arguments") ? params.arguments : {});
-            if ("error" in response && response.error.code === "unknown_tool") {
-                return error(-32602, "unknown tool");
+            const argumentsValue: unknown = Object.hasOwn(params, "arguments") ? params.arguments : {};
+            const complete: (response: WorkspaceResponse) => WorkspaceRpcResponse = (response: WorkspaceResponse): WorkspaceRpcResponse => {
+                if ("error" in response && response.error.code === "unknown_tool") {
+                    return error(-32602, "unknown tool");
+                }
+                return ok({ resultType: "complete", content: [{ type: "text", text: JSON.stringify(response) }], isError: !response.ok });
+            };
+            if (asynchronous) {
+                return this.service.callAsync(params.name, argumentsValue).then(complete);
             }
-            return ok({ resultType: "complete", content: [{ type: "text", text: JSON.stringify(response) }], isError: !response.ok });
+            return complete(this.service.call(params.name, argumentsValue));
         }
         return error(-32601, "method not found");
     }

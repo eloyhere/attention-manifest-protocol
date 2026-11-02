@@ -2,6 +2,8 @@
  * Host-owned discovery catalog. Only the host can register projects, plugins,
  * services, tools and modules; agents see what this catalog exposes.
  */
+import { EnvironmentAvailabilities, EnvironmentCategories } from "../environment/types.ts";
+import { InMemoryRegistry } from "../registry/memory.ts";
 import type { ComponentKind } from "./kinds.ts";
 import { ComponentKinds, ComponentStatuses } from "./kinds.ts";
 import type { HostComponent, HostProject } from "./types.ts";
@@ -17,10 +19,18 @@ const cloneProject: (project: HostProject) => HostProject = (project: HostProjec
     ...(project.tags === (void 0) ? {} : { tags: [...project.tags] }),
 });
 
-const cloneComponent: (component: HostComponent) => HostComponent = (component: HostComponent): HostComponent => ({
-    ...component,
-    ...(component.capabilities === (void 0) ? {} : { capabilities: [...component.capabilities] }),
-});
+const ComponentArrayFields = ["capabilities", "platforms", "extensions", "relatedIds", "skillIds", "knowledgeIds", "toolIds", "protocolIds"] as const;
+
+const cloneComponent: (component: HostComponent) => HostComponent = (component: HostComponent): HostComponent => {
+    const clone: HostComponent = { ...component };
+    for (const field of ComponentArrayFields) {
+        const values: string[] | undefined = component[field];
+        if (values !== (void 0)) {
+            clone[field] = [...values];
+        }
+    }
+    return clone;
+};
 
 const validateProject: (project: HostProject) => void = (project: HostProject): void => {
     requireText(project.id, "project id");
@@ -46,8 +56,17 @@ const validateComponent: (component: HostComponent) => void = (component: HostCo
     if (component.status !== (void 0) && !ComponentStatuses.includes(component.status)) {
         throw new Error(`unknown discovery component status ${component.status}`);
     }
-    if (component.capabilities !== (void 0) && (!Array.isArray(component.capabilities) || component.capabilities.some((item: string): boolean => typeof(item) !== "string" || item.trim().length === 0))) {
-        throw new Error("discovery component capabilities must be non-empty strings");
+    if (component.category !== (void 0) && !EnvironmentCategories.includes(component.category)) {
+        throw new Error(`unknown discovery component category ${component.category}`);
+    }
+    if (component.availability !== (void 0) && !EnvironmentAvailabilities.includes(component.availability)) {
+        throw new Error(`unknown discovery component availability ${component.availability}`);
+    }
+    for (const field of ComponentArrayFields) {
+        const values: string[] | undefined = component[field];
+        if (values !== (void 0) && (!Array.isArray(values) || [...values].some((item: string): boolean => typeof(item) !== "string" || item.trim().length === 0))) {
+            throw new Error(`discovery component ${field} must be non-empty strings`);
+        }
     }
     if (component.endpoint !== (void 0)) {
         requireText(component.endpoint, "component endpoint");
@@ -55,25 +74,17 @@ const validateComponent: (component: HostComponent) => void = (component: HostCo
 };
 
 export class HostCatalog {
-    private readonly projectMap: Map<string, HostProject> = new Map<string, HostProject>();
-    private readonly componentMap: Map<string, HostComponent> = new Map<string, HostComponent>();
+    private readonly projectRegistry: InMemoryRegistry<HostProject> = new InMemoryRegistry<HostProject>(cloneProject, (id: string): Error => new Error(`project ${id} is already registered`));
+    private readonly componentRegistry: InMemoryRegistry<HostComponent> = new InMemoryRegistry<HostComponent>(cloneComponent, (id: string): Error => new Error(`component ${id} is already registered`));
 
     addProject(project: HostProject): HostProject {
         validateProject(project);
-        if (this.projectMap.has(project.id)) {
-            throw new Error(`project ${project.id} is already registered`);
-        }
-        this.projectMap.set(project.id, cloneProject(project));
-        return cloneProject(project);
+        return this.projectRegistry.register(project);
     }
 
     addComponent(component: HostComponent): HostComponent {
         validateComponent(component);
-        if (this.componentMap.has(component.id)) {
-            throw new Error(`component ${component.id} is already registered`);
-        }
-        this.componentMap.set(component.id, cloneComponent(component));
-        return cloneComponent(component);
+        return this.componentRegistry.register(component);
     }
 
     addPlugin(component: Omit<HostComponent, "kind">): HostComponent {
@@ -93,19 +104,22 @@ export class HostCatalog {
     }
 
     projects(): HostProject[] {
-        return [...this.projectMap.values()].map(cloneProject);
+        return this.projectRegistry.list();
     }
 
     components(kind?: ComponentKind): HostComponent[] {
-        const all: HostComponent[] = [...this.componentMap.values()].map(cloneComponent);
-        return kind === (void 0) ? all : all.filter((component: HostComponent): boolean => component.kind === kind);
+        return this.componentRegistry.list({ filter: (component: HostComponent): boolean => kind === (void 0) || component.kind === kind });
+    }
+
+    getComponent(id: string): HostComponent | undefined {
+        return this.componentRegistry.get(id);
     }
 
     hasProject(id: string): boolean {
-        return this.projectMap.has(id);
+        return this.projectRegistry.has(id);
     }
 
     hasComponent(id: string): boolean {
-        return this.componentMap.has(id);
+        return this.componentRegistry.has(id);
     }
 }

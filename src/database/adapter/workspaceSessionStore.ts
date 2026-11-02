@@ -45,6 +45,10 @@ export class SqliteWorkspaceSessionStore implements SessionStore {
      * @param sessionId - Session handle.
      * @returns Descriptor, or `undefined` when unknown.
      */
+    defaultWorkspaceId(): string {
+        return this.repository.defaultWorkspaceId();
+    }
+
     load(sessionId: SessionId): SessionDescriptor | undefined {
         return this.repository.load(sessionId);
     }

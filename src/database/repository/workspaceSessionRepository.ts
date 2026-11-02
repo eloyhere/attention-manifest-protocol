@@ -149,11 +149,18 @@ export class WorkspaceSessionRepository extends BaseRepository<WorkspaceSessionR
      * @param tokenHash - `sha256:<hex>` bearer digest; never the token itself.
      * @throws Error when the status is outside the closed lifecycle.
      */
+    defaultWorkspaceId(): string {
+        const row = this.db.prepare("SELECT workspace_id FROM workspaces WHERE is_default=1 AND status='active'").get() as { workspace_id: string } | undefined;
+        if (!row) throw new Error("default workspace unavailable");
+        return row.workspace_id;
+    }
+
     save(descriptor: SessionDescriptor, tokenHash: string): void {
         const status: SessionStatus = parseStatus(descriptor.status);
         const values: Readonly<Record<string, unknown>> = {
             session_id: descriptor.id,
             agent_id: descriptor.agentId,
+            workspace_id: descriptor.workspaceId ?? "default",
             label: descriptor.label,
             status,
             token_hash: tokenHash,
@@ -165,18 +172,20 @@ export class WorkspaceSessionRepository extends BaseRepository<WorkspaceSessionR
             parent_id: descriptor.parentId ?? null,
             metadata_json: canonical(descriptor.metadata),
         };
+        if (!Number.isSafeInteger(descriptor.revision) || descriptor.revision < 0) throw new Error("invalid session revision");
         transaction(this.db, (): void => {
+            const existing = this.findById(descriptor.id);
+            if (existing !== undefined) {
+                if (existing.workspace_id !== values.workspace_id) throw new Error("session workspace binding is immutable");
+                if (descriptor.revision !== existing.revision + 1) throw new Error("session revision conflict");
+                if ((existing.status === "revoked" || existing.status === "expired") && status !== existing.status) throw new Error("terminal session status is immutable");
+            }
             this.upsert(values);
             this.rootsSql.deleteWhere(conditions(SessionRootTable, ["session_id"]), descriptor.id);
             for (let index: number = 0; index < descriptor.roots.length; index += 1) {
                 const root: SessionRoot = descriptor.roots[index];
-                this.rootsSql.insert({
-                    root_id: root.id,
-                    session_id: descriptor.id,
-                    path: root.path,
-                    writable: root.writable ? 1 : 0,
-                    excludes_json: canonical(root.exclude),
-                });
+                this.db.prepare("INSERT INTO session_roots(root_id,session_id,path,writable,excludes_json) VALUES (?,?,?,?,?)")
+                    .run(root.id, descriptor.id, root.path, root.writable ? 1 : 0, canonical(root.exclude));
             }
         });
     }
@@ -370,6 +379,7 @@ export class WorkspaceSessionRepository extends BaseRepository<WorkspaceSessionR
         const base: SessionDescriptor = {
             id: row.session_id,
             agentId: row.agent_id,
+            workspaceId: row.workspace_id,
             label: row.label,
             status: parseStatus(row.status),
             roots: this.findRoots(row.session_id),

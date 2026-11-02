@@ -10,7 +10,7 @@
  */
 import { MaxLeafSegments, parseId, ProtocolIds, ServiceIds, ToolIds } from "../naming/index.ts";
 import type { Id } from "../naming/index.ts";
-import { ComponentKinds, DiscoveryScopes, ModuleKinds } from "../discover/kinds.ts";
+import { controlToolDefinitions } from "./control.ts";
 
 /**
  * Literal spellings owned by this module.
@@ -65,6 +65,9 @@ export type WorkspaceErrorCode =
     | "frame_unavailable"
     | "write_unavailable"
     | "run_unavailable"
+    | "search_unavailable"
+    | "async_required"
+    | "search_failed"
     | "unsupported_action"
     | "fingerprint_mismatch"
     | "stale_detail"
@@ -72,6 +75,9 @@ export type WorkspaceErrorCode =
     | "capacity_exceeded"
     | "response_too_large"
     | "integrity_failure"
+    | "permission_denied"
+    | "version_conflict"
+    | "control_unavailable"
     | "internal_error";
 
 /**
@@ -388,6 +394,7 @@ const definition: (id: string, risk: WorkspaceRisk, description: string, propert
 });
 
 const Definitions: WorkspaceToolDefinition[] = [
+    ...controlToolDefinitions("workspace"),
     definition(ToolIds.workspaceCapabilities, "read", "Discover authorized workspace projects, revision, registered Frame IDs and service limits. Does not grant new access.", {}),
     definition(
         ToolIds.workspaceTree,
@@ -428,20 +435,22 @@ const Definitions: WorkspaceToolDefinition[] = [
     definition(
         ToolIds.workspaceDiscover,
         "read",
-        "Discover authorized projects, internal modules (service/tool/...), file names and bounded content matches, plus host-registered plugins/services/tools and registered skills/knowledge/protocols, as one structural tree. Registry nodes expose metadata only. Read-only; snippets are discovery evidence, not a detail grant.",
+        "Search Elasticsearch metadata entries within authorized projects and the global catalog using one query or up to eight queries. Returns a separate bounded structural tree for each hit, assembled from catalog relations. A query can return multiple trees. Optional kinds and tags filter metadata; limit bounds hits per query. Read-only; metadata does not grant content access.",
         {
             revision: Key,
-            text: { type: "string", maxLength: 512 },
-            scope: { type: "string", enum: DiscoveryScopes },
-            moduleKind: { type: "string", enum: ModuleKinds },
-            componentKind: { type: "string", enum: ComponentKinds },
-            extension: { type: "string", maxLength: 16 },
-            pathPrefix: { type: "string", maxLength: 1024 },
-            content: { type: "boolean" },
+            queries: {
+                oneOf: [
+                    { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" },
+                    { type: "array", items: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" }, minItems: 1, maxItems: 8 },
+                ],
+            },
+            kinds: { type: "array", items: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" }, maxItems: 32 },
+            tags: { type: "array", items: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" }, maxItems: 32 },
             maxDepth: { type: "integer", minimum: 0, maximum: 12 },
-            limit: { type: "integer", minimum: 1, maximum: 200 },
+            nodeLimit: { type: "integer", minimum: 1, maximum: 200 },
+            limit: { type: "integer", minimum: 1, maximum: 100 },
         },
-        ["revision"],
+        ["revision", "queries"],
     ),
     definition(
         ToolIds.workspaceMaterialize,

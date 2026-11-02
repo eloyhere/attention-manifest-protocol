@@ -42,7 +42,7 @@ export class GlobalToolExecutor implements ToolExecutor {
             }
             return { ok: false, content: JSON.stringify(this.error("unknown_tool")), error: "unknown_tool" };
         }
-        const response: GlobalResponse = this.service.call(canonical, invocation.args);
+        const response: GlobalResponse = await this.service.callAsync(canonical, invocation.args);
         return { ok: response.ok, content: JSON.stringify(response), ...("error" in response ? { error: response.error.code } : {}) };
     }
 

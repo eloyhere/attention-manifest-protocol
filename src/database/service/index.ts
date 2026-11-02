@@ -1,4 +1,8 @@
+export { CatalogService } from "./catalogService.ts";
+export type { CatalogRecord, CatalogSyncState } from "./catalogService.ts";
 export { Database } from "./database.ts";
+export { ScopedControlService } from "../../control/service.ts";
+export type { WorkspaceRecord } from "../../control/service.ts";
 export { EntityNotFoundError, Service } from "./service.ts";
 export { ObjectService } from "./objectService.ts";
 export type { ObjectPutResult, ObjectVerifyResult } from "./objectService.ts";

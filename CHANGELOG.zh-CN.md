@@ -5,6 +5,29 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] - 2026-11-03
+
+### 新增
+
+- 八个规范作用域控制工具，覆盖 global/workspace/session 的注册元数据、默认值、交互和情景配置；提供宿主固定身份、CAS、dry-run 和原子 session 批处理。
+- SQLite workspace 归属、默认 workspace、配置继承及 v4→v5 迁移；已认证配置从运行时下一轮生效。
+- Elasticsearch 统一目录检索、独立不可变快照索引、namespace 归属验证、SQLite 发布 CAS、超时/重启可重试和 Catalog SQL 写入防护。
+- Environment 默认目录、类型化目录投影与串行模块边界审计报告。
+
+### 变更
+
+- **不兼容变更：** workspace/global discover 改用 `queries` 与异步调用，每个命中返回独立关系树；需迁移旧 `text`/`scope` 参数，并由宿主配置和同步搜索后端。
+
+### 修复
+
+- 保留公开 root ID 并隔离 session root 存储；阻止旧 registry 复活撤销凭据、认证重入及 revision 溢出。
+- 拒绝隐藏 JSON 回调和可变协议 schema；search-only stdio 宿主同样校验已有 workspace 归属。
+
+### 验证
+
+- 联合功能与边界回归 366/366，最终审计复核 48/48；源代码/工具类型检查、库构建及补丁检查通过。真实 Elasticsearch 9.2.0 单节点故障此前通过 9/9，与 fixture 测试分别记录。
+- 已知仓库限制：旧连字符脚本与 camelCase 脚本并存导致架构检查失败，未计入上述功能测试通过数。
+
 ## [0.4.6] - 2026-11-02
 
 ### 新增
@@ -23,6 +46,12 @@
 ## [未发布]
 
 ### 新增
+
+- 官方 Elasticsearch SDK 搜索模块：显式 strict 索引映射、项目范围元数据搜索、全量快照同步和防御性响应投影。
+- 统一目录实体、定向关系、缓存、服务、仓储与 SQLite 表，提供原子快照替换、持久同步 generation 和可重试的 dirty 状态。
+- workspace/global discover 改为接收一个或多个 `queries`，每个命中根条目独立返回有界关系树；服务、执行器和 MCP 支持异步搜索。旧 discover 工具过滤参数已移除。
+- workspace、宿主项目/组件、skills、knowledge、protocol、environment 及通用模块记录的类型化投影，以及 SDK、SQLite、投影和多树隔离检查。
+- 基于 `HostCatalog` 的 environment 默认目录，覆盖运行时、应用、语言与项目类型，支持显式加载和关联元数据。
 
 - Agent 工作区：`File`/`Directory` 树、分页读、CAS 原子写、策略化大纲、import/export/dependency 图与 Office（DOCX/XLSX/PPTX，DOC/XLS/PPT/PUB/ACCDB best-effort）解析。
 - Session 模块：`ses_` 身份、一次性 bearer 令牌、TTL、暂停/撤销/rotate、fork、每会话上下文隔离与配额；SQLite 适配器 `SqliteWorkspaceSessionStore` / `SqliteWorkspaceSessionContextStore`。

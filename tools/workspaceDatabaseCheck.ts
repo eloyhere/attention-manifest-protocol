@@ -108,6 +108,7 @@ type SessionFactory = (id: string, agentId: string, roots: readonly SessionRoot[
 const sessionOf: SessionFactory = (id: string, agentId: string, roots: readonly SessionRoot[], options: SessionOptions = {}): SessionDescriptor => ({
     id,
     agentId,
+    workspaceId: "default",
     label: options.label ?? `session ${id}`,
     status: options.status ?? "active",
     roots,
@@ -867,7 +868,7 @@ test("failed session, root and context writes roll back to the previous state", 
         const duplicateRootId: SessionDescriptor = {
             ...original,
             label: "invalid",
-            revision: 99,
+            revision: 3,
             roots: [firstRoot, rootOf("root.tx", "C:/tx3", true, [])],
         };
         assert.throws((): void => {
@@ -878,10 +879,8 @@ test("failed session, root and context writes roll back to the previous state", 
         assert.equal(repository.findRoots("s.tx").length, 2);
 
         const foreign: SessionDescriptor = sessionOf("s.tx.other", "agent.other", [rootOf("root.tx", "C:/elsewhere", true, [])]);
-        assert.throws((): void => {
-            repository.save(foreign, "sha256:other");
-        }, /UNIQUE constraint failed|PRIMARY KEY/);
-        assert.equal(repository.load("s.tx.other"), (void 0));
+        repository.save(foreign, "sha256:other");
+        assert.deepEqual(repository.load("s.tx.other"), foreign);
         assert.deepEqual(repository.findRoots("s.tx"), [firstRoot, secondRoot]);
 
         const noRoots: SessionDescriptor = sessionOf("s.empty", "agent.empty", [], { metadata: {} });

@@ -416,6 +416,19 @@ CREATE TABLE IF NOT EXISTS runtime_approvals (
 );
 CREATE INDEX IF NOT EXISTS runtime_approvals_pid ON runtime_approvals(pid, id DESC);
 
+/* A workspace is a host-owned data and registry isolation scope. Exactly one
+   row is the default workspace; it is ordinary workspace data, not global data. */
+CREATE TABLE IF NOT EXISTS workspaces (
+    workspace_id TEXT PRIMARY KEY CHECK(length(trim(workspace_id)) > 0),
+    name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+    status TEXT NOT NULL CHECK(status IN ('active','archived')),
+    is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0,1)),
+    version INTEGER NOT NULL DEFAULT 1 CHECK(version > 0 AND version <= 9007199254740991),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS workspaces_one_default ON workspaces(is_default) WHERE is_default=1;
+
 /* Workspace session identity. A session is the data-isolation boundary for one
    agent's file work: roots, permissions, context and write journal are scoped
    to it. The bearer token is never stored, only its sha256 digest. */
@@ -431,20 +444,83 @@ CREATE TABLE IF NOT EXISTS workspace_sessions (
     idle_expires_at TEXT NOT NULL,
     revision INTEGER NOT NULL DEFAULT 0,
     parent_id TEXT,
-    metadata_json TEXT NOT NULL DEFAULT '{}'
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    workspace_id TEXT NOT NULL DEFAULT 'default' REFERENCES workspaces(workspace_id)
 );
 CREATE INDEX IF NOT EXISTS workspace_sessions_agent ON workspace_sessions(agent_id, status);
+CREATE INDEX IF NOT EXISTS workspace_sessions_workspace ON workspace_sessions(workspace_id, status);
+
+/* Host-approved registry adjustment state. Values are JSON data only; no tool
+   descriptor, executable code, credential or policy is stored here. */
+CREATE TABLE IF NOT EXISTS control_scopes (
+    scope_key TEXT PRIMARY KEY,
+    kind TEXT NOT NULL CHECK(kind IN ('global','workspace','session')),
+    workspace_id TEXT REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+    session_id TEXT REFERENCES workspace_sessions(session_id) ON DELETE CASCADE,
+    CHECK((kind='global' AND workspace_id IS NULL AND session_id IS NULL) OR
+          (kind='workspace' AND workspace_id IS NOT NULL AND session_id IS NULL) OR
+          (kind='session' AND workspace_id IS NOT NULL AND session_id IS NOT NULL))
+);
+CREATE TABLE IF NOT EXISTS control_preferences (
+    scope_key TEXT NOT NULL REFERENCES control_scopes(scope_key) ON DELETE CASCADE,
+    domain TEXT NOT NULL CHECK(domain IN ('interaction','scenario')),
+    mix_json TEXT,
+    version INTEGER NOT NULL CHECK(version > 0 AND version <= 9007199254740991),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(scope_key, domain)
+);
+CREATE TABLE IF NOT EXISTS registry_entries (
+    scope_key TEXT NOT NULL REFERENCES control_scopes(scope_key) ON DELETE CASCADE,
+    registry TEXT NOT NULL CHECK(length(trim(registry)) > 0),
+    entry_id TEXT NOT NULL CHECK(length(trim(entry_id)) > 0),
+    value_json TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('active','removed')),
+    version INTEGER NOT NULL DEFAULT 1 CHECK(version > 0 AND version <= 9007199254740991),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(scope_key, registry, entry_id)
+);
+CREATE INDEX IF NOT EXISTS registry_entries_scope ON registry_entries(scope_key, registry, status);
+CREATE TABLE IF NOT EXISTS registry_defaults (
+    scope_key TEXT NOT NULL REFERENCES control_scopes(scope_key) ON DELETE CASCADE,
+    registry TEXT NOT NULL CHECK(length(trim(registry)) > 0),
+    default_key TEXT NOT NULL CHECK(length(trim(default_key)) > 0),
+    value_json TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK(version > 0 AND version <= 9007199254740991),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(scope_key, registry, default_key)
+);
+CREATE TABLE IF NOT EXISTS registry_links (
+    scope_key TEXT NOT NULL,
+    registry TEXT NOT NULL,
+    entry_id TEXT NOT NULL,
+    relation TEXT NOT NULL CHECK(length(trim(relation)) > 0),
+    target_id TEXT NOT NULL CHECK(length(trim(target_id)) > 0),
+    PRIMARY KEY(scope_key, registry, entry_id, relation, target_id),
+    FOREIGN KEY(scope_key, registry, entry_id) REFERENCES registry_entries(scope_key, registry, entry_id) ON DELETE CASCADE
+);
+/* ALTER TABLE migration cannot add a non-null FK with a default; these guards
+   enforce the same constraint on both old and fresh session tables. */
+CREATE TRIGGER IF NOT EXISTS workspace_session_binding_insert BEFORE INSERT ON workspace_sessions
+WHEN NOT EXISTS(SELECT 1 FROM workspaces WHERE workspace_id=NEW.workspace_id AND status='active')
+BEGIN SELECT RAISE(ABORT, 'unknown workspace binding'); END;
+CREATE TRIGGER IF NOT EXISTS workspace_session_binding_update BEFORE UPDATE OF workspace_id ON workspace_sessions
+WHEN NEW.workspace_id <> OLD.workspace_id OR NEW.workspace_id IS NULL
+BEGIN SELECT RAISE(ABORT, 'immutable workspace binding'); END;
+CREATE TRIGGER IF NOT EXISTS workspace_binding_delete BEFORE DELETE ON workspaces
+WHEN EXISTS(SELECT 1 FROM workspace_sessions WHERE workspace_id=OLD.workspace_id)
+BEGIN SELECT RAISE(ABORT, 'workspace has sessions'); END;
 CREATE INDEX IF NOT EXISTS workspace_sessions_expiry ON workspace_sessions(status, expires_at);
 
 /* Roots are normalized out of the descriptor so an authorization query never
    has to parse JSON: the database itself can answer "which roots does this
    session still have?" */
 CREATE TABLE IF NOT EXISTS session_roots (
-    root_id TEXT PRIMARY KEY,
+    root_id TEXT NOT NULL,
     session_id TEXT NOT NULL REFERENCES workspace_sessions(session_id) ON DELETE CASCADE,
     path TEXT NOT NULL,
     writable INTEGER NOT NULL DEFAULT 0,
     excludes_json TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY(session_id, root_id),
     UNIQUE(session_id, path)
 );
 CREATE INDEX IF NOT EXISTS session_roots_session ON session_roots(session_id);
@@ -602,4 +678,97 @@ CREATE TABLE IF NOT EXISTS hook_runs (
     meta_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS hook_runs_session ON hook_runs(session_id, started_at DESC);
+
+/* Shared module catalog. Source ownership is enforced; external relation targets
+   remain valid before the corresponding document has been synchronized. */
+CREATE TABLE IF NOT EXISTS catalog_entries (
+    key TEXT PRIMARY KEY NOT NULL,
+    namespace TEXT NOT NULL CHECK(length(trim(namespace)) > 0),
+    id TEXT NOT NULL CHECK(length(trim(id)) > 0),
+    kind TEXT NOT NULL CHECK(length(trim(kind)) > 0),
+    name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+    summary TEXT NOT NULL,
+    project_id TEXT,
+    revision TEXT,
+    source_uri TEXT,
+    tags_json TEXT NOT NULL,
+    search_terms_json TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(namespace, kind, id),
+    UNIQUE(namespace, key)
+);
+CREATE INDEX IF NOT EXISTS catalog_entries_namespace ON catalog_entries(namespace, kind, id);
+
+CREATE TABLE IF NOT EXISTS catalog_relations (
+    key TEXT PRIMARY KEY NOT NULL,
+    namespace TEXT NOT NULL,
+    source_key TEXT NOT NULL REFERENCES catalog_entries(key) ON DELETE CASCADE,
+    relation TEXT NOT NULL CHECK(length(trim(relation)) > 0),
+    target_id TEXT NOT NULL CHECK(length(trim(target_id)) > 0),
+    UNIQUE(source_key, relation, target_id),
+    FOREIGN KEY(namespace, source_key) REFERENCES catalog_entries(namespace, key) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS catalog_relations_source ON catalog_relations(namespace, source_key);
+CREATE INDEX IF NOT EXISTS catalog_relations_target ON catalog_relations(namespace, target_id, relation);
+
+/* Search connection settings and credentials belong to the host, never here. */
+CREATE TABLE IF NOT EXISTS catalog_sync_state (
+    namespace TEXT PRIMARY KEY NOT NULL CHECK(length(trim(namespace)) > 0),
+    generation INTEGER NOT NULL DEFAULT 0 CHECK(generation >= 0),
+    synced_generation INTEGER NOT NULL DEFAULT 0 CHECK(synced_generation >= 0 AND synced_generation <= generation)
+);
+
+/* Durable destructive-sync operation lease. (owner_token, revision) fences SQLite
+   acknowledgement, dirtying, release and explicit compare-and-swap recovery.
+   This does NOT fence Elasticsearch: unknown remote outcomes retain ownership;
+   recovery requires the host to stop the writer and quiesce remote writes first.
+   No TTL takeover. Keep revision after release so readers and stale operations
+   detect every acquisition, even if a caller reuses an owner token. */
+CREATE TABLE IF NOT EXISTS catalog_sync_ownership (
+    namespace TEXT PRIMARY KEY NOT NULL REFERENCES catalog_sync_state(namespace) ON DELETE CASCADE,
+    owner_token TEXT CHECK(owner_token IS NULL OR length(trim(owner_token)) > 0),
+    revision INTEGER NOT NULL CHECK(revision > 0 AND revision <= 9007199254740991)
+);
+
+/* Immutable per-attempt ES indices are published solely by this SQLite CAS. */
+CREATE TABLE IF NOT EXISTS catalog_search_publication (
+    namespace TEXT PRIMARY KEY NOT NULL REFERENCES catalog_sync_state(namespace) ON DELETE CASCADE,
+    epoch INTEGER NOT NULL CHECK(epoch > 0 AND epoch <= 9007199254740991),
+    published_generation INTEGER NOT NULL DEFAULT 0,
+    index_name TEXT,
+    digest TEXT
+);
+CREATE TRIGGER IF NOT EXISTS catalog_publication_insert_guard BEFORE INSERT ON catalog_search_publication
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_publication_update_guard BEFORE UPDATE ON catalog_search_publication
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_publication_delete_guard BEFORE DELETE ON catalog_search_publication
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+
+/* Only synchronous approved repository operations receive a connection-local permit. */
+CREATE TRIGGER IF NOT EXISTS catalog_entries_insert_guard BEFORE INSERT ON catalog_entries
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_entries_update_guard BEFORE UPDATE ON catalog_entries
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_entries_delete_guard BEFORE DELETE ON catalog_entries
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_relations_insert_guard BEFORE INSERT ON catalog_relations
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_relations_update_guard BEFORE UPDATE ON catalog_relations
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_relations_delete_guard BEFORE DELETE ON catalog_relations
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_state_insert_guard BEFORE INSERT ON catalog_sync_state
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_state_update_guard BEFORE UPDATE ON catalog_sync_state
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_state_delete_guard BEFORE DELETE ON catalog_sync_state
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_ownership_insert_guard BEFORE INSERT ON catalog_sync_ownership
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_ownership_update_guard BEFORE UPDATE ON catalog_sync_ownership
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
+CREATE TRIGGER IF NOT EXISTS catalog_sync_ownership_delete_guard BEFORE DELETE ON catalog_sync_ownership
+WHEN amp_catalog_write_allowed() = 0 BEGIN SELECT RAISE(ABORT, 'catalog writes require CatalogService'); END;
 `;

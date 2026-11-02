@@ -63,6 +63,10 @@ const DefaultPermissions: SessionPermissions = {
 };
 
 const ControlCharacters: RegExp = /[\u0000-\u001f\u007f-\u009f]/;
+const nextRevision = (revision: number): number => {
+    if (!Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER) return fail("store_failure");
+    return revision + 1;
+};
 const SystemClock: SessionClock = { now: (): Date => new Date() };
 
 type SessionRecord = {
@@ -379,6 +383,7 @@ export class SessionRegistry {
         const descriptor: SessionDescriptor = {
             id: sessionId,
             agentId,
+            workspaceId: input.workspaceId === undefined ? requireText(this.store?.defaultWorkspaceId?.() ?? "default") : requireText(input.workspaceId),
             label,
             status: "active",
             roots,
@@ -399,6 +404,17 @@ export class SessionRegistry {
      * Verify a bearer token and refresh the idle deadline. The absolute deadline
      * is never extended; a successful call advances `revision` and is persisted.
      */
+    /** Validate credentials without refreshing TTL or persisting audit state. */
+    verify(sessionId: SessionId, token: string): SessionAuthentication {
+        const record = this.require(sessionId);
+        const status = record.descriptor.status;
+        if (status === "revoked") return fail("session_revoked");
+        if (status === "expired" || isDue(record.descriptor, this.clock.now().getTime())) return fail("session_expired");
+        if (status !== "active") return fail("session_suspended");
+        if (record.tokenHash === undefined || !verifySessionToken(token, record.tokenHash)) return fail("invalid_identity");
+        return { descriptor: clone(record.descriptor), tokenHash: record.tokenHash };
+    }
+
     authenticate(sessionId: SessionId, token: string): SessionAuthentication {
         const record: SessionRecord = this.require(sessionId);
         const now: Date = this.clock.now();
@@ -425,7 +441,7 @@ export class SessionRegistry {
         record.descriptor = {
             ...record.descriptor,
             idleExpiresAt: isoAt(idleMs),
-            revision: record.descriptor.revision + 1,
+            revision: nextRevision(record.descriptor.revision),
         };
         this.saveRecord(record);
         return { descriptor: clone(record.descriptor), tokenHash: storedHash };
@@ -519,7 +535,7 @@ export class SessionRegistry {
         record.descriptor = {
             ...record.descriptor,
             idleExpiresAt: isoAt(Math.min(now.getTime() + record.idleTtlMs, expiresMs)),
-            revision: record.descriptor.revision + 1,
+            revision: nextRevision(record.descriptor.revision),
         };
         this.saveRecord(record);
         return clone(record.descriptor);
@@ -541,7 +557,7 @@ export class SessionRegistry {
         if (record.descriptor.status === "suspended") {
             return clone(record.descriptor);
         }
-        record.descriptor = { ...record.descriptor, status: "suspended", revision: record.descriptor.revision + 1 };
+        record.descriptor = { ...record.descriptor, status: "suspended", revision: nextRevision(record.descriptor.revision) };
         this.saveRecord(record);
         return clone(record.descriptor);
     }
@@ -572,7 +588,7 @@ export class SessionRegistry {
             ...record.descriptor,
             status: "active",
             idleExpiresAt: isoAt(Math.min(now.getTime() + record.idleTtlMs, expiresMs)),
-            revision: record.descriptor.revision + 1,
+            revision: nextRevision(record.descriptor.revision),
         };
         this.saveRecord(record);
         return clone(record.descriptor);
@@ -595,7 +611,7 @@ export class SessionRegistry {
         if (record.descriptor.status === "expired") {
             return fail("session_expired");
         }
-        record.descriptor = { ...record.descriptor, status: "revoked", revision: record.descriptor.revision + 1 };
+        record.descriptor = { ...record.descriptor, status: "revoked", revision: nextRevision(record.descriptor.revision) };
         record.tokenHash = (void 0);
         this.saveRecord(record);
         return clone(record.descriptor);
@@ -626,7 +642,7 @@ export class SessionRegistry {
         const tokenHash: string = hashSessionToken(token);
         record.tokenHash = tokenHash;
         record.rotations = previousRotations + 1;
-        record.descriptor = { ...record.descriptor, revision: record.descriptor.revision + 1 };
+        record.descriptor = { ...record.descriptor, revision: nextRevision(record.descriptor.revision) };
         const store: SessionStore | undefined = this.store;
         try {
             if (store !== (void 0)) {
@@ -684,6 +700,7 @@ export class SessionRegistry {
         const descriptor: SessionDescriptor = {
             id: sessionId,
             agentId: parent.descriptor.agentId,
+            workspaceId: parent.descriptor.workspaceId ?? "default",
             label,
             status: "active",
             roots: clone(parent.descriptor.roots),
@@ -695,11 +712,14 @@ export class SessionRegistry {
             parentId: parent.descriptor.id,
             metadata,
         };
-        this.context.fork(parent.descriptor.id, sessionId);
+        let persisted = false;
         try {
             this.persist(descriptor, tokenHash);
+            persisted = true;
+            this.context.fork(parent.descriptor.id, sessionId);
         } catch (error: unknown) {
             this.discardContext(sessionId);
+            if (persisted) { try { this.deletePersisted(sessionId); } catch { /* Preserve the original error. */ } }
             throw error;
         }
         this.records.set(sessionId, { descriptor: clone(descriptor), tokenHash, rotations: 0, idleTtlMs });
@@ -736,7 +756,7 @@ export class SessionRegistry {
     close(sessionId: SessionId): void {
         const record: SessionRecord = this.require(sessionId);
         if (record.descriptor.status !== "revoked") {
-            record.descriptor = { ...record.descriptor, status: "revoked", revision: record.descriptor.revision + 1 };
+            record.descriptor = { ...record.descriptor, status: "revoked", revision: nextRevision(record.descriptor.revision) };
             record.tokenHash = (void 0);
             this.saveRecord(record);
         }
@@ -802,6 +822,7 @@ export class SessionRegistry {
             if (
                 !textIsValid(descriptor.id) ||
                 !textIsValid(descriptor.agentId) ||
+                (descriptor.workspaceId !== undefined && !textIsValid(descriptor.workspaceId)) ||
                 !textIsValid(descriptor.label) ||
                 (status !== "active" && status !== "suspended" && status !== "revoked" && status !== "expired") ||
                 !Number.isSafeInteger(descriptor.revision) ||
@@ -944,7 +965,21 @@ export class SessionRegistry {
             return fail("session_not_found");
         }
         const record: SessionRecord | undefined = this.records.get(sessionId);
-        return record === (void 0) ? fail("session_not_found") : record;
+        if (record === undefined) return fail("session_not_found");
+        if (this.store !== undefined) {
+            try {
+                const persisted = this.store.load(sessionId);
+                if (persisted === undefined) { this.records.delete(sessionId); return fail("session_not_found"); }
+                if (!this.storedDescriptorIsValid(persisted)) return fail("store_failure");
+                record.descriptor = clone(persisted);
+                if (typeof this.store.loadSecret === "function") {
+                    const secret = this.store.loadSecret(sessionId);
+                    if (secret !== undefined) record.tokenHash = secret;
+                }
+                record.rotations = loadRotationCount(this.store, sessionId);
+            } catch { return fail("store_failure"); }
+        }
+        return record;
     }
 
     private expireIfDue(record: SessionRecord, nowMs: number): void {
@@ -960,7 +995,7 @@ export class SessionRegistry {
         if (record.descriptor.status === "expired") {
             return;
         }
-        record.descriptor = { ...record.descriptor, status: "expired", revision: record.descriptor.revision + 1 };
+        record.descriptor = { ...record.descriptor, status: "expired", revision: nextRevision(record.descriptor.revision) };
         this.saveRecord(record);
     }
 

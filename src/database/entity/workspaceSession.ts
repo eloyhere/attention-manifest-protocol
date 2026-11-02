@@ -13,6 +13,7 @@ import type { TableMeta } from "./meta.ts";
 export interface WorkspaceSessionRow {
     session_id: string;
     agent_id: string;
+    workspace_id: string;
     label: string;
     status: string;
     token_hash: string;
@@ -31,6 +32,7 @@ export const WorkspaceSessionTable: TableMeta = {
     columns: [
         "session_id",
         "agent_id",
+        "workspace_id",
         "label",
         "status",
         "token_hash",
@@ -45,9 +47,9 @@ export const WorkspaceSessionTable: TableMeta = {
 };
 
 /**
- * One authorized root. `root_id` is globally unique so a repository can load
- * it without the session key, while the unique `(session_id, path)` constraint
- * keeps a session from naming the same directory twice.
+ * One authorized root. The database key is `(session_id, root_id)`; public
+ * handles survive a fork. The repository uses session-qualified queries only.
+ * The unique `(session_id, path)` constraint prevents duplicate directories.
  */
 export interface SessionRootRow {
     root_id: string;

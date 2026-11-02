@@ -6,17 +6,19 @@ import { randomUUID } from "node:crypto";
 import { posix } from "node:path";
 import { parseToolCall } from "../boundary/toolCall.ts";
 import { BoundaryRejection } from "../error/boundaryRejection.ts";
+import { ControlError } from "../control/types.ts";
+import type { ControlPort } from "../control/types.ts";
+import { controlToolDomain } from "../protocol/control.ts";
 import { parseShort, rawTextDigest } from "../fingerprint/index.ts";
 import type { Frame } from "../frame/frame.ts";
-import { HostCatalog } from "../discover/host.ts";
+import type { HostCatalog } from "../discover/host.ts";
+import type { DiscoverySearch, DiscoverySearchResult } from "../discover/types.ts";
 import type { KnowledgeRegistry } from "../knowledge/registry.ts";
 import type { ProtocolRegistry } from "../protocol/registry.ts";
 import type { SkillRegistry } from "../skill/registry.ts";
-import { buildDiscoveryTree } from "../discover/tree.ts";
-import type { ComponentKind, DiscoveryQuery, DiscoveryScope, HostComponent, ModuleKind } from "../discover/index.ts";
 import { buildCatalog, deprecatedToolAliases, resolveToolName, ToolIds } from "../naming/index.ts";
 import type { CatalogEntry, ToolCatalog } from "../naming/index.ts";
-import { WorkspaceProtocol, WorkspaceProtocolVersion, WorkspaceServiceId, workspaceToolDefinitions, workspaceToolLeaves } from "../protocol/workspace.ts";
+import { WorkspaceProtocol, WorkspaceProtocolVersion, workspaceToolDefinitions, workspaceToolLeaves } from "../protocol/workspace.ts";
 import type {
     WorkspaceDependencyEdge,
     WorkspaceDiffHunk,
@@ -143,6 +145,8 @@ export interface WorkspaceRunner {
 }
 
 export interface WorkspaceServiceOptions {
+    /** Host-authenticated port; calls always bind the workspace scope. */
+    control?: ControlPort;
     agentId: string;
     projectIds: readonly string[];
     snapshot: WorkspaceSnapshot;
@@ -165,6 +169,8 @@ export interface WorkspaceServiceOptions {
      * components are filtered against `projectIds` before discovery sees them.
      */
     host?: HostCatalog;
+    /** Host-managed search index; services never create or synchronize it. */
+    search?: DiscoverySearch;
     skills?: SkillRegistry;
     knowledge?: KnowledgeRegistry;
     protocols?: ProtocolRegistry;
@@ -739,14 +745,12 @@ export class WorkspaceAgentService {
     private readonly retired: Map<string, Materialization> = new Map();
     private readonly roots: WorkspaceEntity[];
     private readonly definitions: WorkspaceToolDefinition[] = workspaceToolDefinitions();
-    private readonly host: HostCatalog;
-    private readonly skills?: SkillRegistry;
-    private readonly knowledge?: KnowledgeRegistry;
-    private readonly protocols?: ProtocolRegistry;
+    private readonly search?: DiscoverySearch;
     private readonly projectIds: Set<string>;
     private readonly store: ContentStore;
     private readonly writer?: WorkspaceWriter;
     private readonly runner?: WorkspaceRunner;
+    private readonly control?: ControlPort;
     /**
      * Files the host already persisted through this service. The snapshot stays
      * immutable, so this overlay is what keeps a read after a write honest.
@@ -763,18 +767,24 @@ export class WorkspaceAgentService {
     private cachedCatalog: ToolCatalog | undefined;
     private calls: number = 0;
 
-    constructor(options: WorkspaceServiceOptions) {
+    /** The second argument is a host-only schema override for the global adapter. */
+    constructor(options: WorkspaceServiceOptions, controlDefinitions?: readonly WorkspaceToolDefinition[]) {
         if (!options.agentId || !Array.isArray(options.projectIds)) {
             throw new Error("workspace service requires a host agent and explicit project scope");
         }
         this.agentId = options.agentId;
-        this.host = options.host ?? new HostCatalog();
-        this.skills = options.skills;
-        this.knowledge = options.knowledge;
-        this.protocols = options.protocols;
+        this.search = options.search;
         this.projectIds = new Set<string>(options.projectIds);
         this.writer = options.writer;
         this.runner = options.runner;
+        this.control = options.control;
+        if (controlDefinitions !== undefined) {
+            for (const tool of this.definitions) {
+                const domain = controlToolDomain(tool.name);
+                const source = domain === undefined ? undefined : controlDefinitions.find((item) => controlToolDomain(item.name) === domain);
+                if (source !== undefined) tool.inputSchema = structuredClone(source.inputSchema);
+            }
+        }
         this.limits = { ...Defaults, ...options.limits };
         Object.entries(this.limits).forEach(([key, value]: [string, number]): void => {
             if (!Number.isSafeInteger(value) || value < 1 || value > Defaults[key as keyof WorkspaceServiceLimits]) {
@@ -946,28 +956,64 @@ export class WorkspaceAgentService {
 
     call(name: string, raw: unknown): WorkspaceResponse {
         try {
-            const canonical: string | undefined = resolveToolName(name);
-            if (this.calls >= this.limits.maxToolCalls) {
-                return fail("budget_exhausted");
-            }
-            this.calls += 1;
-            if (canonical === (void 0)) {
-                return fail("unknown_tool");
-            }
-            const tool: WorkspaceToolDefinition | undefined = this.definitions.find((item: WorkspaceToolDefinition): boolean => item.name === canonical);
-            if (tool === (void 0)) {
-                return fail("unknown_tool");
-            }
-            const args: Record<string, unknown> = parseToolCall(tool, raw).args;
-            if (canonical !== ToolIds.workspaceCapabilities && args.revision !== this.index.revision) {
-                return fail("revision_mismatch");
-            }
+            const { canonical, args } = this.prepareCall(name, raw);
             return this.dispatch(canonical, args);
         } catch (error: unknown) {
-            const code: WorkspaceErrorCode =
-                error instanceof WorkspaceServiceError ? error.code : error instanceof BoundaryRejection ? "invalid_arguments" : "internal_error";
-            return { protocol: WorkspaceProtocol, version: WorkspaceProtocolVersion, revision: this.index.revision, ok: false, error: { code, message: code } };
+            return this.failure(error);
         }
+    }
+
+    /** Search is asynchronous; other tools preserve their synchronous behavior. */
+    async callAsync(name: string, raw: unknown): Promise<WorkspaceResponse> {
+        if (resolveToolName(name) !== ToolIds.workspaceDiscover) {
+            return this.call(name, raw);
+        }
+        try {
+            const { args } = this.prepareCall(name, raw);
+            const search: DiscoverySearch = this.search ?? fail("search_unavailable");
+            let result: DiscoverySearchResult;
+            try {
+                result = await search.discover(
+                    { projectIds: [...this.projectIds], includeGlobal: true },
+                    args.queries as string | readonly string[],
+                    {
+                        revision: this.index.revision,
+                        ...(args.limit === (void 0) ? {} : { limit: args.limit as number }),
+                        ...(args.kinds === (void 0) ? {} : { kinds: args.kinds as string[] }),
+                        ...(args.tags === (void 0) ? {} : { tags: args.tags as string[] }),
+                        ...(args.maxDepth === (void 0) ? {} : { maxDepth: args.maxDepth as number }),
+                        ...(args.nodeLimit === (void 0) ? {} : { nodeLimit: args.nodeLimit as number }),
+                    },
+                );
+            } catch {
+                return fail("search_failed");
+            }
+            return this.reply({ ...result });
+        } catch (error: unknown) {
+            return this.failure(error);
+        }
+    }
+
+    /** Every entry point spends one call before validating the same wire schema. */
+    private prepareCall(name: string, raw: unknown): { canonical: string; args: Record<string, unknown>; } {
+        if (this.calls >= this.limits.maxToolCalls) {
+            return fail("budget_exhausted");
+        }
+        this.calls += 1;
+        const canonical: string = resolveToolName(name) ?? fail("unknown_tool");
+        const tool: WorkspaceToolDefinition = this.definitions.find((item: WorkspaceToolDefinition): boolean => item.name === canonical) ?? fail("unknown_tool");
+        const args: Record<string, unknown> = parseToolCall(tool, raw).args;
+        const control = controlToolDomain(canonical) !== undefined;
+        if (canonical !== ToolIds.workspaceCapabilities && (!control || args.revision !== undefined) && args.revision !== this.index.revision) {
+            return fail("revision_mismatch");
+        }
+        return { canonical, args };
+    }
+
+    private failure(error: unknown): WorkspaceResponse {
+        const code: WorkspaceErrorCode =
+            error instanceof WorkspaceServiceError || error instanceof ControlError ? error.code : error instanceof BoundaryRejection ? "invalid_arguments" : "internal_error";
+        return { protocol: WorkspaceProtocol, version: WorkspaceProtocolVersion, revision: this.index.revision, ok: false, error: { code, message: code } };
     }
 
     private reply(data: Record<string, unknown>): WorkspaceResponse {
@@ -985,6 +1031,13 @@ export class WorkspaceAgentService {
     private dispatch(name: string, args: Record<string, unknown>): WorkspaceResponse {
         const leaf: string = workspaceToolLeaves.get(name) ?? fail("unknown_tool");
         switch (leaf) {
+            case "adjust":
+            case "interaction":
+            case "scenario": {
+                const port = this.control ?? fail("control_unavailable");
+                const { revision: _revision, ...controlArgs } = args;
+                return this.reply(port.call("workspace", leaf, controlArgs));
+            }
             case "capabilities": {
                 const catalog: ToolCatalog = this.catalog();
                 return this.reply({
@@ -1042,7 +1095,7 @@ export class WorkspaceAgentService {
                 return this.reply({ items: all.slice(offset, end), total: all.length, nextOffset: end < all.length ? end : null });
             }
             case "discover": {
-                return this.discover(args);
+                return fail(this.search === (void 0) ? "search_unavailable" : "async_required");
             }
             case "project": {
                 return this.project(args);
@@ -1098,49 +1151,6 @@ export class WorkspaceAgentService {
                 return fail("unknown_tool");
             }
         }
-    }
-
-    /**
-     * Agent-callable project discovery. The result is a structural tree over
-     * only the authorized snapshot plus host components that belong to the
-     * authorized project scope. Content matches are bounded snippets, never a
-     * replacement for a Frame-allocated detail read.
-     */
-    private discover(args: Record<string, unknown>): WorkspaceResponse {
-        const query: DiscoveryQuery = {
-            ...(args.text === (void 0) ? {} : { text: args.text as string }),
-            ...(args.scope === (void 0) ? {} : { scope: args.scope as DiscoveryScope }),
-            ...(args.moduleKind === (void 0) ? {} : { moduleKind: args.moduleKind as ModuleKind }),
-            ...(args.componentKind === (void 0) ? {} : { componentKind: args.componentKind as ComponentKind }),
-            ...(args.extension === (void 0) ? {} : { extension: args.extension as string }),
-            ...(args.pathPrefix === (void 0) ? {} : { pathPrefix: args.pathPrefix as string }),
-            ...(args.content === (void 0) ? {} : { content: args.content as boolean }),
-            ...(args.maxDepth === (void 0) ? {} : { maxDepth: args.maxDepth as number }),
-            ...(args.limit === (void 0) ? {} : { limit: args.limit as number }),
-        };
-        const projects = this.host
-            .projects()
-            .filter((project) => this.projectIds.has(project.id) || (project.rootId !== (void 0) && this.projectIds.has(project.rootId)));
-        const components = this.host.components().filter((component) => component.projectId === (void 0) || this.projectIds.has(component.projectId));
-        const tree = buildDiscoveryTree({
-            revision: this.index.revision,
-            entities: this.index.snapshot().entities,
-            projects,
-            components,
-            builtIn: this.builtInComponents(),
-            ...(this.skills === (void 0) ? {} : { skills: this.skills }),
-            ...(this.knowledge === (void 0) ? {} : { knowledge: this.knowledge }),
-            ...(this.protocols === (void 0) ? {} : { protocols: this.protocols }),
-            query,
-            contentOf: (entity: WorkspaceEntity): string | undefined => {
-                if (entity.detailRef === (void 0)) {
-                    return undefined;
-                }
-                const content: string | undefined = this.store.get(entity.detailRef);
-                return content === (void 0) ? undefined : content.slice(0, 65_536);
-            },
-        });
-        return this.reply({ ...tree });
     }
 
     /**
@@ -1822,31 +1832,6 @@ export class WorkspaceAgentService {
         this.writes.set(nodeId, { content: next, revision: outcome.revision, bytes: outcome.bytes ?? bytes });
         this.invalidateReactive(nodeId);
         return this.reply({ ...payload, revision: outcome.revision });
-    }
-
-    private builtInComponents(): HostComponent[] {
-        const components: HostComponent[] = [
-            {
-                id: WorkspaceServiceId,
-                kind: "service",
-                name: "amp.workspace",
-                description: "Authorized project discovery, context materialization and bounded detail reads.",
-                purpose: "Serve the amp.workspace v1 protocol to agents.",
-                version: "1.0.0",
-                status: "active",
-            },
-        ];
-        for (const tool of this.definitions) {
-            components.push({
-                id: tool.name,
-                kind: "tool",
-                name: tool.name,
-                description: tool.description,
-                purpose: "Agent-callable workspace tool.",
-                status: "active",
-            });
-        }
-        return components;
     }
 
     private materialize(frameId: string, budgetTokens: number): WorkspaceResponse {

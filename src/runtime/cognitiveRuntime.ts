@@ -47,6 +47,7 @@ import type { ActionPlan, ActionPlanner, ActionRecord } from "./action.ts";
 import { SingleActionPlanner } from "./action.ts";
 import type { ApprovalRecord, OperationRecord, SideEffect } from "./operation.ts";
 import type { TurnStore } from "./turnStore.ts";
+import type { ControlPort } from "../control/types.ts";
 
 export interface RuntimeReceipt {
     id: string;
@@ -136,6 +137,8 @@ export interface CognitiveRuntimeOptions {
     model?: string;
     scenarioMix?: ScenarioMix;
     interactionMix?: InteractionMix;
+    /** Authenticated session settings, read once at the start of each turn. */
+    control?: ControlPort;
     attentionState?: CognitiveState;
     receiptSink?: ReceiptSink;
     now?: () => string;
@@ -298,19 +301,23 @@ export class CognitiveRuntime {
     async respond(input: string, override: TurnOverride = {}): Promise<RuntimeTurn> {
         const at: string = this.now();
         const startedAt: number = Date.now();
+        // Read inherited settings before allocating a turn or sending any model request.
+        // A rejected/expired authenticated control port fails closed.
+        const selectedScenario = this.options.control?.call("session", "scenario", { action: "get" }).effectiveMix as ScenarioMix | null | undefined;
+        const selectedInteraction = this.options.control?.call("session", "interaction", { action: "get" }).effectiveMix as InteractionMix | null | undefined;
         const telemetry: TelemetrySample | undefined = this.options.telemetry?.sample();
         const turnId: string = this.session?.nextTurnId() ?? `rt.${++this.turnCounter}`;
         const trace: string[] = [];
         const sessionScope: string | undefined = this.session?.scope;
         const userEngine: BayesianEngine = sessionScope === (void 0) ? this.bayes : (this.session?.engineFor(sessionScope) ?? this.bayes);
         const user: UserScore = userEngine.scoreUser(input);
-        const scenario: ScenarioPlan = resolveScenario(override.scenarioMix ?? this.options.scenarioMix ?? inferScenarioMix(input));
+        const scenario: ScenarioPlan = resolveScenario(override.scenarioMix ?? selectedScenario ?? this.options.scenarioMix ?? this.session?.scenarioMix ?? inferScenarioMix(input));
         const scope: string | undefined = override.scope ?? (this.session === (void 0) ? undefined : `${this.session.scope}:${scenario.active[0] ?? "mixed"}`);
         const engine: BayesianEngine = scope === (void 0) || this.session === (void 0) ? this.bayes : this.session.engineFor(scope);
         if (scope !== (void 0)) {
             trace.push(`scope=${scope}`);
         }
-        const interaction: InteractionPlan = resolveInteraction(override.interactionMix ?? this.options.interactionMix ?? inferInteractionMix(user));
+        const interaction: InteractionPlan = resolveInteraction(override.interactionMix ?? selectedInteraction ?? this.options.interactionMix ?? this.session?.interactionMix ?? inferInteractionMix(user));
         const state: CognitiveState = override.attentionState ?? this.session?.state ?? this.baseState;
         const attention: AttentionPlan = planAttention(processAttention(this.options.pid, state), [
             { tid: 1, pid: this.options.pid, priority: 1, preferredSlots: 2, foreground: true, role: interaction.primary },

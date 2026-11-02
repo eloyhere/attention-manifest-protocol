@@ -590,6 +590,40 @@ test("tool calls execute through ToolExecutor and feed results back", async () =
     assert.equal(turn.usage?.outputTokens, 9);
 });
 
+test("authenticated inherited controls are read at each turn and fail closed before model calls", async () => {
+    const service = setup();
+    const llm = new RecordingLlm([response("First."), response("Second."), response("Override.")]);
+    let interaction = "think";
+    let scenario = "research";
+    let denied = false;
+    const calls: string[] = [];
+    const runtime = new CognitiveRuntime({
+        pid: 1, agent: service.agents, social: service.social, llm, now: () => At,
+        scenarioMix: { chat: 1 }, interactionMix: { affect: 1 },
+        control: { call(scope, domain, args) {
+            assert.equal(scope, "session");
+            assert.deepEqual(args, { action: "get" });
+            if (denied) throw new Error("expired identity");
+            calls.push(domain);
+            return { effectiveMix: { [domain === "interaction" ? interaction : scenario]: 1 } };
+        } },
+    });
+    const first = await runtime.respond("Please review the available evidence.");
+    assert.equal(first.interaction.primary, "think");
+    assert.deepEqual(first.scenario.active, ["research"]);
+    interaction = "orchestrate"; scenario = "engineering";
+    const second = await runtime.respond("Please review the available evidence.");
+    assert.equal(second.interaction.primary, "orchestrate");
+    assert.deepEqual(second.scenario.active, ["engineering"]);
+    const third = await runtime.respond("Please review the available evidence.", { scenarioMix: { office: 1 }, interactionMix: { converge: 1 } });
+    assert.equal(third.interaction.primary, "converge");
+    assert.deepEqual(third.scenario.active, ["office"]);
+    assert.deepEqual(calls, ["scenario", "interaction", "scenario", "interaction", "scenario", "interaction"]);
+    denied = true;
+    await assert.rejects(runtime.respond("Please review the available evidence."), /expired identity/);
+    assert.equal(llm.requests.length, 3);
+});
+
 for (let i: number = 0; i < Tests.length; i += 1) {
     const [name, fn]: [string, () => Promise<void>] = Tests[i];
     try {

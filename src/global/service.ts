@@ -8,6 +8,8 @@
  * client sees the global surface consistently.
  */
 import { buildCatalog } from "../naming/index.ts";
+import type { ControlPort } from "../control/types.ts";
+import { controlToolDefinitions } from "../protocol/control.ts";
 import type { CatalogEntry, ToolCatalog } from "../naming/index.ts";
 import { digestOf } from "../semantic/canonical.ts";
 import { WorkspaceAgentService } from "../context/workspaceService.ts";
@@ -15,6 +17,7 @@ import type { WorkspaceRunner, WorkspaceServiceLimits, WorkspaceWriter } from ".
 import type { ContentStore } from "../context/contentStore.ts";
 import type { WorkspaceSnapshot } from "../context/workspace.ts";
 import type { HostCatalog } from "../discover/host.ts";
+import type { DiscoverySearch } from "../discover/types.ts";
 import type { KnowledgeRegistry } from "../knowledge/registry.ts";
 import type { ProtocolRegistry } from "../protocol/registry.ts";
 import type { SkillRegistry } from "../skill/registry.ts";
@@ -23,9 +26,11 @@ import type { ContextSnapshot } from "../context/lifecycle.ts";
 import type { Receipt } from "../receipt/receipt.ts";
 import { GlobalProtocol, GlobalProtocolVersion, globalToolDefinitions, globalToolLeaves } from "../protocol/global.ts";
 import type { GlobalResponse } from "../protocol/global.ts";
-import type { WorkspaceToolDefinition } from "../protocol/workspace.ts";
+import type { WorkspaceResponse, WorkspaceToolDefinition } from "../protocol/workspace.ts";
 
 export interface GlobalServiceOptions {
+    /** Explicit global authority; snapshot/project access never grants control. */
+    control?: ControlPort;
     agentId: string;
     snapshot: WorkspaceSnapshot;
     store: ContentStore;
@@ -34,6 +39,7 @@ export interface GlobalServiceOptions {
      */
     projectIds?: readonly string[];
     host?: HostCatalog;
+    search?: DiscoverySearch;
     skills?: SkillRegistry;
     knowledge?: KnowledgeRegistry;
     protocols?: ProtocolRegistry;
@@ -61,19 +67,25 @@ export class GlobalAgentService {
         const projectIds: readonly string[] =
             options.projectIds ?? options.snapshot.entities.filter((entity): boolean => entity.kind === "project").map((entity): string => entity.id);
         this.revision = options.snapshot.revision;
+        const control = options.control;
         this.workspace = new WorkspaceAgentService({
             agentId: options.agentId,
             snapshot: options.snapshot,
             projectIds,
             store: options.store,
             ...(options.host === (void 0) ? {} : { host: options.host }),
+            ...(options.search === (void 0) ? {} : { search: options.search }),
             ...(options.skills === (void 0) ? {} : { skills: options.skills }),
             ...(options.knowledge === (void 0) ? {} : { knowledge: options.knowledge }),
             ...(options.protocols === (void 0) ? {} : { protocols: options.protocols }),
             ...(options.limits === (void 0) ? {} : { limits: options.limits }),
             ...(options.writer === (void 0) ? {} : { writer: options.writer }),
             ...(options.runner === (void 0) ? {} : { runner: options.runner }),
-        });
+            ...(control === undefined ? {} : { control: {
+                // This host-created wrapper cannot be widened by a tool argument.
+                call: (_scope, domain, args) => control.call("global", domain, args),
+            } satisfies ControlPort }),
+        }, controlToolDefinitions("global"));
     }
 
     tools(): WorkspaceToolDefinition[] {
@@ -97,7 +109,18 @@ export class GlobalAgentService {
         if (leaf === (void 0)) {
             return this.error("unknown_tool", "unknown_tool");
         }
-        const response = this.workspace.call(`amp_tool_workspace_${leaf}`, raw);
+        return this.mapResponse(leaf, this.workspace.call(`amp_tool_workspace_${leaf}`, raw));
+    }
+
+    async callAsync(name: string, raw: unknown): Promise<GlobalResponse> {
+        const leaf: string | undefined = globalToolLeaves.get(name);
+        if (leaf === (void 0)) {
+            return this.error("unknown_tool", "unknown_tool");
+        }
+        return this.mapResponse(leaf, await this.workspace.callAsync(`amp_tool_workspace_${leaf}`, raw));
+    }
+
+    private mapResponse(leaf: string, response: WorkspaceResponse): GlobalResponse {
         if ("error" in response) {
             return {
                 protocol: GlobalProtocol,

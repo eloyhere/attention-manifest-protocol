@@ -3,6 +3,7 @@
  * authorized workspace snapshot.
  */
 import type { WorkspaceEntity, WorkspaceEntityKind } from "../context/workspace.ts";
+import type { EnvironmentAvailability, EnvironmentCategory } from "../environment/types.ts";
 import type { KnowledgeEntry, KnowledgeRegistry } from "../knowledge/registry.ts";
 import type { ProtocolEntry, ProtocolRegistry } from "../protocol/registry.ts";
 import type { SkillEntry, SkillRegistry } from "../skill/registry.ts";
@@ -41,6 +42,15 @@ export interface HostComponent {
     endpoint?: string;
     capabilities?: string[];
     projectId?: string;
+    category?: EnvironmentCategory;
+    availability?: EnvironmentAvailability;
+    platforms?: string[];
+    extensions?: string[];
+    relatedIds?: string[];
+    skillIds?: string[];
+    knowledgeIds?: string[];
+    toolIds?: string[];
+    protocolIds?: string[];
 }
 
 export interface DiscoveryMatch {
@@ -70,8 +80,16 @@ export interface DiscoveryNode {
     endpoint?: string;
     capabilities?: string[];
     projectId?: string;
+    category?: EnvironmentCategory;
+    availability?: EnvironmentAvailability;
+    platforms?: string[];
+    extensions?: string[];
+    relatedIds?: string[];
     tags?: string[];
     skillIds?: string[];
+    knowledgeIds?: string[];
+    toolIds?: string[];
+    protocolIds?: string[];
     protocolStatus?: "active" | "deprecated" | "disabled";
     matched: boolean;
     truncated?: boolean;
@@ -84,6 +102,10 @@ export interface DiscoveryQuery {
     scope?: DiscoveryScope;
     moduleKind?: ModuleKind;
     componentKind?: ComponentKind;
+    /** Restricts discovery to host components declaring this environment category. */
+    category?: EnvironmentCategory;
+    /** Restricts discovery to host components declaring this availability. */
+    availability?: EnvironmentAvailability;
     extension?: string;
     pathPrefix?: string;
     /**
@@ -107,6 +129,8 @@ export interface DiscoverySummary {
     skills?: number;
     knowledge?: number;
     protocols?: number;
+    /** Returned host components with a declared environment category. */
+    environments?: number;
     nodes: number;
     truncated: boolean;
 }
@@ -117,6 +141,50 @@ export interface DiscoveryTree {
     tree: DiscoveryNode;
     summary: DiscoverySummary;
     moduleCounts: Partial<Record<ModuleKind, number>>;
+}
+
+export interface DiscoverySearchOptions {
+    revision?: string;
+    limit?: number;
+    kinds?: readonly string[];
+    tags?: readonly string[];
+    maxDepth?: number;
+    nodeLimit?: number;
+}
+
+export interface DiscoverySearchNode {
+    id: string;
+    kind: string;
+    label: string;
+    summary?: string;
+    projectId?: string;
+    sourceUri?: string;
+    score?: number | null;
+    matched: boolean;
+    children: DiscoverySearchNode[];
+}
+
+export interface DiscoverySearchTree {
+    query: string;
+    tree: DiscoverySearchNode;
+    total: number;
+    totalRelation: "eq" | "gte";
+    took: number;
+    timedOut: boolean;
+    truncated: boolean;
+}
+
+export interface DiscoverySearchResult {
+    trees: DiscoverySearchTree[];
+}
+
+/** Host-owned asynchronous search port. Project scope comes only from the service. */
+export interface DiscoverySearch {
+    discover(
+        scope: { projectIds: readonly string[]; includeGlobal?: boolean },
+        queries: string | readonly string[],
+        options?: DiscoverySearchOptions,
+    ): Promise<DiscoverySearchResult>;
 }
 
 export interface DiscoveryInput {

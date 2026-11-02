@@ -53,22 +53,76 @@ Context 使用结构树和类型化关系图。项目依赖、导入、调用与
 
 ### 发现
 
-`amp_tool_workspace_discover` 以一棵结构树返回获准项目、宿主组件、skill、knowledge 与 protocol。文件节点带模块分类（`service`、`tool`、`controller`、`route`、`repository`、`model`、`config`、`test`、`middleware`、`component`、`util`）、扩展名与有界内容匹配。宿主通过 `HostCatalog` 登记项目与插件/服务/工具，通过 `SkillRegistry`、`KnowledgeRegistry`、`ProtocolRegistry` 登记可复用指令、知识条目与协议元数据。发现只暴露 skill/knowledge/protocol 元数据，不返回指令或正文；注册中心按 ID 提供完整条目。发现是只读的，不会扩大 `projectIds`；内容匹配只是发现证据，不能替代 Frame 分配后的详情读取。
+`amp_tool_workspace_discover` 和 global 对应工具通过 Elasticsearch 检索统一目录。传入 `queries`（一个字符串或最多八个字符串），每个命中条目作为根节点返回一棵结构树，因此一个查询也可以返回多棵树。响应为 `{ trees: [{ query, tree, total, totalRelation, took, timedOut, truncated }] }`；没有命中时 `trees` 为空。`tree` 包含元数据及由 SQLite 实体关系展开的 `children`，不返回 skill 指令或 knowledge 正文。`limit` 限制每个查询的命中数量，`maxDepth` 和 `nodeLimit` 分别限制每棵树的深度和节点数。可用 `kinds`、`tags` 筛选元数据。宿主通过 `HostCatalog`、`SkillRegistry`、`KnowledgeRegistry`、`ProtocolRegistry` 登记条目，再统一投影为 `CatalogRecord`；其他模块通过同一记录格式及关系接入。
+
+目录沿 `entity → cache → service → repository → SQL → SQLite` 持久化。Elasticsearch 保存可重建的搜索投影，SQLite 保存完整条目、关系和同步 generation。宿主必须在快照变更后显式同步；失败或并发修改会保留未同步状态，discover 拒绝使用过期索引。查询命中及全部关联节点都按服务的 `projectIds` 和工作区 revision 再次检查，全局条目由 `includeGlobal` 控制。元数据发现不会授予详情读取或执行权限；原本的 `buildDiscoveryTree` 仍可作为本地结构构建 API 使用。
 
 这些 registry 是各自领域的宿主目录，不要求每个概念都复制成同构 registry。Ability、cognition、progress 等若已有运行时状态、策略或事件模型，应由现有领域模块维护；需要统一枚举时增加只读 catalog/discovery 投影即可。Agent 默认只读正式目录；可选的登记工作流应先创建带来源、版本和提案状态的候选项，再经宿主权限校验、人工审核与审计后发布，不授予模型直接改写已生效条目的能力。
+
+`environment` 模块将运行时、应用程序、编程语言与项目类型作为 `HostCatalog` 的 module 条目维护。`category` 为 `runtime`、`application`、`language` 或 `projectType`；`availability` 为 `unknown`、`available` 或 `unavailable`，与组件生命周期 `status` 分开。可选的 `platforms`、`extensions`、`relatedIds`、`skillIds`、`knowledgeIds`、`toolIds`、`protocolIds` 描述平台、格式与关联，不授予执行权限。可用性由宿主确认，登记目录不会安装软件或探测本机。
+
+```ts
+import { HostCatalog, loadDefaultEnvironments } from "attention-manifest-protocol";
+
+const host = new HostCatalog();
+loadDefaultEnvironments(host);
+// 将 host 投影到统一目录并同步 Elasticsearch，然后注入服务的 search 选项。
+// 发现参数：{ revision, queries: "runtime", kinds: ["module"] }
+```
+
+默认目录包括 PowerShell 7/Windows PowerShell 5.1、sh/bash/zsh、Word/Excel/PowerPoint/Publisher/Access/Microsoft Project、常见编程语言，以及 npm/Maven/CMake 等项目类型，默认可用性全部为 `unknown`。`getDefaultEnvironments()` 返回独立定义副本；`loadDefaultEnvironments(host)` 只返回本次新增项，遇到已有 ID 会跳过并保留宿主覆盖。因此，宿主可在加载默认值之前登记已确认的条目。分类、可用性及平台信息会进入搜索投影，可在 `queries` 中检索并以 `kinds: ["module"]` 限定条目类型。本地 `buildDiscoveryTree` 保留原有分类和可用性筛选。
+
+宿主接线示例（需要宿主提供已运行的 Elasticsearch 9 服务；`index` 用作各 namespace 独立快照索引的前缀）：
+
+```ts
+import { CatalogSearch, projectSearchRecords, WorkspaceAgentService } from "attention-manifest-protocol";
+import { Database } from "attention-manifest-protocol/database/service";
+
+const database = new Database("catalog.sqlite");
+const search = CatalogSearch.create({
+    namespace: "host-catalog",
+    catalog: database.catalogService,
+    cache: database.catalogStore,
+    elasticsearch: {
+        connection: { node: "http://127.0.0.1:9200" },
+        index: "amp-host-catalog",
+    },
+});
+search.replaceSnapshot(projectSearchRecords({
+    namespace: "host-catalog", revision: snapshot.revision,
+    workspace: snapshot.entities, relations: snapshot.relations,
+    projects: host.projects(), host: host.components(),
+    skills: skills.list(), knowledge: knowledge.list(), protocols: protocols.list(),
+    // records: [...其他模块提供的 CatalogRecord]
+}));
+await search.sync();
+const service = new WorkspaceAgentService({ ...options, snapshot, search });
+const response = await service.callAsync("amp_tool_workspace_discover", {
+    revision: snapshot.revision, queries: ["repository", "runtime"],
+    limit: 10, maxDepth: 3, nodeLimit: 50,
+});
+// response.data.trees 中，同一个 query 可以对应多个根节点及其关联树。
+// 宿主退出：先 await search.close()，再 database.close()。
+```
+
+`replaceSnapshot` 替换该 namespace 的完整快照；已删除条目及其出边会清理。它通过同步 SQLite SAVEPOINT 提交，不跨越网络等待。每次 `sync` 创建独立、带 namespace 归属的 concrete index，验证内容并封锁写入，再通过 SQLite epoch CAS 发布索引名、digest 和 generation。后启动的尝试会阻止更早的构建发布，因此失败或超时后可立即重试；远程迟到写入只能影响它自身未发布的索引。配置的索引及 alias 不会被清空或接管。发现查询前后重新校验具体索引、归属 marker、写封锁、文档数量与内容摘要，返回前还要确认 SQLite generation。`CatalogSearch` 在实例内排队，独立协调器分别构建并通过发布 CAS 协调；同步取消和超时包含排队耗时。调用前必须提交外层 SQLite 事务，也不要在等待 Elasticsearch 时在共享连接上开启事务。失败尝试及旧快照可能遗留闲置索引，宿主应管理保留策略，避免删除正在发布的索引或活动构建。写封锁和 namespace marker 无法隔离能移除或修改它们的 Elasticsearch 管理员。连接、认证和 TLS 选项通过 SDK 的 `connection` 在宿主侧配置，不会写入目录。没有搜索配置时 discover 返回 `search_unavailable`，同步 `call` 返回 `async_required`；MCP 集成使用 `handleAsync`。旧的 discover 工具参数 `text`、`scope` 等已移除。
+
+作用域控制新增八个规范工具：global/workspace 的 `adjust`，以及 global/workspace/session 的 `interaction`、`scenario`。注册元数据和默认值按 workspace 持久隔离，配置继承并接入运行时；完整身份接线、action、CAS、dry-run 与 stdio 配置见[作用域控制说明](docs/scoped-control.zh-CN.md)。
+
+作用域控制新增八个规范工具：global/workspace `adjust`，以及 global/workspace/session 的 `interaction` 与 `scenario`。宿主绑定身份、workspace 持久隔离、配置继承、CAS、dry-run 和 stdio 配置见[作用域控制文档](docs/scoped-control.zh-CN.md)。
 
 ## 快速开始
 
 ```sh
 npm ci
 npm run build
-npm run verify
-npm run scenario
+npm run build:lib
+node --test tools/controlProtocolCheck.ts tools/controlPersistenceCheck.ts tools/controlIntegrationCheck.ts
 ```
 
 ## 作为库使用
 
-`npm install attention-manifest-protocol` 会安装 `lib/` 中的编译产物及其声明文件，同时附带源码、JSON Schema 与可执行检查。运行时要求 Node.js 24 及以上。包根入口提供文档中的协议核心接口，其余模块均可按子路径导入。
+`npm install attention-manifest-protocol` 会安装 `lib/` 中的编译产物及其声明文件、JSON Schema 和作用域控制文档。源码和可执行检查保存在 GitHub 仓库中。运行时要求 Node.js 24 及以上。包根入口提供文档中的协议核心接口，其余模块均可按子路径导入。
 
 ```js
 import { generateSigningKey, signManifest, verifyManifest } from "attention-manifest-protocol";
@@ -222,6 +276,7 @@ Frame、快照、ContentStore 与后备执行器由宿主提供；将 `tools` / 
 | [src/naming](src/naming/) | 冻结的 ID 表、ID 文法、兼容别名与 catalog 摘要 |
 | [src/context](src/context/) | Context 生命周期、树/图投影、CAS、工作区事实、上下文装配与 agent 服务 |
 | [src/session](src/session/) | 身份、令牌、TTL、上下文隔离、fork/revoke/rotate |
+| [src/environment](src/environment/) | 运行时、应用、语言和项目类型的默认目录、可用性与关联元数据 |
 | [src/skill](src/skill/) | 可复用 agent skill 注册、校验、查询与隔离副本 |
 | [src/knowledge](src/knowledge/) | 带来源元数据的 knowledge 注册、校验、查询与隔离副本 |
 | [src/protocol](src/protocol/) | 线上协议契约、通道，以及宿主维护的协议元数据注册中心 |

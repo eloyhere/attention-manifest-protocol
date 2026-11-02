@@ -6,6 +6,7 @@ export * from "./tool/redact.ts";
 export * from "./tool/mcpExecutor.ts";
 export * from "./tool/workspaceExecutor.ts";
 export * from "./tool/globalExecutor.ts";
+export * from "./tool/controlExecutor.ts";
 export * from "./tool/filesystemExecutor.ts";
 export * from "./tool/globalFilesystemExecutor.ts";
 export * from "./mcp/workspaceServer.ts";

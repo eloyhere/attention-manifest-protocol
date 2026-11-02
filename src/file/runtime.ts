@@ -11,6 +11,7 @@ import type { SessionDescriptor, SessionOperation, SessionRoot } from "../sessio
 import { fail } from "./errors.ts";
 import { PathSandbox } from "./path.ts";
 import { WorkspaceTree } from "./tree.ts";
+import { scopeFilesystemStore } from "./scopedStore.ts";
 import type { FilesystemStore } from "./types.ts";
 import type { NodeAnnotation, RootedPath, TreeNode, TreeOptions, TreeSnapshot } from "./types.ts";
 
@@ -54,12 +55,18 @@ export class SessionRuntime {
     constructor(descriptor: SessionDescriptor, options: SessionRuntimeOptions = {}) {
         this.descriptor = descriptor;
         this.sandbox = new PathSandbox(descriptor.roots, { followSymlinks: options.followSymlinks === true });
-        this.store = options.store;
+        this.store = options.store === undefined ? undefined : scopeFilesystemStore(options.store, descriptor);
         this.hostAnnotations = options.annotations ?? {};
         this.timeZone = options.timeZone === "utc" ? "utc" : "local";
         this.followSymlinks = options.followSymlinks === true;
         this.includeHidden = options.includeHidden === true;
     }
+
+    /** Internal persistence identity; never replace a public root handle with it. */
+    persistenceKey(rootId: string): string { return JSON.stringify([this.descriptor.workspaceId ?? "default", this.descriptor.id, rootId]); }
+
+    loadOutline(rootId: string, path: string, fingerprint: string) { return this.store?.loadOutline(rootId, path, fingerprint); }
+    saveOutline(rootId: string, outline: import("../outline/types.ts").OutlineResult): void { this.store?.saveOutline(rootId, outline); }
 
     /**
      * Resolve a caller path and return the tree that owns it.

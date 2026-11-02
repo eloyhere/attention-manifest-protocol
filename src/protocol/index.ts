@@ -6,6 +6,7 @@ export * from "./protocol.ts";
 export * from "./wire.ts";
 export * from "./workspace.ts";
 export * from "./global.ts";
+export * from "./control.ts";
 export * from "./filesystem.ts";
 export * from "./globalFilesystem.ts";
 export * from "./registry.ts";

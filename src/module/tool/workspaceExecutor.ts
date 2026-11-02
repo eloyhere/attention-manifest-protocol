@@ -39,10 +39,11 @@ export class WorkspaceToolExecutor implements ToolExecutor {
      */
     async execute(invocation: ToolInvocation): Promise<ToolResult> {
         const canonical: string | undefined = resolveToolName(invocation.tool);
-        if (canonical === (void 0) && this.fallback !== (void 0)) {
-            return this.fallback.execute(invocation);
+        if (canonical === (void 0) || !canonical.startsWith("amp_tool_workspace_")) {
+            if (this.fallback !== (void 0)) return this.fallback.execute(invocation);
+            return { ok: false, content: JSON.stringify({ ok: false, error: { code: "unknown_tool", message: "unknown_tool" } }), error: "unknown_tool" };
         }
-        const response: WorkspaceResponse = this.service.call(canonical ?? invocation.tool, invocation.args);
+        const response: WorkspaceResponse = await this.service.callAsync(canonical ?? invocation.tool, invocation.args);
         return { ok: response.ok, content: JSON.stringify(response), ...("error" in response ? { error: response.error.code } : {}) };
     }
 }

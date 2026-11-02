@@ -17,21 +17,24 @@ import { ProtocolRegistry } from "../src/protocol/registry.ts";
 import { ToolIds } from "../src/naming/index.ts";
 import type { WorkspaceResponse } from "../src/protocol/workspace.ts";
 import type { GlobalResponse } from "../src/protocol/global.ts";
+import { WorkspaceMcpServer } from "../src/module/mcp/workspaceServer.ts";
+import type { DiscoverySearch, DiscoverySearchResult } from "../src/discover/types.ts";
 
 let Passed: number = 0;
 let Failed: number = 0;
 
-type SyncTest = (name: string, fn: () => void) => void;
-
-const test: SyncTest = (name: string, fn: () => void): void => {
-    try {
-        fn();
-        Passed++;
-        console.log(`\x1b[32m✓\x1b[0m ${name}`);
-    } catch (err) {
-        Failed++;
-        console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${err.message}`);
-    }
+let pending: Promise<void> = Promise.resolve();
+const test = (name: string, fn: () => void | Promise<void>): void => {
+    pending = pending.then(async (): Promise<void> => {
+        try {
+            await fn();
+            Passed++;
+            console.log(`\x1b[32m✓\x1b[0m ${name}`);
+        } catch (err: unknown) {
+            Failed++;
+            console.error(`\x1b[31m✗\x1b[0m ${name}\n      ${(err as Error).message}`);
+        }
+    });
 };
 
 const Store: MemoryContentStore = new MemoryContentStore();
@@ -105,12 +108,28 @@ Catalog.addComponent({
     projectId: "project:private",
 });
 
+const calls: Array<{ scope: { projectIds: readonly string[]; includeGlobal?: boolean }; queries: string | readonly string[]; options?: { revision?: string; limit?: number; kinds?: readonly string[]; tags?: readonly string[]; maxDepth?: number; nodeLimit?: number; }; }> = [];
+const Search: DiscoverySearch = {
+    async discover(scope, queries, options): Promise<DiscoverySearchResult> {
+        calls.push({ scope, queries, options });
+        const values: readonly string[] = typeof queries === "string" ? [queries] : queries;
+        return {
+            trees: values.flatMap((query) => ["file:guide.md", "file:app.service.ts"].map((id) => ({
+                query,
+                tree: { id, kind: "file", label: id === "file:guide.md" ? "guide.md" : "app.service.ts", projectId: "project:app", matched: true, children: [] },
+                total: 2, totalRelation: "eq", took: 2, timedOut: false, truncated: false,
+            }))),
+        };
+    },
+};
+
 const Service: WorkspaceAgentService = new WorkspaceAgentService({
     agentId: "a.discover",
     projectIds: ["project:app"],
     snapshot: Snapshot,
     store: Store,
     host: Catalog,
+    search: Search,
     skills: Skills,
     knowledge: Knowledge,
     protocols: Protocols,
@@ -138,69 +157,80 @@ const findNode: (nodes: unknown[], label: string) => Record<string, unknown> | u
     return undefined;
 };
 
-test("discover returns a host tree with project description, purpose and summary", () => {
-    const result: Record<string, unknown> = data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, limit: 50 }));
-    const tree: Record<string, unknown> = result.tree as Record<string, unknown>;
-    assert.equal(tree.kind, "host");
-    const project: Record<string, unknown> | undefined = findNode(tree.children as unknown[], "App");
-    assert.equal(project?.kind, "project");
-    assert.equal(project?.description, "Application project");
-    assert.equal(project?.purpose, "Serve the demo app");
-    assert.equal(project?.summary, "A small authorized application project.");
+test("discover supports batches and returns one tree per matching root", async () => {
+    const result: Record<string, unknown> = data(await Service.callAsync(ToolIds.workspaceDiscover, {
+        revision: Revision, queries: ["guide", "service"], kinds: ["file"], tags: ["docs"], limit: 20, maxDepth: 3, nodeLimit: 12,
+    }));
+    const trees = result.trees as Array<Record<string, unknown>>;
+    assert.equal(trees.length, 4);
+    assert.deepEqual(trees.map((tree) => tree.query), ["guide", "guide", "service", "service"]);
+    assert.deepEqual(calls.at(-1)?.scope, { projectIds: ["project:app"], includeGlobal: true });
+    assert.equal((calls.at(-1)?.options as Record<string, unknown>).revision, Revision);
+    assert.equal((calls.at(-1)?.options as Record<string, unknown>).nodeLimit, 12);
 });
 
-test("discover finds file contents as bounded snippets", () => {
-    const result: Record<string, unknown> = data(
-        Service.call(ToolIds.workspaceDiscover, { revision: Revision, text: "CHOSEN BODY", content: true, scope: "projects", limit: 20 }),
-    );
-    const guide: Record<string, unknown> | undefined = findNode((result.tree as Record<string, unknown>).children as unknown[], "guide.md");
-    assert.equal((guide?.contentMatches as unknown[] | undefined)?.length, 1);
-    assert.match(JSON.stringify(result), /CHOSEN BODY/);
+test("discover rejects missing queries and sync calls require async", async () => {
+    const sync = Service.call(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" });
+    assert.equal("error" in sync ? sync.error.code : undefined, "async_required");
+    const invalid = await Service.callAsync(ToolIds.workspaceDiscover, { revision: Revision });
+    assert.equal(invalid.ok, false);
+    if (!invalid.ok) assert.equal(invalid.error.code, "invalid_arguments");
+    const stale = Service.call(ToolIds.workspaceDiscover, { revision: "stale", queries: "guide" });
+    assert.equal("error" in stale ? stale.error.code : undefined, "revision_mismatch");
 });
 
-test("discover includes registered skills and knowledge metadata only", () => {
-    const result: Record<string, unknown> = data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, limit: 50 }));
-    const children: unknown[] = (result.tree as Record<string, unknown>).children as unknown[];
-    const skill: Record<string, unknown> | undefined = findNode(children, "Look up knowledge");
-    const knowledge: Record<string, unknown> | undefined = findNode(children, "Protocol notes");
-    assert.equal(skill?.kind, "skill");
-    assert.equal(knowledge?.kind, "knowledge");
-    assert.equal(knowledge?.sourceUri, "docs/notes.md");
-    assert.doesNotMatch(JSON.stringify(result), /Private skill instructions|Private knowledge body/);
-    const scoped: Record<string, unknown> = data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, scope: "skills", text: "protocol", limit: 20 }));
-    assert.equal(findNode((scoped.tree as Record<string, unknown>).children as unknown[], "Look up knowledge")?.kind, "skill");
+test("global async discover forwards trees and scope", async () => {
+    const global = new GlobalAgentService({ agentId: "a.global", projectIds: ["project:app"], snapshot: Snapshot, store: Store, search: Search });
+    const response = await global.callAsync("amp_tool_global_discover", { revision: Revision, queries: "protocol" });
+    const trees = data(response).trees as unknown[];
+    assert.equal(trees.length, 2);
+    assert.deepEqual(calls.at(-1)?.scope, { projectIds: ["project:app"], includeGlobal: true });
 });
 
-test("workspace and global discovery forward protocol metadata and exclude disabled entries", () => {
-    const global = new GlobalAgentService({ agentId: "a.global", projectIds: ["project:app"], snapshot: Snapshot, store: Store, protocols: Protocols });
-    for (const result of [
-        data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, scope: "protocols" })),
-        data(global.call("amp_tool_global_discover", { revision: Revision, scope: "protocols" })),
-    ]) {
-        const nodes = (result.tree as Record<string, unknown>).children as unknown[];
-        const protocol = findNode(nodes, "Demo protocol");
-        assert.equal(protocol?.protocolStatus, "deprecated");
-        assert.deepEqual(protocol?.capabilities, ["discover"]);
-        assert.equal((result.summary as Record<string, unknown>).protocols, 1);
-        assert.equal(findNode(nodes, "Disabled protocol"), undefined);
-        assert.equal(findNode(nodes, "App"), undefined);
-    }
+test("discover sanitizes search errors and enforces response size", async () => {
+    const broken = new WorkspaceAgentService({ agentId: "a.broken", projectIds: ["project:app"], snapshot: Snapshot, store: Store, search: { async discover() { throw new Error("secret endpoint credential"); } } });
+    const failed = await broken.callAsync(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" });
+    assert.equal(failed.ok, false);
+    assert.equal(JSON.stringify(failed).includes("credential"), false);
+    const bounded = new WorkspaceAgentService({ agentId: "a.bounded", projectIds: ["project:app"], snapshot: Snapshot, store: Store, search: Search, limits: { maxResponseChars: 300 } });
+    const boundedResponse = await bounded.callAsync(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" });
+    assert.equal("error" in boundedResponse ? boundedResponse.error.code : undefined, "response_too_large");
+    const unavailable = new WorkspaceAgentService({ agentId: "a.none", projectIds: ["project:app"], snapshot: Snapshot, store: Store });
+    const unavailableResponse = await unavailable.callAsync(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" });
+    assert.equal("error" in unavailableResponse ? unavailableResponse.error.code : undefined, "search_unavailable");
 });
 
-test("discover includes host plugins and the built-in workspace service", () => {
-    const result: Record<string, unknown> = data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, scope: "host", limit: 50 }));
-    const plugins: Record<string, unknown> | undefined = findNode((result.tree as Record<string, unknown>).children as unknown[], "plugins");
-    assert.equal((plugins?.children as unknown[] | undefined)?.length, 1);
-    const services: Record<string, unknown> | undefined = findNode((result.tree as Record<string, unknown>).children as unknown[], "services");
-    assert.ok((services?.children as unknown[] | undefined)?.some((node: unknown): boolean => (node as Record<string, unknown>).label === "amp.workspace"));
+test("async discover shares call budget and MCP awaits the search response", async () => {
+    const bounded = new WorkspaceAgentService({
+        agentId: "a.calls", projectIds: ["project:app"], snapshot: Snapshot, store: Store, search: Search, limits: { maxToolCalls: 1 },
+    });
+    assert.equal((await bounded.callAsync(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" })).ok, true);
+    const exhausted = await bounded.callAsync(ToolIds.workspaceDiscover, { revision: Revision, queries: "guide" });
+    assert.equal("error" in exhausted ? exhausted.error.code : undefined, "budget_exhausted");
+
+    const server = new WorkspaceMcpServer(Service);
+    const response = await server.handleAsync({
+        jsonrpc: "2.0", id: 1, method: "tools/call",
+        params: {
+            name: ToolIds.workspaceDiscover,
+            arguments: { revision: Revision, queries: "mcp" },
+            _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" },
+        },
+    });
+    assert.equal(response?.error, undefined);
+    const result = response?.result as Record<string, unknown>;
+    assert.equal(result.isError, false);
+    assert.match(JSON.stringify(result), /\\"trees\\"/);
 });
 
-test("discover never exposes an unauthorized host project or component", () => {
-    const result: Record<string, unknown> = data(Service.call(ToolIds.workspaceDiscover, { revision: Revision, limit: 100 }));
-    const text: string = JSON.stringify(result);
-    assert.doesNotMatch(text, /Should never be visible|Hidden service|project:private/);
+test("discover schema requires one to eight bounded queries and no legacy filters", () => {
+    const schema = JSON.stringify(Service.tools().find((tool) => tool.name === ToolIds.workspaceDiscover)?.inputSchema);
+    assert.match(schema, /queries/);
+    assert.match(schema, /maxItems/);
+    assert.doesNotMatch(schema, /scope|category|pathPrefix|text/);
 });
 
+await pending;
 console.log(`\n${Passed} passed, ${Failed} failed`);
 if (Failed > 0) {
     process.exitCode = 1;

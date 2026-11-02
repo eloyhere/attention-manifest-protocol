@@ -1,3 +1,4 @@
+export { CatalogRepository } from "./catalogRepository.ts";
 export { BaseRepository } from "./base.ts";
 export { pageOf, Repository, Sort } from "./repository.ts";
 export type { Page, Query, SortDirection, SortNullHandling, SortOrder } from "./repository.ts";

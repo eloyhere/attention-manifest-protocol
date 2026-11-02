@@ -8,6 +8,8 @@
  * depth, content-read and snippet caps.
  */
 import type { WorkspaceEntity } from "../context/workspace.ts";
+import { EnvironmentAvailabilities, EnvironmentCategories } from "../environment/types.ts";
+import type { EnvironmentAvailability, EnvironmentCategory } from "../environment/types.ts";
 import { KnowledgeRegistry } from "../knowledge/registry.ts";
 import type { KnowledgeEntry } from "../knowledge/registry.ts";
 import { ProtocolRegistry } from "../protocol/registry.ts";
@@ -33,6 +35,8 @@ interface NormalizedQuery {
     scope: DiscoveryScope;
     moduleKind?: ModuleKind;
     componentKind?: ComponentKind;
+    category?: EnvironmentCategory;
+    availability?: EnvironmentAvailability;
     extension?: string;
     pathPrefix?: string;
     content: boolean;
@@ -53,6 +57,7 @@ interface WalkState {
     skills: number;
     knowledge: number;
     protocols: number;
+    environments: number;
     moduleCounts: Partial<Record<ModuleKind, number>>;
     contentReads: number;
     contentCache: Map<string, DiscoveryMatch[]>;
@@ -91,6 +96,12 @@ const normalizeQuery: (input?: DiscoveryQuery) => NormalizedQuery = (input: Disc
     if (input.componentKind !== (void 0) && !isComponentKind(input.componentKind)) {
         throw new RangeError(`unknown discovery component kind ${input.componentKind}`);
     }
+    if (input.category !== (void 0) && !(EnvironmentCategories as readonly string[]).includes(input.category)) {
+        throw new RangeError(`unknown discovery environment category ${input.category}`);
+    }
+    if (input.availability !== (void 0) && !(EnvironmentAvailabilities as readonly string[]).includes(input.availability)) {
+        throw new RangeError(`unknown discovery environment availability ${input.availability}`);
+    }
     const maxDepth: number = input.maxDepth ?? DefaultDepth;
     if (!Number.isSafeInteger(maxDepth) || maxDepth < 0 || maxDepth > MaxDepth) {
         throw new RangeError(`discovery maxDepth must be 0..${MaxDepth}`);
@@ -104,6 +115,8 @@ const normalizeQuery: (input?: DiscoveryQuery) => NormalizedQuery = (input: Disc
         scope,
         ...(input.moduleKind === (void 0) ? {} : { moduleKind: input.moduleKind }),
         ...(input.componentKind === (void 0) ? {} : { componentKind: input.componentKind }),
+        ...(input.category === (void 0) ? {} : { category: input.category }),
+        ...(input.availability === (void 0) ? {} : { availability: input.availability }),
         ...(input.extension === (void 0) ? {} : { extension: normalizeExtension(input.extension) }),
         ...(input.pathPrefix === (void 0) ? {} : { pathPrefix: input.pathPrefix }),
         content: input.content === true,
@@ -116,7 +129,7 @@ const metadataText: (entity: WorkspaceEntity) => string = (entity: WorkspaceEnti
     `${entity.label} ${entity.source.uri} ${entity.summary} ${(entity.tags ?? []).join(" ")} ${(entity.searchTerms ?? []).join(" ")}`.toLowerCase();
 
 const componentText: (component: HostComponent) => string = (component: HostComponent): string =>
-    `${component.id} ${component.name} ${component.description} ${component.purpose ?? ""} ${component.version ?? ""} ${component.endpoint ?? ""} ${(component.capabilities ?? []).join(" ")}`.toLowerCase();
+    `${component.id} ${component.name} ${component.description} ${component.purpose ?? ""} ${component.version ?? ""} ${component.endpoint ?? ""} ${component.category ?? ""} ${component.availability ?? ""} ${(component.capabilities ?? []).join(" ")} ${(component.platforms ?? []).join(" ")} ${(component.extensions ?? []).join(" ")} ${(component.relatedIds ?? []).join(" ")} ${(component.skillIds ?? []).join(" ")} ${(component.knowledgeIds ?? []).join(" ")} ${(component.toolIds ?? []).join(" ")} ${(component.protocolIds ?? []).join(" ")}`.toLowerCase();
 
 const projectText: (project: HostProject) => string = (project: HostProject): string =>
     `${project.id} ${project.name} ${project.description} ${project.purpose} ${project.summary} ${(project.tags ?? []).join(" ")}`.toLowerCase();
@@ -148,6 +161,9 @@ const passesStructuralFilters: (entity: WorkspaceEntity, query: NormalizedQuery)
 
 const structuralFiltersActive: (query: NormalizedQuery) => boolean = (query: NormalizedQuery): boolean =>
     query.moduleKind !== (void 0) || query.extension !== (void 0) || query.pathPrefix !== (void 0);
+
+const environmentFiltersActive: (query: NormalizedQuery) => boolean = (query: NormalizedQuery): boolean =>
+    query.category !== (void 0) || query.availability !== (void 0);
 
 const contentMatches: (entity: WorkspaceEntity, query: NormalizedQuery, state: WalkState, contentOf?: (entity: WorkspaceEntity) => string | undefined) => DiscoveryMatch[] = (
     entity: WorkspaceEntity,
@@ -312,11 +328,45 @@ const makeComponentNode: (component: HostComponent, query: NormalizedQuery, stat
     if (component.projectId !== (void 0)) {
         node.projectId = component.projectId;
     }
+    if (component.category !== (void 0)) {
+        node.category = component.category;
+        state.environments += 1;
+    }
+    if (component.availability !== (void 0)) {
+        node.availability = component.availability;
+    }
+    if (component.platforms !== (void 0)) {
+        node.platforms = [...component.platforms];
+    }
+    if (component.extensions !== (void 0)) {
+        node.extensions = [...component.extensions];
+    }
+    if (component.relatedIds !== (void 0)) {
+        node.relatedIds = [...component.relatedIds];
+    }
+    if (component.skillIds !== (void 0)) {
+        node.skillIds = [...component.skillIds];
+    }
+    if (component.knowledgeIds !== (void 0)) {
+        node.knowledgeIds = [...component.knowledgeIds];
+    }
+    if (component.toolIds !== (void 0)) {
+        node.toolIds = [...component.toolIds];
+    }
+    if (component.protocolIds !== (void 0)) {
+        node.protocolIds = [...component.protocolIds];
+    }
     return node;
 };
 
 const componentMatches: (component: HostComponent, query: NormalizedQuery) => boolean = (component: HostComponent, query: NormalizedQuery): boolean => {
     if (query.componentKind !== (void 0) && component.kind !== query.componentKind) {
+        return false;
+    }
+    if (query.category !== (void 0) && component.category !== query.category) {
+        return false;
+    }
+    if (query.availability !== (void 0) && component.availability !== query.availability) {
         return false;
     }
     return query.text === "" || componentText(component).includes(query.text.toLowerCase());
@@ -345,6 +395,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         skills: 0,
         knowledge: 0,
         protocols: 0,
+        environments: 0,
         moduleCounts: {},
         contentReads: 0,
         contentCache: new Map<string, DiscoveryMatch[]>(),
@@ -473,7 +524,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
     };
 
     const projectNodes: DiscoveryNode[] = [];
-    const includeProjects: boolean = query.scope !== "host" && query.scope !== "skills" && query.scope !== "knowledge" && query.scope !== "protocols" && query.componentKind === (void 0);
+    const includeProjects: boolean = query.scope !== "host" && query.scope !== "skills" && query.scope !== "knowledge" && query.scope !== "protocols" && query.componentKind === (void 0) && !environmentFiltersActive(query);
     const includeHost: boolean = (query.scope === "all" || query.scope === "host") && !structuralFiltersActive(query);
     if (includeProjects) {
         for (let index: number = 0; index < projectEntities.length; index += 1) {
@@ -521,7 +572,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
     }
 
     const protocolNodes: DiscoveryNode[] = [];
-    if (query.scope === "all" || query.scope === "protocols") {
+    if ((query.scope === "all" || query.scope === "protocols") && !environmentFiltersActive(query)) {
         const protocols: readonly ProtocolEntry[] = input.protocols === (void 0) ? [] : input.protocols instanceof ProtocolRegistry ? input.protocols.list() : input.protocols;
         for (let index: number = 0; index < protocols.length; index += 1) {
             const protocol: ProtocolEntry = protocols[index];
@@ -550,7 +601,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
     }
 
     const skillNodes: DiscoveryNode[] = [];
-    if (query.scope === "all" || query.scope === "skills") {
+    if ((query.scope === "all" || query.scope === "skills") && !environmentFiltersActive(query)) {
         const skills: readonly SkillEntry[] = input.skills === (void 0) ? [] : input.skills instanceof SkillRegistry ? input.skills.list({ enabledOnly: true }) : input.skills;
         for (let index: number = 0; index < skills.length; index += 1) {
             const skill: SkillEntry = skills[index];
@@ -577,7 +628,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         }
     }
     const knowledgeNodes: DiscoveryNode[] = [];
-    if (query.scope === "all" || query.scope === "knowledge") {
+    if ((query.scope === "all" || query.scope === "knowledge") && !environmentFiltersActive(query)) {
         const knowledgeEntries: readonly KnowledgeEntry[] = input.knowledge === (void 0) ? [] : input.knowledge instanceof KnowledgeRegistry ? input.knowledge.list() : input.knowledge;
         for (let index: number = 0; index < knowledgeEntries.length; index += 1) {
             const knowledge: KnowledgeEntry = knowledgeEntries[index];
@@ -654,6 +705,7 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         skills: state.skills,
         knowledge: state.knowledge,
         protocols: state.protocols,
+        environments: state.environments,
         nodes: state.used,
         truncated: state.truncated,
     };
@@ -664,6 +716,8 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
             scope: query.scope,
             ...(query.moduleKind === (void 0) ? {} : { moduleKind: query.moduleKind }),
             ...(query.componentKind === (void 0) ? {} : { componentKind: query.componentKind }),
+            ...(query.category === (void 0) ? {} : { category: query.category }),
+            ...(query.availability === (void 0) ? {} : { availability: query.availability }),
             ...(query.extension === (void 0) ? {} : { extension: query.extension }),
             ...(query.pathPrefix === (void 0) ? {} : { pathPrefix: query.pathPrefix }),
             content: query.content,
