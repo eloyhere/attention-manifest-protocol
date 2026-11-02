@@ -5,6 +5,9 @@
 import assert from "node:assert/strict";
 
 import { HostCatalog } from "../src/discover/host.ts";
+import { KnowledgeRegistry } from "../src/knowledge/registry.ts";
+import { ProtocolRegistry } from "../src/protocol/registry.ts";
+import { SkillRegistry } from "../src/skill/registry.ts";
 import { buildDiscoveryTree, classifyModule, extensionOf } from "../src/discover/index.ts";
 import type { DiscoveryQuery, DiscoveryTree, HostComponent, HostProject } from "../src/discover/index.ts";
 import type { WorkspaceEntity } from "../src/context/workspace.ts";
@@ -90,6 +93,17 @@ const BuiltIn: HostComponent[] = [
     { id: "amp_tool_workspace_discover", kind: "tool", name: "amp_tool_workspace_discover", description: "Discovery tool", purpose: "Discover modules", status: "active" },
 ];
 
+const Skills: SkillRegistry = new SkillRegistry();
+Skills.register({ id: "skill:review", name: "Code review", description: "Review code for correctness", instructions: "Secret full instructions", capabilities: ["review"], tags: ["quality"] });
+Skills.register({ id: "skill:disabled", name: "Disabled skill", description: "Not available", instructions: "disabled", enabled: false });
+
+const Knowledge: KnowledgeRegistry = new KnowledgeRegistry();
+Knowledge.register({ id: "knowledge:amp", title: "AMP protocol", summary: "Protocol boundaries and evidence", content: "Secret full knowledge body", sourceUri: "docs/protocol.md", tags: ["protocol"], skillIds: ["skill:review"] });
+
+const Protocols: ProtocolRegistry = new ProtocolRegistry();
+Protocols.register({ id: "protocol:amp", name: "AMP", version: "1.0", description: "Attention protocol", status: "deprecated", endpoint: "https://example.test/amp", capabilities: ["discover"] });
+Protocols.register({ id: "protocol:hidden", name: "Hidden", version: "1.0", description: "Disabled protocol", status: "disabled" });
+
 const treeFor: (query?: DiscoveryQuery) => DiscoveryTree = (query: DiscoveryQuery = {}): DiscoveryTree =>
     buildDiscoveryTree({
         revision: Revision,
@@ -97,6 +111,9 @@ const treeFor: (query?: DiscoveryQuery) => DiscoveryTree = (query: DiscoveryQuer
         projects: Projects,
         components: Components,
         builtIn: BuiltIn,
+        skills: Skills,
+        knowledge: Knowledge,
+        protocols: Protocols,
         query,
         contentOf: (item: WorkspaceEntity): string | undefined => (item.detailRef === (void 0) ? undefined : Contents[item.detailRef]),
     });
@@ -167,6 +184,58 @@ test("content search finds a file whose name does not contain the query", () => 
     assert.equal(readme?.contentMatches?.[0]?.line, 3);
     assert.match(readme?.contentMatches?.[0]?.text ?? "", /invoices/);
     assert.equal(tree.summary.matches, 1);
+});
+
+test("discovers registered skills and knowledge without exposing their bodies", () => {
+    const tree: DiscoveryTree = treeFor();
+    assert.equal(tree.summary.skills, 1);
+    assert.equal(tree.summary.knowledge, 1);
+    const skill: DiscoveryTree["tree"] | undefined = findNode(tree.tree.children, "Code review");
+    const knowledge: DiscoveryTree["tree"] | undefined = findNode(tree.tree.children, "AMP protocol");
+    assert.equal(skill?.kind, "skill");
+    assert.equal(skill?.capabilities?.[0], "review");
+    assert.equal(knowledge?.kind, "knowledge");
+    assert.equal(knowledge?.sourceUri, "docs/protocol.md");
+    assert.equal(JSON.stringify(tree).includes("Secret full"), false);
+});
+
+test("skill and knowledge scopes search metadata independently", () => {
+    const skillTree: DiscoveryTree = treeFor({ scope: "skills", text: "quality" });
+    assert.equal(skillTree.summary.skills, 1);
+    assert.equal(skillTree.summary.knowledge, 0);
+    assert.equal(findNode(skillTree.tree.children, "Code review")?.kind, "skill");
+    const knowledgeTree: DiscoveryTree = treeFor({ scope: "knowledge", text: "protocol" });
+    assert.equal(knowledgeTree.summary.knowledge, 1);
+    assert.equal(knowledgeTree.summary.skills, 0);
+});
+
+test("protocol scope exposes enabled metadata and status only", () => {
+    const tree: DiscoveryTree = treeFor({ scope: "protocols", text: "discover" });
+    const node = findNode(tree.tree.children, "AMP");
+    assert.equal(tree.summary.protocols, 1);
+    assert.equal(tree.summary.projects, 0);
+    assert.equal(node?.protocolStatus, "deprecated");
+    assert.equal(node?.endpoint, "https://example.test/amp");
+    assert.deepEqual(node?.capabilities, ["discover"]);
+    assert.equal(findNode(tree.tree.children, "Hidden"), undefined);
+});
+
+test("node limit preserves ancestors of emitted descendants", () => {
+    const tree: DiscoveryTree = treeFor({ scope: "projects", limit: 2 });
+    const count = (node: DiscoveryTree["tree"]): number => 1 + node.children.reduce((total, child): number => total + count(child), 0);
+    assert.equal(count(tree.tree) - tree.tree.children.length - 1, tree.summary.nodes);
+    assert.equal(tree.summary.nodes, 2);
+    assert.equal(tree.summary.truncated, true);
+    assert.equal(tree.tree.children[0]?.children[0]?.kind, "project");
+});
+
+test("registries reject duplicates and return defensive copies", () => {
+    const skills: SkillRegistry = new SkillRegistry();
+    const entry = skills.register({ id: "skill:copy", name: "Copy", description: "Copy test", instructions: "instructions", tags: ["original"] });
+    entry.tags?.push("mutated");
+    assert.deepEqual(skills.get("skill:copy")?.tags, ["original"]);
+    assert.throws(() => skills.register({ id: "skill:copy", name: "Duplicate", description: "Duplicate", instructions: "instructions" }));
+    assert.throws(() => Knowledge.register({ id: "knowledge:amp", title: "Duplicate", summary: "Duplicate", content: "Duplicate" }));
 });
 
 test("host-only scope returns registered components without projects", () => {

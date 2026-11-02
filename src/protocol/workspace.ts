@@ -428,7 +428,7 @@ const Definitions: WorkspaceToolDefinition[] = [
     definition(
         ToolIds.workspaceDiscover,
         "read",
-        "Discover authorized projects, internal modules (service/tool/...), file names and bounded content matches, plus host-registered plugins/services/tools, as one structural tree. Project nodes carry description, purpose and summary. Read-only; snippets are discovery evidence, not a detail grant.",
+        "Discover authorized projects, internal modules (service/tool/...), file names and bounded content matches, plus host-registered plugins/services/tools and registered skills/knowledge/protocols, as one structural tree. Registry nodes expose metadata only. Read-only; snippets are discovery evidence, not a detail grant.",
         {
             revision: Key,
             text: { type: "string", maxLength: 512 },

@@ -15,6 +15,9 @@ import type { WorkspaceRunner, WorkspaceServiceLimits, WorkspaceWriter } from ".
 import type { ContentStore } from "../context/contentStore.ts";
 import type { WorkspaceSnapshot } from "../context/workspace.ts";
 import type { HostCatalog } from "../discover/host.ts";
+import type { KnowledgeRegistry } from "../knowledge/registry.ts";
+import type { ProtocolRegistry } from "../protocol/registry.ts";
+import type { SkillRegistry } from "../skill/registry.ts";
 import type { Frame } from "../frame/frame.ts";
 import type { ContextSnapshot } from "../context/lifecycle.ts";
 import type { Receipt } from "../receipt/receipt.ts";
@@ -31,6 +34,9 @@ export interface GlobalServiceOptions {
      */
     projectIds?: readonly string[];
     host?: HostCatalog;
+    skills?: SkillRegistry;
+    knowledge?: KnowledgeRegistry;
+    protocols?: ProtocolRegistry;
     limits?: Partial<WorkspaceServiceLimits>;
     /**
      * Optional persistence port forwarded to the underlying workspace service.
@@ -61,6 +67,9 @@ export class GlobalAgentService {
             projectIds,
             store: options.store,
             ...(options.host === (void 0) ? {} : { host: options.host }),
+            ...(options.skills === (void 0) ? {} : { skills: options.skills }),
+            ...(options.knowledge === (void 0) ? {} : { knowledge: options.knowledge }),
+            ...(options.protocols === (void 0) ? {} : { protocols: options.protocols }),
             ...(options.limits === (void 0) ? {} : { limits: options.limits }),
             ...(options.writer === (void 0) ? {} : { writer: options.writer }),
             ...(options.runner === (void 0) ? {} : { runner: options.runner }),

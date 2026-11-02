@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-11-02
+
+### Added
+
+- Host-owned `SkillRegistry`, `KnowledgeRegistry` and `ProtocolRegistry` with validated registration, duplicate rejection, defensive copies and deterministic listing.
+- Metadata-only `skills`, `knowledge` and `protocols` discovery scopes, with registry injection through workspace and global agent services. Disabled skills and protocols are excluded from discovery.
+
+### Changed
+
+- Share in-memory registry storage and query mechanics through `InMemoryRegistry` while keeping validation and list policies in each domain.
+
+### Fixed
+
+- Reserve discovery node capacity for ancestors before visiting descendants so tight limits preserve tree structure and accurate summary counts.
+
 ## [Unreleased]
 
 ### Added

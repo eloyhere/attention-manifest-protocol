@@ -8,6 +8,12 @@
  * depth, content-read and snippet caps.
  */
 import type { WorkspaceEntity } from "../context/workspace.ts";
+import { KnowledgeRegistry } from "../knowledge/registry.ts";
+import type { KnowledgeEntry } from "../knowledge/registry.ts";
+import { ProtocolRegistry } from "../protocol/registry.ts";
+import type { ProtocolEntry } from "../protocol/registry.ts";
+import { SkillRegistry } from "../skill/registry.ts";
+import type { SkillEntry } from "../skill/registry.ts";
 import { classifyModule, extensionOf, normalizeExtension } from "./classify.ts";
 import type { ComponentKind, DiscoveryScope, ModuleKind } from "./kinds.ts";
 import { ComponentKinds, DiscoveryScopes, ModuleKinds } from "./kinds.ts";
@@ -44,6 +50,9 @@ interface WalkState {
     plugins: number;
     services: number;
     tools: number;
+    skills: number;
+    knowledge: number;
+    protocols: number;
     moduleCounts: Partial<Record<ModuleKind, number>>;
     contentReads: number;
     contentCache: Map<string, DiscoveryMatch[]>;
@@ -112,6 +121,15 @@ const componentText: (component: HostComponent) => string = (component: HostComp
 const projectText: (project: HostProject) => string = (project: HostProject): string =>
     `${project.id} ${project.name} ${project.description} ${project.purpose} ${project.summary} ${(project.tags ?? []).join(" ")}`.toLowerCase();
 
+const skillText: (skill: SkillEntry) => string = (skill: SkillEntry): string =>
+    `${skill.id} ${skill.name} ${skill.description} ${(skill.tags ?? []).join(" ")} ${(skill.capabilities ?? []).join(" ")}`.toLowerCase();
+
+const knowledgeText: (knowledge: KnowledgeEntry) => string = (knowledge: KnowledgeEntry): string =>
+    `${knowledge.id} ${knowledge.title} ${knowledge.summary} ${knowledge.sourceUri ?? ""} ${(knowledge.tags ?? []).join(" ")}`.toLowerCase();
+
+const protocolText: (protocol: ProtocolEntry) => string = (protocol: ProtocolEntry): string =>
+    `${protocol.id} ${protocol.name} ${protocol.version} ${protocol.description} ${protocol.status ?? "active"} ${protocol.endpoint ?? ""} ${(protocol.capabilities ?? []).join(" ")}`.toLowerCase();
+
 const passesStructuralFilters: (entity: WorkspaceEntity, query: NormalizedQuery) => boolean = (entity: WorkspaceEntity, query: NormalizedQuery): boolean => {
     if (entity.kind !== "file") {
         return true;
@@ -170,7 +188,6 @@ const contentMatches: (entity: WorkspaceEntity, query: NormalizedQuery, state: W
 
 const makeEntityNode: (
     entity: WorkspaceEntity,
-    query: NormalizedQuery,
     state: WalkState,
     matched: boolean,
     matches: DiscoveryMatch[],
@@ -178,9 +195,8 @@ const makeEntityNode: (
     truncated: boolean,
     hostProjectByRoot: ReadonlyMap<string, HostProject>,
     usedHostProjects: Set<string>,
-) => DiscoveryNode | undefined = (
+) => DiscoveryNode = (
     entity: WorkspaceEntity,
-    query: NormalizedQuery,
     state: WalkState,
     matched: boolean,
     matches: DiscoveryMatch[],
@@ -188,12 +204,7 @@ const makeEntityNode: (
     truncated: boolean,
     hostProjectByRoot: ReadonlyMap<string, HostProject>,
     usedHostProjects: Set<string>,
-): DiscoveryNode | undefined => {
-    if (state.used >= query.limit) {
-        state.truncated = true;
-        return undefined;
-    }
-    state.used += 1;
+): DiscoveryNode => {
     const hostProject: HostProject | undefined = entity.kind === "project" ? hostProjectByRoot.get(entity.id) : undefined;
     const node: DiscoveryNode = {
         id: entity.id,
@@ -331,6 +342,9 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         plugins: 0,
         services: 0,
         tools: 0,
+        skills: 0,
+        knowledge: 0,
+        protocols: 0,
         moduleCounts: {},
         contentReads: 0,
         contentCache: new Map<string, DiscoveryMatch[]>(),
@@ -407,6 +421,15 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         const fileMatched: boolean = entity.kind === "file" && structural && (query.text === "" || textMatched || matches.length > 0);
         const projectMatched: boolean = entity.kind === "project" && query.text === "" && !structuralFiltersActive(query);
         const selfMatched: boolean = fileMatched || projectMatched || textMatched;
+        if (state.used >= query.limit) {
+            const matched: boolean = selfMatched || hasMatchInSubtree(entity);
+            if (matched) {
+                state.truncated = true;
+            }
+            return { node: null, matched, cut: matched };
+        }
+        // Reserve an ancestor before walking descendants; release it if none match.
+        state.used += 1;
         const childEntities: WorkspaceEntity[] = childrenByParent.get(entity.id) ?? [];
         const children: DiscoveryNode[] = [];
         let childMatched: boolean = false;
@@ -430,14 +453,14 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
             }
         }
         if (!selfMatched && !childMatched && !cut) {
+            state.used -= 1;
             return { node: null, matched: false, cut: false };
         }
         if (cut) {
             state.truncated = true;
         }
-        const node: DiscoveryNode | undefined = makeEntityNode(
+        const node: DiscoveryNode = makeEntityNode(
             entity,
-            query,
             state,
             selfMatched,
             matches,
@@ -446,12 +469,12 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
             hostProjectByRoot,
             usedHostProjects,
         );
-        return node === (void 0) ? { node: null, matched: true, cut: true } : { node, matched: true, cut };
+        return { node, matched: true, cut };
     };
 
     const projectNodes: DiscoveryNode[] = [];
-    const includeProjects: boolean = query.scope !== "host" && query.componentKind === (void 0);
-    const includeHost: boolean = query.scope !== "projects" && !structuralFiltersActive(query);
+    const includeProjects: boolean = query.scope !== "host" && query.scope !== "skills" && query.scope !== "knowledge" && query.scope !== "protocols" && query.componentKind === (void 0);
+    const includeHost: boolean = (query.scope === "all" || query.scope === "host") && !structuralFiltersActive(query);
     if (includeProjects) {
         for (let index: number = 0; index < projectEntities.length; index += 1) {
             const result: WalkResult = walk(projectEntities[index], 0);
@@ -497,11 +520,96 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         }
     }
 
+    const protocolNodes: DiscoveryNode[] = [];
+    if (query.scope === "all" || query.scope === "protocols") {
+        const protocols: readonly ProtocolEntry[] = input.protocols === (void 0) ? [] : input.protocols instanceof ProtocolRegistry ? input.protocols.list() : input.protocols;
+        for (let index: number = 0; index < protocols.length; index += 1) {
+            const protocol: ProtocolEntry = protocols[index];
+            if (protocol.status === "disabled" || (query.text !== "" && !protocolText(protocol).includes(query.text.toLowerCase()))) {
+                continue;
+            }
+            if (state.used >= query.limit) {
+                state.truncated = true;
+                break;
+            }
+            state.used += 1;
+            state.protocols += 1;
+            protocolNodes.push({
+                id: protocol.id,
+                kind: "protocol",
+                label: protocol.name,
+                description: protocol.description,
+                version: protocol.version,
+                ...(protocol.endpoint === (void 0) ? {} : { endpoint: protocol.endpoint }),
+                ...(protocol.capabilities === (void 0) ? {} : { capabilities: [...protocol.capabilities] }),
+                protocolStatus: protocol.status ?? "active",
+                matched: true,
+                children: [],
+            });
+        }
+    }
+
+    const skillNodes: DiscoveryNode[] = [];
+    if (query.scope === "all" || query.scope === "skills") {
+        const skills: readonly SkillEntry[] = input.skills === (void 0) ? [] : input.skills instanceof SkillRegistry ? input.skills.list({ enabledOnly: true }) : input.skills;
+        for (let index: number = 0; index < skills.length; index += 1) {
+            const skill: SkillEntry = skills[index];
+            if (skill.enabled === false || (query.text !== "" && !skillText(skill).includes(query.text.toLowerCase()))) {
+                continue;
+            }
+            if (state.used >= query.limit) {
+                state.truncated = true;
+                break;
+            }
+            state.used += 1;
+            state.skills += 1;
+            skillNodes.push({
+                id: skill.id,
+                kind: "skill",
+                label: skill.name,
+                description: skill.description,
+                ...(skill.version === (void 0) ? {} : { version: skill.version }),
+                ...(skill.capabilities === (void 0) ? {} : { capabilities: [...skill.capabilities] }),
+                ...(skill.tags === (void 0) ? {} : { tags: [...skill.tags] }),
+                matched: true,
+                children: [],
+            });
+        }
+    }
+    const knowledgeNodes: DiscoveryNode[] = [];
+    if (query.scope === "all" || query.scope === "knowledge") {
+        const knowledgeEntries: readonly KnowledgeEntry[] = input.knowledge === (void 0) ? [] : input.knowledge instanceof KnowledgeRegistry ? input.knowledge.list() : input.knowledge;
+        for (let index: number = 0; index < knowledgeEntries.length; index += 1) {
+            const knowledge: KnowledgeEntry = knowledgeEntries[index];
+            if (query.text !== "" && !knowledgeText(knowledge).includes(query.text.toLowerCase())) {
+                continue;
+            }
+            if (state.used >= query.limit) {
+                state.truncated = true;
+                break;
+            }
+            state.used += 1;
+            state.knowledge += 1;
+            knowledgeNodes.push({
+                id: knowledge.id,
+                kind: "knowledge",
+                label: knowledge.title,
+                description: knowledge.summary,
+                ...(knowledge.sourceUri === (void 0) ? {} : { sourceUri: knowledge.sourceUri }),
+                ...(knowledge.version === (void 0) ? {} : { version: knowledge.version }),
+                ...(knowledge.tags === (void 0) ? {} : { tags: [...knowledge.tags] }),
+                ...(knowledge.skillIds === (void 0) ? {} : { skillIds: [...knowledge.skillIds] }),
+                matched: true,
+                children: [],
+            });
+        }
+    }
+
     const root: DiscoveryNode = {
         id: "discover:host",
         kind: "host",
         label: "host",
-        description: "Authorized projects, internal modules, files and host-registered components.",
+        description: "Authorized projects, host components, skills, knowledge and protocols.",
         matched: true,
         children: [],
     };
@@ -524,6 +632,17 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         }
     }
 
+    for (const [label, nodes] of [
+        ["skills", skillNodes],
+        ["knowledge", knowledgeNodes],
+        ["protocols", protocolNodes],
+    ] as const) {
+        if (nodes.length > 0) {
+            nodes.sort((left: DiscoveryNode, right: DiscoveryNode): number => left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
+            root.children.push({ id: `discover:${label}`, kind: "group", label, matched: true, children: nodes });
+        }
+    }
+
     const summary: DiscoverySummary = {
         projects: state.projects,
         modules: state.modules,
@@ -532,6 +651,9 @@ export const buildDiscoveryTree: (input: DiscoveryInput) => DiscoveryTree = (inp
         plugins: state.plugins,
         services: state.services,
         tools: state.tools,
+        skills: state.skills,
+        knowledge: state.knowledge,
+        protocols: state.protocols,
         nodes: state.used,
         truncated: state.truncated,
     };

@@ -9,6 +9,9 @@ import { BoundaryRejection } from "../error/boundaryRejection.ts";
 import { parseShort, rawTextDigest } from "../fingerprint/index.ts";
 import type { Frame } from "../frame/frame.ts";
 import { HostCatalog } from "../discover/host.ts";
+import type { KnowledgeRegistry } from "../knowledge/registry.ts";
+import type { ProtocolRegistry } from "../protocol/registry.ts";
+import type { SkillRegistry } from "../skill/registry.ts";
 import { buildDiscoveryTree } from "../discover/tree.ts";
 import type { ComponentKind, DiscoveryQuery, DiscoveryScope, HostComponent, ModuleKind } from "../discover/index.ts";
 import { buildCatalog, deprecatedToolAliases, resolveToolName, ToolIds } from "../naming/index.ts";
@@ -162,6 +165,9 @@ export interface WorkspaceServiceOptions {
      * components are filtered against `projectIds` before discovery sees them.
      */
     host?: HostCatalog;
+    skills?: SkillRegistry;
+    knowledge?: KnowledgeRegistry;
+    protocols?: ProtocolRegistry;
 }
 
 interface Allocation {
@@ -734,6 +740,9 @@ export class WorkspaceAgentService {
     private readonly roots: WorkspaceEntity[];
     private readonly definitions: WorkspaceToolDefinition[] = workspaceToolDefinitions();
     private readonly host: HostCatalog;
+    private readonly skills?: SkillRegistry;
+    private readonly knowledge?: KnowledgeRegistry;
+    private readonly protocols?: ProtocolRegistry;
     private readonly projectIds: Set<string>;
     private readonly store: ContentStore;
     private readonly writer?: WorkspaceWriter;
@@ -760,6 +769,9 @@ export class WorkspaceAgentService {
         }
         this.agentId = options.agentId;
         this.host = options.host ?? new HostCatalog();
+        this.skills = options.skills;
+        this.knowledge = options.knowledge;
+        this.protocols = options.protocols;
         this.projectIds = new Set<string>(options.projectIds);
         this.writer = options.writer;
         this.runner = options.runner;
@@ -1116,6 +1128,9 @@ export class WorkspaceAgentService {
             projects,
             components,
             builtIn: this.builtInComponents(),
+            ...(this.skills === (void 0) ? {} : { skills: this.skills }),
+            ...(this.knowledge === (void 0) ? {} : { knowledge: this.knowledge }),
+            ...(this.protocols === (void 0) ? {} : { protocols: this.protocols }),
             query,
             contentOf: (entity: WorkspaceEntity): string | undefined => {
                 if (entity.detailRef === (void 0)) {

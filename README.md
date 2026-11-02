@@ -53,7 +53,9 @@ Offline parsers live in `tools/support/`. The runtime stays database-free and us
 
 ### Discovery
 
-`amp_tool_workspace_discover` returns one structural tree over the authorized projects. File nodes carry a module kind (`service`, `tool`, `controller`, `route`, `repository`, `model`, `config`, `test`, `middleware`, `component`, `util`), an extension and bounded content matches. Hosts register project descriptions, purposes, summaries, plugins, services and tools through `HostCatalog`; project metadata is attached to project nodes, and an unregistered project falls back to its workspace summary. Discovery is read-only, never widens `projectIds`, and returns snippets as discovery evidence rather than as a Frame-allocated detail read.
+`amp_tool_workspace_discover` returns one structural tree over authorized projects, host components, skills, knowledge and protocols. File nodes carry a module kind (`service`, `tool`, `controller`, `route`, `repository`, `model`, `config`, `test`, `middleware`, `component`, `util`), an extension and bounded content matches. Hosts register projects and components through `HostCatalog`, reusable instructions through `SkillRegistry`, source-aware entries through `KnowledgeRegistry`, and protocol metadata through `ProtocolRegistry`. Discovery exposes skill/knowledge/protocol metadata only; full entries are fetched from their registries by ID. Discovery is read-only, never widens `projectIds`, and returns snippets as discovery evidence rather than as a Frame-allocated detail read.
+
+These registries are domain-owned catalogs, not a mandate to duplicate every concept as a generic registry. Existing runtime state and policies for ability, cognition, progress and behavior should stay in their domain models; add a read-only catalog/discovery projection only when enumeration is needed. Agents should not write directly to active registries by default. A future contribution flow should create a sourced, versioned proposal and require host authorization, review and audit before activation.
 
 ## Quick start
 

@@ -21,3 +21,5 @@ export type {
 } from "./registry.ts";
 export { collectDirectory, diffDirectory, digestDirectory } from "./content.ts";
 export type { ContentEntry } from "./content.ts";
+export { InMemoryRegistry } from "./memory.ts";
+export type { InMemoryRegistryListOptions } from "./memory.ts";

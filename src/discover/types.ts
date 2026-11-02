@@ -3,6 +3,9 @@
  * authorized workspace snapshot.
  */
 import type { WorkspaceEntity, WorkspaceEntityKind } from "../context/workspace.ts";
+import type { KnowledgeEntry, KnowledgeRegistry } from "../knowledge/registry.ts";
+import type { ProtocolEntry, ProtocolRegistry } from "../protocol/registry.ts";
+import type { SkillEntry, SkillRegistry } from "../skill/registry.ts";
 import type { ComponentKind, ComponentStatus, DiscoveryScope, ModuleKind } from "./kinds.ts";
 
 /**
@@ -45,7 +48,7 @@ export interface DiscoveryMatch {
     text: string;
 }
 
-export type DiscoveryNodeKind = "host" | "group" | WorkspaceEntityKind | ComponentKind;
+export type DiscoveryNodeKind = "host" | "group" | WorkspaceEntityKind | ComponentKind | "skill" | "knowledge" | "protocol";
 
 /**
  * One node of the discovery tree. Project nodes carry description, purpose and
@@ -67,6 +70,9 @@ export interface DiscoveryNode {
     endpoint?: string;
     capabilities?: string[];
     projectId?: string;
+    tags?: string[];
+    skillIds?: string[];
+    protocolStatus?: "active" | "deprecated" | "disabled";
     matched: boolean;
     truncated?: boolean;
     contentMatches?: DiscoveryMatch[];
@@ -97,6 +103,10 @@ export interface DiscoverySummary {
     plugins: number;
     services: number;
     tools: number;
+    /** Optional for consumers constructing pre-registry discovery summaries. */
+    skills?: number;
+    knowledge?: number;
+    protocols?: number;
     nodes: number;
     truncated: boolean;
 }
@@ -119,6 +129,9 @@ export interface DiscoveryInput {
      * `amp.workspace` service and its tools. Host components win on id clashes.
      */
     builtIn?: readonly HostComponent[];
+    skills?: readonly SkillEntry[] | SkillRegistry;
+    knowledge?: readonly KnowledgeEntry[] | KnowledgeRegistry;
+    protocols?: readonly ProtocolEntry[] | ProtocolRegistry;
     query?: DiscoveryQuery;
     contentOf?: (entity: WorkspaceEntity) => string | undefined;
 }

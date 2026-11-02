@@ -38,7 +38,7 @@ Context 使用结构树和类型化关系图。项目依赖、导入、调用与
 - MCP 执行、参数 Schema 校验、摘要固定与旧式握手回退，以及 A2A 发现与消息绑定。
 - 项目树、项目依赖图、TS/JS 的部分静态导入/调用/引用图，以及知识库词法检索。
 - Agent 工作区：`File`/`Directory` 树（指纹、字符集、bigint 行数/字节数、时间、描述/摘要/用途）；分页读、CAS 原子写、按策略提取的大纲（代码/项目/文章/Office）；import/export/dependency 图（Tarjan SCC、拓扑序、有界闭包）；Session 身份与上下文隔离；`src/hook` 组合层；SQLite 实体与仓储。
-- 宿主发现：以一棵结构树返回获准项目、内部模块（service/tool/controller/route/repository/model/config/test/...）、文件名、有界内容匹配，以及宿主注册的插件、服务与工具。项目节点带描述、用途与简介。
+- 宿主发现：以一棵结构树返回获准项目、内部模块（service/tool/controller/route/repository/model/config/test/...）、文件名、有界内容匹配，以及宿主注册的插件、服务、工具、skills 和 knowledge。项目节点带描述、用途与简介；skill/knowledge 节点只暴露元数据，详情由注册中心按 ID 查询。
 - Markdown、TXT、DOCX、XLSX、PPTX、TeX/LaTeX/BibTeX 的结构提取、原生定位与摘要/详情分层。
 - `amp_protocol_workspace` v1 服务、8 个 agent 工具、本地运行时接入与 MCP stdio 服务端。
 - 带显式策略的指纹：值使用 RFC 8785 规范化 JSON，文件按字节哈希，目录树使用域分隔的 Merkle 根，`verify` 比较算法、`kind` 与策略，而不是只比对裸十六进制字符串。未配对代理项与 `-0` 被拒绝，而不是被静默改写。
@@ -53,7 +53,9 @@ Context 使用结构树和类型化关系图。项目依赖、导入、调用与
 
 ### 发现
 
-`amp_tool_workspace_discover` 以一棵结构树返回获准项目。文件节点带模块分类（`service`、`tool`、`controller`、`route`、`repository`、`model`、`config`、`test`、`middleware`、`component`、`util`）、扩展名与有界内容匹配。宿主通过 `HostCatalog` 登记项目的描述、用途、简介，以及插件、服务和工具；项目元数据附在项目节点上，未登记的项目回退到 workspace 摘要。发现是只读的，不会扩大 `projectIds`；内容匹配只是发现证据，不能替代 Frame 分配后的详情读取。
+`amp_tool_workspace_discover` 以一棵结构树返回获准项目、宿主组件、skill、knowledge 与 protocol。文件节点带模块分类（`service`、`tool`、`controller`、`route`、`repository`、`model`、`config`、`test`、`middleware`、`component`、`util`）、扩展名与有界内容匹配。宿主通过 `HostCatalog` 登记项目与插件/服务/工具，通过 `SkillRegistry`、`KnowledgeRegistry`、`ProtocolRegistry` 登记可复用指令、知识条目与协议元数据。发现只暴露 skill/knowledge/protocol 元数据，不返回指令或正文；注册中心按 ID 提供完整条目。发现是只读的，不会扩大 `projectIds`；内容匹配只是发现证据，不能替代 Frame 分配后的详情读取。
+
+这些 registry 是各自领域的宿主目录，不要求每个概念都复制成同构 registry。Ability、cognition、progress 等若已有运行时状态、策略或事件模型，应由现有领域模块维护；需要统一枚举时增加只读 catalog/discovery 投影即可。Agent 默认只读正式目录；可选的登记工作流应先创建带来源、版本和提案状态的候选项，再经宿主权限校验、人工审核与审计后发布，不授予模型直接改写已生效条目的能力。
 
 ## 快速开始
 
@@ -220,11 +222,13 @@ Frame、快照、ContentStore 与后备执行器由宿主提供；将 `tools` / 
 | [src/naming](src/naming/) | 冻结的 ID 表、ID 文法、兼容别名与 catalog 摘要 |
 | [src/context](src/context/) | Context 生命周期、树/图投影、CAS、工作区事实、上下文装配与 agent 服务 |
 | [src/session](src/session/) | 身份、令牌、TTL、上下文隔离、fork/revoke/rotate |
+| [src/skill](src/skill/) | 可复用 agent skill 注册、校验、查询与隔离副本 |
+| [src/knowledge](src/knowledge/) | 带来源元数据的 knowledge 注册、校验、查询与隔离副本 |
+| [src/protocol](src/protocol/) | 线上协议契约、通道，以及宿主维护的协议元数据注册中心 |
 | [src/file](src/file/) | File/Directory 树、元数据、分页读、原子写、会话运行时/服务、模块图与 ZIP/CFB 容器 |
 | [src/syntax](src/syntax/) | 字符集检测/编解码、字节/行索引、语法注册表与无损只读语法树 |
 | [src/outline](src/outline/) | 代码/文档大纲、范围与标签索引、关键字/策略注册表、React/Shell/SQL/Visual Basic 策略与 Office 解析 |
 | [src/hook](src/hook/) | 面向 agent 的组合 hooks 与运行记录 |
-| [src/protocol](src/protocol/) | 线上契约：信封、A2A、通道与 `amp_protocol_workspace` 接口 |
 | [src/module](src/module/) | 模型/工具端口、MCP 适配器与执行策略 |
 | [src/runtime](src/runtime/) | agent 回合、工具循环与治理接入 |
 | [src/governance](src/governance/) | 清单、凭据、预算、工作流、签名与审计 |

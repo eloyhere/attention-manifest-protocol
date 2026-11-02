@@ -5,6 +5,21 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.6] - 2026-11-02
+
+### 新增
+
+- 宿主维护的 `SkillRegistry`、`KnowledgeRegistry` 与 `ProtocolRegistry`，支持登记校验、重复 ID 拒绝、防御性副本与稳定列表。
+- 只返回元数据的 `skills`、`knowledge`、`protocols` 发现范围，并贯通 workspace/global agent 服务的注册中心注入；发现时排除禁用的 skill 与 protocol。
+
+### 变更
+
+- 通过 `InMemoryRegistry` 复用内存存储与查询机制，各领域保留独立校验和列表策略。
+
+### 修复
+
+- 发现树先为祖先预留节点容量，紧凑预算下仍保留树结构并准确统计节点。
+
 ## [未发布]
 
 ### 新增

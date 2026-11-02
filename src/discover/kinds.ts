@@ -26,7 +26,7 @@ export const ComponentKinds = ["plugin", "service", "tool", "module"] as const;
 
 export type ComponentKind = (typeof ComponentKinds)[number];
 
-export const DiscoveryScopes = ["all", "projects", "host"] as const;
+export const DiscoveryScopes = ["all", "projects", "host", "skills", "knowledge", "protocols"] as const;
 
 export type DiscoveryScope = (typeof DiscoveryScopes)[number];
 

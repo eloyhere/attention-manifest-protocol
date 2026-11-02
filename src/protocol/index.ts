@@ -8,3 +8,4 @@ export * from "./workspace.ts";
 export * from "./global.ts";
 export * from "./filesystem.ts";
 export * from "./globalFilesystem.ts";
+export * from "./registry.ts";
