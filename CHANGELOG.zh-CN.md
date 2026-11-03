@@ -5,6 +5,18 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.1] - 2026-11-03
+
+### 新增
+
+- `ProtocolRegistry` 可为已登记的协议绑定运行时实现：`bind`、`implementation`、`resolveImplementation`（带类型守卫，可选 family 校验）与 `bound`。实现按引用保存，不会出现在发现元数据中；`remove`/`clear` 会连同条目一起丢弃已绑定的实现。
+- `ProtocolEntry.family` 标注协议族，登记到 `ProtocolRegistry` 的条目可按协议（`mcp`、`a2a` 等）筛选。
+- MCP 作为具体协议登记，而不是单开注册中心：`mcpProtocolEntry` 生成携带协议版本、endpoint 与能力的 `family: "mcp"` 条目，`mcpListTools`、`mcpSyncTools` 与 `mcpWithdrawTools` 通过绑定实现读取并镜像该 endpoint 的工具。
+
+### 验证
+
+- 联合回归 189/189 与 50/50 通过（协议、注册中心、发现、MCP 执行器、工作区与数据库套件）；源代码与工具两套类型检查通过。
+
 ## [0.6.0] - 2026-11-03
 
 ### 新增

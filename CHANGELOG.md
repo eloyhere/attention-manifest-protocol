@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-11-03
+
+### Added
+
+- `ProtocolRegistry` can bind a runtime implementation to a registered protocol entry: `bind`, `implementation`, `resolveImplementation` (type-guarded, optional family check) and `bound`. Implementations are stored by reference and never appear in discovery metadata, and `remove`/`clear` drop the bound implementation together with the entry.
+- `ProtocolEntry.family` names the protocol family, so entries registered by `ProtocolRegistry` can be filtered by protocol (`mcp`, `a2a`, ...).
+- MCP is registered as a concrete protocol rather than a separate registry: `mcpProtocolEntry` builds a `family: "mcp"` entry with its protocol version, endpoint and capabilities, and `mcpListTools`, `mcpSyncTools` and `mcpWithdrawTools` read and mirror an endpoint's tools through the bound implementation.
+
+### Validation
+
+- Joint regression: 189/189 and 50/50 across protocol, registry, discovery, MCP executor, workspace and database suites; source and tools typechecks passed.
+
 ## [0.6.0] - 2026-11-03
 
 ### Added

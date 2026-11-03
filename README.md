@@ -208,6 +208,8 @@ await diff.run({ path: "src/new.ts", before: "" });
 
 ### MCP stdio
 
+MCP is a concrete protocol, so it is registered in `ProtocolRegistry` rather than a registry of its own. `mcpProtocolEntry(id, name, options)` builds a `family: "mcp"` entry carrying the protocol version (default `2026-07-28`), endpoint and capabilities; `protocols.bind(id, implementation)` attaches the host-built client and transport, and discovery keeps exposing only the entry's metadata. `protocols.resolveImplementation(id, isMcpProtocol, "mcp")` returns the bound endpoint or `undefined` when the family or the object does not match, `mcpListTools(protocol)` reads the advertised tools, `mcpSyncTools(protocol, toolRegistry)` registers new tools, updates changed ones in place and removes tools the endpoint no longer advertises, and `mcpWithdrawTools` drops one endpoint's tools without touching host tools or other protocols. Risk comes only from annotations (`destructiveHint` → destructive, `readOnlyHint` → read, otherwise write), and nothing here turns a URL string into a connection, so registering cannot make the agent reach a host it was not given. `ProtocolRegistry.remove`/`clear` drop the bound implementation together with the entry.
+
 ```sh
 npm run workspace-agent-demo
 npm run workspace-agent -- --config .cache/workspace-agent.local

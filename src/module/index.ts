@@ -9,6 +9,7 @@ export * from "./tool/globalExecutor.ts";
 export * from "./tool/controlExecutor.ts";
 export * from "./tool/filesystemExecutor.ts";
 export * from "./tool/globalFilesystemExecutor.ts";
+export * from "./mcp/binding.ts";
 export * from "./mcp/workspaceServer.ts";
 export * from "./mcp/filesystemServer.ts";
 export * from "./sandbox/sandbox.ts";

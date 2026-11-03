@@ -211,6 +211,8 @@ await diff.run({ path: "src/new.ts", before: "" });
 
 ### MCP stdio 接入
 
+MCP 是一种具体协议，因此登记在 `ProtocolRegistry` 中，而不是单开一个注册中心。`mcpProtocolEntry(id, name, options)` 生成 `family: "mcp"` 的协议条目，携带协议版本（默认 `2026-07-28`）、endpoint 与能力；`protocols.bind(id, implementation)` 绑定宿主自己建好的 client 与 transport，发现接口仍只暴露条目元数据。`protocols.resolveImplementation(id, isMcpProtocol, "mcp")` 在 family 或对象不匹配时返回 `undefined`；`mcpListTools(protocol)` 读取通告的工具，`mcpSyncTools(protocol, toolRegistry)` 注册新工具、原地更新变化的工具、移除 endpoint 不再通告的工具，`mcpWithdrawTools` 撤下一个 endpoint 的工具而不影响宿主工具和其他协议。风险等级只由注解决定（`destructiveHint` → destructive，`readOnlyHint` → read，其余为 write），且不会把 URL 字符串变成连接，因此登记不能让 agent 访问未经宿主的地址。`ProtocolRegistry.remove`/`clear` 会连同条目一起丢弃已绑定的实现。
+
 ```sh
 npm run workspace-agent-demo
 npm run workspace-agent -- --config .cache/workspace-agent.local
