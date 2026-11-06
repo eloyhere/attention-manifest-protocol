@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { isObject, SynchronousOrderedMap, useFrom } from "semantic-typescript";
 import type { Optional } from "semantic-typescript";
 import { WorkspaceError } from "../workspace/types.ts";
+import {
+    describeEnvironment as renderEnvironment, emptyEnvironment, mergeEnvironment, planEnvironment, validateEnvironment,
+    type EnvironmentPatch, type EnvironmentPlan, type ProjectEnvironment,
+} from "./environment.ts";
 import type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind } from "./types.ts";
 
 const clone = <T>(value: T): T => isObject(value) ? structuredClone(value) as T : value;
@@ -23,12 +27,86 @@ export class Project {
     private readonly metadata = new SynchronousOrderedMap<string, ProjectMetadata>();
     private readonly views = new SynchronousOrderedMap<ViewKind, ProjectView>();
     private readonly clock: () => string;
+    private environmentValue: ProjectEnvironment;
+    private environmentVersionValue = 0;
+    private readonly kindId?: string;
+    private readonly extraGuidance: readonly string[];
 
     constructor(options: ProjectOptions) {
         if (!options.tenantId || !options.rootId) throw new WorkspaceError("invalid_project", "tenantId and rootId are required");
         this.tenantId = options.tenantId;
         this.rootId = options.rootId;
         this.clock = options.clock ?? nowIso;
+        this.kindId = options.kind;
+        this.extraGuidance = Object.freeze([...(options.guidance ?? [])]);
+        try {
+            this.environmentValue = mergeEnvironment(emptyEnvironment(), options.environment ?? {});
+        } catch (error) {
+            throw new WorkspaceError("invalid_project", error instanceof Error ? error.message : String(error));
+        }
+    }
+
+    /** Current project environment (frozen). */
+    get environment(): ProjectEnvironment {
+        return this.environmentValue;
+    }
+
+    /** Monotonic environment revision, independent of rule/view versions. */
+    get environmentVersion(): number {
+        return this.environmentVersionValue;
+    }
+
+    /** Project kind this environment was initialized from, when known. */
+    get kind(): string | undefined {
+        return this.kindId;
+    }
+
+    /**
+     * Overlays variables, paths and dependencies on the current environment.
+     * A variable set to "" means "declared but unset" and becomes a configuration gap.
+     */
+    configureEnvironment(patch: EnvironmentPatch, options: { readonly expectedVersion?: number } = {}): ProjectEnvironment {
+        this.assertEnvironmentVersion(options.expectedVersion);
+        let next: ProjectEnvironment;
+        try {
+            next = mergeEnvironment(this.environmentValue, patch);
+            validateEnvironment(next);
+        } catch (error) {
+            throw new WorkspaceError("invalid_project", error instanceof Error ? error.message : String(error));
+        }
+        this.environmentValue = next;
+        this.environmentVersionValue += 1;
+        return next;
+    }
+
+    /** Replaces the whole environment (removing entries the new value does not declare). */
+    setEnvironment(environment: ProjectEnvironment, options: { readonly expectedVersion?: number } = {}): ProjectEnvironment {
+        this.assertEnvironmentVersion(options.expectedVersion);
+        let next: ProjectEnvironment;
+        try {
+            next = mergeEnvironment(emptyEnvironment(), environment);
+            validateEnvironment(next);
+        } catch (error) {
+            throw new WorkspaceError("invalid_project", error instanceof Error ? error.message : String(error));
+        }
+        this.environmentValue = next;
+        this.environmentVersionValue += 1;
+        return next;
+    }
+
+    /** Computes the gaps an agent must still configure, using current project metadata paths. */
+    environmentPlan(): EnvironmentPlan {
+        return planEnvironment(this.environmentValue, {
+            ...(this.kindId === undefined ? {} : { kind: this.kindId }),
+            version: this.environmentVersionValue,
+            guidance: this.extraGuidance,
+            presentPaths: this.metadata.keySet().toArray(),
+        });
+    }
+
+    /** Agent-facing configuration brief (Markdown) for the current environment. */
+    describeEnvironment(): string {
+        return renderEnvironment(this.environmentPlan());
     }
 
     putRule(input: ProjectRuleInput): ProjectRule {
@@ -129,6 +207,12 @@ export class Project {
 
     private assertScope(value: ProjectScope): void {
         requireScope(value, { tenantId: this.tenantId, rootId: this.rootId });
+    }
+
+    private assertEnvironmentVersion(expected?: number): void {
+        if (expected !== undefined && expected !== this.environmentVersionValue) {
+            throw new WorkspaceError("version_conflict", `environment is at version ${this.environmentVersionValue}, expected ${expected}`);
+        }
     }
 
     private collect<T>(source: SynchronousOrderedMap<string, T> | SynchronousOrderedMap<ViewKind, T>): T[] {

@@ -1,8 +1,8 @@
-import { parseDocx } from "../document/docx.ts";
+import { parseWord } from "../document/office.ts";
 import type { DocumentParserPort } from "../document/types.ts";
 import type { LanguageDefinition } from "./types.ts";
 
-export const documentParser: DocumentParserPort = Object.freeze({ language: "word", parse: parseDocx });
+export const documentParser: DocumentParserPort = Object.freeze({ language: "word", parse: parseWord });
 
 export const definition: LanguageDefinition = Object.freeze({
     id: "word", displayName: "Word document",

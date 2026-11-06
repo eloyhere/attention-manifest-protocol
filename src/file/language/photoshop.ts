@@ -2,7 +2,7 @@ import { parsePsd } from "../document/photoshop.ts";
 import type { DocumentParserPort } from "../document/types.ts";
 import type { LanguageDefinition } from "./types.ts";
 
-/** PSD/PSB outline adapter; `parsePsd` validates PSB headers but only outlines PSD layers. */
+/** PSD v1 and PSB v2 outline adapter: layer tree, groups, names, bounds; pixel data is not decoded. */
 export const documentParser: DocumentParserPort = Object.freeze({ language: "photoshop", parse: parsePsd });
 
 export const definition: LanguageDefinition = Object.freeze({

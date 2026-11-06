@@ -1,20 +1,46 @@
 /**
- * CAD (`.dxf`) outline reader with an explicit DWG refusal.
+ * CAD (`.dxf`, `.dwg`) outline reader.
  *
- * Scope: the ASCII DXF group-code stream is read as `code` / `value` pairs. The reader
+ * DXF scope: the ASCII DXF group-code stream is read as `code` / `value` pairs. The reader
  * collects layers from the LAYER table (`0 LAYER`, `2 <name>`, optional `62 <color>`),
  * block names from the BLOCKS section (`0 BLOCK`, `2 <name>`), and counts entity types in
  * the ENTITIES section (`0 LINE`, `0 CIRCLE`, ...). Layers and blocks become `"section"`
- * entries and entity types become `"note"` entries with their occurrence count.
+ * entries and entity types become `"note"` entries with their occurrence count. Geometry,
+ * handles, tables other than LAYER, block contents, extents, xdata and binary DXF are not
+ * decoded. Missing SECTION/ENDSEC pairs and unknown group codes are tolerated; a group
+ * code that is not an integer is `invalid_document`.
  *
- * This is a structural preview, not a DXF implementation: geometry, handles, tables other
- * than LAYER, block contents, extents, xdata, binary DXF and DWG payloads are not decoded.
- * Missing SECTION/ENDSEC pairs and unknown group codes are tolerated; a group code that is
- * not an integer is `invalid_document`. DWG (signature `AC10`) is proprietary binary and is
- * refused with `unsupported_format` - export DXF for an outline.
+ * DWG scope: the six-byte version stamp is recognized for R10 through R2018. R13, R14 and
+ * R2000 (AC1012/AC1014/AC1015) expose an uncompressed section locator table: a signed
+ * 32-bit section count at 0x15 followed by locator records from 0x19. Two encodings are
+ * accepted, selected by which count/table shape fits the file:
  *
- * Limits default to `defaultDocumentLimits` and may be narrowed; once the entry or text
- * budget is exhausted the outline is clipped and `truncated` is set.
+ * - The public AC15 layout used by real files: a little-endian count, then 9-byte records
+ *   `{ sectionNumber: u8, seeker: i32, size: i32 }` with the two integers little-endian.
+ *   The ninth byte is a leading section number, not a trailing pad byte. This shape is
+ *   documented by the ACadSharp-derived acadrust reader and was confirmed against
+ *   ACadSharp's public AC1014/AC1015 sample DWGs.
+ * - The big-endian 8-byte `{ seeker: i32, size: i32 }` contract used by this project's
+ *   synthetic fixtures. No public or production DWG using that shape was found; it is a
+ *   fixture-compatibility path, not a claim about real DWG wire format.
+ *
+ * Every in-range locator record becomes one `"section"` entry, including zeroed records
+ * that typically mark an unused/reserved section. Section payloads are not interpreted:
+ * the object map, objects, object bit streams, handles, entities, layers, blocks and
+ * preview images are all outside this reader. The CLASSES payload is deliberately not
+ * decoded - real CLASSES sections are sentinel-framed bit streams (`BS`/`B`/text fields,
+ * plus R2004+ fields), so the byte-aligned class-name table in the brief cannot be
+ * produced honestly from section bytes alone. CLASSES therefore appears only as its
+ * section entry; no class entries are invented.
+ *
+ * R2004 (AC1018) and later compress and encrypt each section (LZ77 plus Reed-Solomon) and
+ * are refused with `unsupported_format`. R10/R11/R12 predate the R13 locator table and
+ * are refused as well. Unknown `ACdddd` stamps are `invalid_document`.
+ *
+ * Limits default to `defaultDocumentLimits` and may be narrowed. In DWG outlines
+ * `maxNodes` caps the locator records inspected and emitted, and
+ * `maxEntriesInOutline`/`maxTextCharacters` clip the projection; any clipping sets
+ * `truncated`.
  */
 import { TextDecoder } from "node:util";
 import {
@@ -22,7 +48,17 @@ import {
     type DocumentEntry, type DocumentEntryKind, type DocumentLimits, type DocumentLocator, type DocumentOutline,
 } from "./types.ts";
 
-const DWG_PREFIX = "AC10";
+const DWG_PREFIX = "AC";
+const DWG_VERSION_LENGTH = 6;
+/** Smallest AC15 header that can contain the section count and an empty locator table. */
+const DWG_MIN_HEADER = 0x20;
+const DWG_SECTION_COUNT_OFFSET = 0x15;
+const DWG_SECTION_TABLE_OFFSET = 0x19;
+/** Big-endian `{ seeker, size }` records required by this project's DWG fixtures. */
+const CONTRACT_RECORD_BYTES = 8;
+/** Little-endian `{ number, seeker, size }` records used by public AC15 DWGs. */
+const AC15_RECORD_BYTES = 9;
+const DWG_SECTION_PART = "dwg:sections";
 const DEFAULT_LAYER_COLOR = 7;
 const TABLE_PART = "dxf:tables";
 const BLOCK_PART = "dxf:blocks";
@@ -36,12 +72,45 @@ function invalidDocument(message: string): DocumentError {
     return new DocumentError("invalid_document", message);
 }
 
-function isDwg(bytes: Uint8Array): boolean {
-    if (bytes.length < DWG_PREFIX.length) return false;
-    for (let index = 0; index < DWG_PREFIX.length; index += 1) {
-        if (bytes[index] !== DWG_PREFIX.charCodeAt(index)) return false;
+type DwgFamily = "pre-r13" | "ac15" | "compressed";
+
+interface DwgVersion {
+    /** Human-facing release name used in errors and reports. */
+    readonly name: string;
+    readonly family: DwgFamily;
+}
+
+/**
+ * Recognized version stamps. R13/R14/R2000 are the only linear-section versions this
+ * reader can inspect without decompressing or decrypting; the rest are recognized so the
+ * caller gets a version-specific refusal instead of a generic "not a DWG".
+ */
+const DWG_VERSIONS: ReadonlyMap<string, DwgVersion> = new Map<string, DwgVersion>([
+    ["AC1006", { name: "R10", family: "pre-r13" }],
+    ["AC1009", { name: "R11/R12", family: "pre-r13" }],
+    ["AC1012", { name: "R13", family: "ac15" }],
+    ["AC1014", { name: "R14", family: "ac15" }],
+    ["AC1015", { name: "R2000", family: "ac15" }],
+    ["AC1018", { name: "R2004", family: "compressed" }],
+    ["AC1021", { name: "R2007", family: "compressed" }],
+    ["AC1024", { name: "R2010", family: "compressed" }],
+    ["AC1027", { name: "R2013", family: "compressed" }],
+    ["AC1032", { name: "R2018", family: "compressed" }],
+]);
+
+/** The `AC` prefix is the only reliable way to send a binary DWG into the DWG branch. */
+function hasDwgPrefix(bytes: Uint8Array): boolean {
+    return bytes.length >= DWG_PREFIX.length
+        && bytes[0] === DWG_PREFIX.charCodeAt(0)
+        && bytes[1] === DWG_PREFIX.charCodeAt(1);
+}
+
+function readDwgVersion(bytes: Uint8Array): string {
+    let version = "";
+    for (let index = 0; index < DWG_VERSION_LENGTH; index += 1) {
+        version += String.fromCharCode(bytes[index]!);
     }
-    return true;
+    return version;
 }
 
 interface Group {
@@ -250,6 +319,11 @@ class OutlineBuilder {
         return true;
     }
 
+    /** Records clipping that happened before any entry could be added (for example maxNodes). */
+    markTruncated(): void {
+        this.truncated = true;
+    }
+
     outline(language: string): DocumentOutline {
         let text = this.summaries.join("\n");
         if (text.length > this.maxText) {
@@ -271,15 +345,82 @@ function decodeDxf(bytes: Uint8Array): string {
     return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
+/** One in-range locator record, in table order. */
+interface DwgSectionRecord {
+    readonly index: number;
+    readonly seeker: number;
+    readonly size: number;
+}
+
+interface DwgSectionTable {
+    readonly records: readonly DwgSectionRecord[];
+    readonly truncated: boolean;
+}
+
 /**
- * Reads a DXF outline. DWG input is refused before decoding because its `AC10` signature
- * marks a proprietary binary format; there is no attempt to guess at DWG internals.
+ * Reads one locator-record encoding, or returns undefined when the count/table shape or
+ * any emitted record is outside the file. `recordBytes` is 8 for the fixture contract and
+ * 9 for the public AC15 record, whose extra byte is a leading section number.
  */
-export function parseCad(bytes: Uint8Array, limits: DocumentLimits = {}): DocumentOutline {
-    if (!(bytes instanceof Uint8Array)) throw new TypeError("cad input must be a Uint8Array");
-    if (isDwg(bytes)) {
-        throw new DocumentError("unsupported_format", "DWG is a proprietary binary format; export DXF for an outline");
+function readSectionTable(
+    view: DataView,
+    fileLength: number,
+    count: number,
+    recordBytes: number,
+    littleEndian: boolean,
+    maxNodes: number,
+): DwgSectionTable | undefined {
+    if (count < 0) return undefined;
+    const tableEnd = DWG_SECTION_TABLE_OFFSET + count * recordBytes;
+    if (tableEnd > fileLength) return undefined;
+    const limit = Math.min(count, maxNodes);
+    const numberBytes = recordBytes - 8;
+    const records: DwgSectionRecord[] = [];
+    for (let index = 0; index < limit; index += 1) {
+        const field = DWG_SECTION_TABLE_OFFSET + index * recordBytes + numberBytes;
+        const seeker = view.getInt32(field, littleEndian);
+        const size = view.getInt32(field + 4, littleEndian);
+        if (seeker < 0 || size < 0 || seeker > fileLength || size > fileLength - seeker) {
+            return undefined;
+        }
+        records.push({ index, seeker, size });
     }
+    return { records, truncated: count > limit };
+}
+
+/** Reads only section metadata; section payloads are intentionally never touched. */
+function parseDwgSections(bytes: Uint8Array, limits: DocumentLimits): DocumentOutline {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const configuredMaxNodes = limits.maxNodes ?? defaultDocumentLimits.maxNodes;
+    const maxNodes = Number.isFinite(configuredMaxNodes) ? Math.max(0, Math.floor(configuredMaxNodes)) : 0;
+    // The fixture contract is tried first. Real AC15 files have a little-endian count
+    // whose big-endian reading is enormous, so their table cannot satisfy the 8-byte
+    // shape and they fall through to the public 9-byte layout.
+    const contractCount = view.getInt32(DWG_SECTION_COUNT_OFFSET, false);
+    const ac15Count = view.getInt32(DWG_SECTION_COUNT_OFFSET, true);
+    const table = readSectionTable(view, bytes.length, contractCount, CONTRACT_RECORD_BYTES, false, maxNodes)
+        ?? readSectionTable(view, bytes.length, ac15Count, AC15_RECORD_BYTES, true, maxNodes);
+    if (table === undefined) {
+        throw invalidDocument(
+            "DWG section locator table is outside the file or contains an out-of-range section record",
+        );
+    }
+    const builder = new OutlineBuilder(limits);
+    if (table.truncated) builder.markTruncated();
+    for (const record of table.records) {
+        builder.add({
+            id: `cad:dwg:section:${record.index}`,
+            kind: "section",
+            name: `Section ${record.index}`,
+            summary: `offset=${record.seeker} size=${record.size}`,
+            locator: { part: DWG_SECTION_PART, paragraph: record.index + 1 },
+        });
+    }
+    return builder.outline("cad");
+}
+
+/** Reads a DXF outline; unchanged from the original ASCII group-code projection. */
+function parseDxf(bytes: Uint8Array, limits: DocumentLimits): DocumentOutline {
     const scan = scanGroups(readGroups(decodeDxf(bytes)));
     const builder = new OutlineBuilder(limits);
     for (const [index, layer] of scan.layers.entries()) {
@@ -310,4 +451,41 @@ export function parseCad(bytes: Uint8Array, limits: DocumentLimits = {}): Docume
         });
     }
     return builder.outline("cad");
+}
+
+/** Dispatches DWG by its six-byte `ACdddd` stamp; everything else stays on the DXF path. */
+function parseDwg(bytes: Uint8Array, limits: DocumentLimits): DocumentOutline {
+    if (bytes.length < DWG_VERSION_LENGTH) {
+        throw invalidDocument("DWG is shorter than its 6-byte version string");
+    }
+    const version = readDwgVersion(bytes);
+    const info = DWG_VERSIONS.get(version);
+    if (info === undefined) {
+        throw invalidDocument(`DWG version ${JSON.stringify(version)} is not recognized`);
+    }
+    // Compressed/encrypted and pre-R13 versions are fully identified by the version stamp,
+    // so they get their specific refusal even when the header is truncated. Only the
+    // linear AC15 layout needs the 0x20-byte minimum before the section table is read.
+    if (info.family === "compressed") {
+        throw new DocumentError("unsupported_format",
+            `DWG ${info.name} sections are compressed/encrypted; export DXF (or R2000-.dwg) for an outline`);
+    }
+    if (info.family === "pre-r13") {
+        throw new DocumentError("unsupported_format",
+            `DWG ${info.name} (${version}) predates the R13 section locator table; export DXF for an outline`);
+    }
+    if (bytes.length < DWG_MIN_HEADER) {
+        throw invalidDocument(`DWG ${info.name} header is ${bytes.length} bytes; at least 0x20 are required`);
+    }
+    return parseDwgSections(bytes, limits);
+}
+
+/**
+ * Reads a DXF or DWG outline. Compressed/encrypted DWG versions are `unsupported_format`,
+ * unknown version stamps are `invalid_document`, and section payloads are never decoded.
+ */
+export function parseCad(bytes: Uint8Array, limits: DocumentLimits = {}): DocumentOutline {
+    if (!(bytes instanceof Uint8Array)) throw new TypeError("cad input must be a Uint8Array");
+    if (hasDwgPrefix(bytes)) return parseDwg(bytes, limits);
+    return parseDxf(bytes, limits);
 }

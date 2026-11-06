@@ -1,4 +1,5 @@
 import type { Identifier } from "../shared.ts";
+import type { ProjectEnvironment } from "./environment.ts";
 
 export type ViewKind = "er" | "sequence" | "flow" | "venn" | "architecture" | "mindmap";
 
@@ -45,4 +46,10 @@ export interface ProjectView {
 
 export interface ProjectOptions extends ProjectScope {
     readonly clock?: () => string;
+    /** Initial environment; it is merged over an empty base and then versioned by the project. */
+    readonly environment?: ProjectEnvironment;
+    /** Project-kind id (go/tex/text/photoshop/cad/max3d/solidworks) recorded for guidance. */
+    readonly kind?: string;
+    /** Extra agent-facing configuration instructions shown in the environment brief. */
+    readonly guidance?: readonly string[];
 }

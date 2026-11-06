@@ -1,27 +1,37 @@
 /**
  * SolidWorks (`.sldprt`/`.sldasm`/`.slddrw`) outline reader.
  *
- * Scope: none. SolidWorks documents are OLE compound files whose part, assembly
- * and drawing payloads (feature tree, configurations, mates, drawing views,
- * references) live in proprietary streams that only the SolidWorks kernel can
- * interpret. Those streams are not parsed, and no OLE directory entry is read.
- * Every input therefore fails loudly instead of returning an empty outline that
- * would pass for a successful parse: compound documents raise
- * `unsupported_format` with an export/host-adapter hint, and anything else (for
- * example a text STEP/IGES file renamed to `.sldprt`) raises `invalid_document`.
+ * SolidWorks documents are OLE Compound File Binary (CFB) containers, and this
+ * reader parses the complete container through `readCfb`: both CFB versions, the
+ * DIFAT/FAT, directory tree, regular and mini stream chains, and property sets.
+ * Storages become `section` entries, streams become `note` entries keyed by
+ * their `Root/...` container paths, and SummaryInformation /
+ * DocumentSummaryInformation string properties are appended as notes.
  *
- * The `limits` argument is accepted so the signature matches the other document
- * parsers, but no budget can apply because no byte of a SolidWorks document is
- * ever projected into an outline.
+ * What is not decoded: the feature tree, configurations, mates, dimensions,
+ * drawing views, references and embedded preview data. Those live in
+ * proprietary streams (for example `3DSketch`, `SwDocContentMgr` or versioned
+ * `Objs` storages) whose encoding is not public, and only their container
+ * name, size and CLSID are surfaced. `cfbStream` returns their raw bytes without
+ * claiming a semantic interpretation.
+ *
+ * Non-compound input (for example a text STEP/IGES file renamed to `.sldprt`)
+ * raises `invalid_document` instead of returning an empty outline. Budgets are
+ * forwarded to `readCfb`; see that module for the per-stream and chain limits.
  */
+import { CFB_DIRECTORY_FLOOR, cfbOutline, readCfb } from "./cfb.ts";
 import { isLegacyOle } from "./legacy.ts";
-import { DocumentError, type DocumentLimits, type DocumentOutline } from "./types.ts";
+import { DocumentError, defaultDocumentLimits, type DocumentLimits, type DocumentOutline } from "./types.ts";
 
-const OLE_UNSUPPORTED = "SolidWorks parts/assemblies store proprietary OLE streams; the feature tree is not parsed. "
-    + "Export STEP/IGES or provide a host adapter.";
-
-export function parseSolidworks(bytes: Uint8Array, _limits?: DocumentLimits): DocumentOutline {
+export function parseSolidworks(bytes: Uint8Array, limits: DocumentLimits = {}): DocumentOutline {
     if (!(bytes instanceof Uint8Array)) throw new TypeError("SolidWorks input must be a Uint8Array");
-    if (isLegacyOle(bytes)) throw new DocumentError("unsupported_format", OLE_UNSUPPORTED);
-    throw new DocumentError("invalid_document", "not a SolidWorks compound document");
+    if (!isLegacyOle(bytes)) throw new DocumentError("invalid_document", "not a compounds document");
+    // Decode enough directory entries to project the container, then let
+    // `cfbOutline` apply the caller's (possibly narrower) outline budget.
+    const merged = { ...defaultDocumentLimits, ...limits };
+    const containerLimits: DocumentLimits = {
+        ...limits,
+        maxEntriesInOutline: Math.max(merged.maxEntriesInOutline, CFB_DIRECTORY_FLOOR),
+    };
+    return cfbOutline(readCfb(bytes, containerLimits), "solidworks", limits);
 }

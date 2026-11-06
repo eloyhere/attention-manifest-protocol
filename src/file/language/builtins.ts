@@ -30,6 +30,8 @@ import { definition as max3d } from "./max3d.ts";
 import { definition as solidworks } from "./solidworks.ts";
 import { definition as photoshop } from "./photoshop.ts";
 import { definition as cad } from "./cad.ts";
+import { definition as json } from "./json.ts";
+import { definition as compress } from "./compress.ts";
 
 /** A fresh registry avoids mutating a process-wide language singleton. No unknown-file fallback. */
 export function createDefaultLanguageRegistry(): LanguageRegistry {
@@ -38,5 +40,5 @@ export function createDefaultLanguageRegistry(): LanguageRegistry {
 export const builtinLanguages: readonly LanguageDefinition[] = Object.freeze([
     markdown, text, tex, javascript, typescript, c, cpp, java, python, csharp, mysql, oracle, sqlserver,
     word, excel, powerPoint, access, publisher, max3d, solidworks, photoshop, cad,
-    html, vue, css, scss, sass, swift, go, xml,
+    html, vue, css, scss, sass, swift, go, xml, json, compress,
 ].map(value => Object.freeze({ ...value, extensions: Object.freeze([...value.extensions]), mimeTypes: Object.freeze([...value.mimeTypes]) })));

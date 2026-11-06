@@ -1,8 +1,8 @@
-import { parsePptx } from "../document/pptx.ts";
+import { parsePowerPoint } from "../document/office.ts";
 import type { DocumentParserPort } from "../document/types.ts";
 import type { LanguageDefinition } from "./types.ts";
 
-export const documentParser: DocumentParserPort = Object.freeze({ language: "powerpoint", parse: parsePptx });
+export const documentParser: DocumentParserPort = Object.freeze({ language: "powerpoint", parse: parsePowerPoint });
 
 export const definition: LanguageDefinition = Object.freeze({
     id: "powerpoint", displayName: "PowerPoint presentation",

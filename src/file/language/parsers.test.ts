@@ -169,7 +169,7 @@ test("every lazy node carries a valid range and parents contain children", () =>
 
 test("binary office formats register without pretending to produce a text outline", () => {
     const registry = createDefaultLanguageRegistry();
-    assert.equal(registry.list().length, 30);
+    assert.equal(registry.list().length, 32);
     assert.equal(registry.find("word").get().support, "document");
     assert.equal(registry.load("word").isEmpty(), true);
     assert.equal(registry.find("excel").get().support, "tabular");

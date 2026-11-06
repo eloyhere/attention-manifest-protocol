@@ -1,8 +1,8 @@
-import { parseXlsx } from "../document/xlsx.ts";
+import { parseExcel } from "../document/office.ts";
 import type { DocumentParserPort } from "../document/types.ts";
 import type { LanguageDefinition } from "./types.ts";
 
-export const documentParser: DocumentParserPort = Object.freeze({ language: "excel", parse: parseXlsx });
+export const documentParser: DocumentParserPort = Object.freeze({ language: "excel", parse: parseExcel });
 
 export const definition: LanguageDefinition = Object.freeze({
     id: "excel", displayName: "Excel workbook",

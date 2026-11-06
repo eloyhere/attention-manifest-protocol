@@ -1,31 +1,45 @@
 /**
  * 3D Studio (`.3ds`) and 3ds Max (`.max`) outline reader.
  *
- * Scope: `.max` files are rejected outright. They are a proprietary container (an
- * OLE compound file) whose scene graph is only readable by 3ds Max itself; nothing
- * of a `.max` payload is inspected. A `.3ds` file is a little-endian chunk stream
- * (`u16` id + `u32` length, the length including the 6-byte header). This reader
- * walks `MAIN3DS` (0x4d4d) -> `EDIT3DS` (0x3d3d) -> `NAMED_OBJECT` (0x4000), whose
- * payload starts with a NUL-terminated ASCII name and may continue with child
- * chunks such as `N_TRI_OBJECT` (0x4100). Each named object becomes one `section`
- * entry; entries follow chunk order, and `locator.paragraph` is the 1-based object
+ * `.max` is an OLE Compound File Binary (CFB) container. This reader parses the
+ * complete container through `readCfb`: both CFB versions, the DIFAT/FAT, the
+ * directory tree, regular and mini stream chains, and the
+ * `\u0005SummaryInformation` / `\u0005DocumentSummaryInformation` property sets.
+ * Every storage becomes a `section` entry and every stream a `note` entry keyed
+ * by its `Root/...` container path; each summary property is appended as a
+ * further `note`. What is not decoded: the 3ds Max scene graph, object/class
+ * properties, materials, modifiers, animation and references. Those live in
+ * proprietary `ClassData`/`Scene` streams whose encoding is not public, so this
+ * module neither projects nor claims to understand them; `cfbStream` exposes
+ * their raw bytes only.
+ *
+ * `.3ds` is a little-endian chunk stream (`u16` id + `u32` length, the length
+ * including the 6-byte header). This reader walks `MAIN3DS` (0x4d4d) ->
+ * `EDIT3DS` (0x3d3d) -> `NAMED_OBJECT` (0x4000), whose payload starts with a
+ * NUL-terminated ASCII name and may continue with child chunks such as
+ * `N_TRI_OBJECT` (0x4100). Each named object becomes one `section` entry;
+ * entries follow chunk order, and `locator.paragraph` is the 1-based object
  * ordinal (`locator.part` is the fixed `3ds:objects` pseudo-part).
  *
- * Not interpreted: mesh vertices/faces (`0x4110`, `0x4120`, ...), normals, texture
- * coordinates, materials, lights, cameras, keyframe/animation data (`0x1400`,
- * `0x1420`), the keyframer and every `.max` container stream. Only known containers
- * are descended into; other chunk payloads (including mesh data) are skipped by
- * their declared length and are never mistaken for nested chunk headers. Chunk
- * headers are validated (remaining bytes >= 6, length >= 6, child within parent),
- * and malformed input raises `DocumentError` instead of yielding an empty outline.
+ * Not interpreted: mesh vertices/faces (`0x4110`, `0x4120`, ...), normals,
+ * texture coordinates, materials, lights, cameras, keyframe/animation data
+ * (`0x1400`, `0x1420`) and the keyframer. Only known containers are descended
+ * into; other chunk payloads (including mesh data) are skipped by their
+ * declared length and are never mistaken for nested chunk headers. Chunk
+ * headers are validated (remaining bytes >= 6, length >= 6, child within
+ * parent), and malformed input raises `DocumentError` instead of yielding an
+ * empty outline.
  *
  * Budgets default to `defaultDocumentLimits` and may be narrowed through the
- * optional `limits` argument: `maxNodes` caps the visited chunk count (MAIN3DS is
- * the first chunk), `maxDepth` caps nesting (MAIN3DS is depth 1), while
- * `maxEntriesInOutline` and `maxTextCharacters` clip the outline and set
- * `truncated`. Byte offsets past a valid MAIN3DS chunk are ignored as trailing
- * padding.
+ * optional `limits` argument. For `.3ds`, `maxNodes` caps the visited chunk
+ * count (MAIN3DS is the first chunk) and `maxDepth` caps nesting (MAIN3DS is
+ * depth 1). For `.max`, the CFB budgets apply: directory entries, per-stream
+ * `maxEntryBytes`, cumulative `maxTotalBytes`, `maxNodes` for every FAT/DIFAT/
+ * mini chain and `maxDepth` for storage nesting. `maxEntriesInOutline` and
+ * `maxTextCharacters` clip the outline and set `truncated`. Byte offsets past a
+ * valid MAIN3DS chunk are ignored as trailing padding.
  */
+import { CFB_DIRECTORY_FLOOR, cfbOutline, readCfb } from "./cfb.ts";
 import { isLegacyOle } from "./legacy.ts";
 import {
     DocumentError, defaultDocumentLimits, type DocumentEntry, type DocumentEntryKind, type DocumentLimits, type DocumentLocator,
@@ -38,7 +52,6 @@ const NAMED_OBJECT = 0x4000;
 const CHUNK_HEADER_BYTES = 6;
 const OBJECTS_PART = "3ds:objects";
 const MAX_NAME_CHARACTERS = 120;
-const MAX_UNSUPPORTED = "3ds Max .max files use a proprietary container; export FBX/OBJ or provide an .3ds file for an outline";
 
 const invalidDocument = (message: string): DocumentError => new DocumentError("invalid_document", message);
 const limitExceeded = (message: string): DocumentError => new DocumentError("limit_exceeded", message);
@@ -144,7 +157,16 @@ class OutlineBuilder {
 
 export function parseMax3d(bytes: Uint8Array, limits: DocumentLimits = {}): DocumentOutline {
     if (!(bytes instanceof Uint8Array)) throw new TypeError("3ds Max input must be a Uint8Array");
-    if (isLegacyOle(bytes)) throw new DocumentError("unsupported_format", MAX_UNSUPPORTED);
+    if (isLegacyOle(bytes)) {
+        // Decode enough directory entries to project the container, then let
+        // `cfbOutline` apply the caller's (possibly narrower) outline budget.
+        const merged = { ...defaultDocumentLimits, ...limits };
+        const containerLimits: DocumentLimits = {
+            ...limits,
+            maxEntriesInOutline: Math.max(merged.maxEntriesInOutline, CFB_DIRECTORY_FLOOR),
+        };
+        return cfbOutline(readCfb(bytes, containerLimits), "max3d", limits);
+    }
     if (bytes.length < CHUNK_HEADER_BYTES) throw invalidDocument("3ds file is shorter than a chunk header");
     if (readUint16(bytes, 0) !== MAIN3DS) throw invalidDocument("3ds file does not start with a MAIN3DS (0x4d4d) chunk");
     const mainLength = readUint32(bytes, 2);

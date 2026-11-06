@@ -88,8 +88,10 @@ test("legacy and proprietary containers fail with explicit document errors", () 
     assert.throws(() => access.documentOutline(), documentCode("unsupported_format"));
     const publisher = memory("doc.pub", ole).file;
     assert.throws(() => publisher.documentOutline(), documentCode("unsupported_format"));
+    // .doc/.xls/.ppt now have real legacy readers, so a truncated OLE blob is a malformed document
+    // rather than an unsupported format.
     const legacyWord = memory("old.doc", ole).file;
-    assert.throws(() => legacyWord.documentOutline(), documentCode("unsupported_format"));
+    assert.throws(() => legacyWord.documentOutline(), (error: unknown) => error instanceof DocumentError && error.code === "invalid_document");
 });
 
 test("text files refuse document outlines and binary text operations are rejected", () => {
