@@ -1,5 +1,5 @@
 export * from "./shared.ts";
-export * as agent from "./agent/surface.ts";
+export * as agent from "./agent/index.ts";
 export * as agentGateway from "./agent/gateway.ts";
 export * as reactive from "./reactive/index.ts";
 export * from "./runtime/index.ts";

@@ -5,6 +5,30 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 新增
+
+- **内置 32 种语言**，新增 Go、Swift、XML、JSON（容错 JSONC）与压缩归档；TeX 增加 `part`/`subparagraph` 层级。全部登记进 `builtinLanguages`，可通过 `createDefaultLanguageRegistry()` 发现。
+- 旧版 Office 读取器：`.doc`（FIB + Clx/PlcPcd piece table）、`.xls`（BIFF8 `BOUNDSHEET`、`SST` 含 `CONTINUE`、`RK`、`MULRK`、公式缓存值）与 `.ppt`（MS-PPT 记录树）。`parseWord`/`parseExcel`/`parsePowerPoint` 按容器魔数分派，OLE 与 OOXML 共用同一个语言定义。
+- 支持 Photoshop 大文档：PSD v1 与 PSB v2 共用完整图层树（组 `lsct`/`lsdk`、`luni` 名称、bounds、blend、opacity），并正确处理 PSB 的 64 位长度字段。
+- 无依赖的 CFB/OLE 读取器（FAT、miniFAT、DIFAT、目录树、属性集）。`.max` 与 SolidWorks 零件/装配/工程图现在返回完整容器大纲，而不是"不支持"；专有场景图与特征树仍明确不解码。
+- DWG 版本识别，以及 R13/R14/R2000 的 section 表元数据。R2004+ 的 section 被压缩并加密，仍以精确的 `unsupported_format` 失败。
+- 归档大纲读取器：ZIP（仅中央目录，不解压）、TAR（ustar、GNU longname、pax）、TAR.GZ 与 GZ。7z、RAR、XZ、bzip2、zstd 会给出原因，而不是空列表。
+- `Project.environment`：带版本与 CAS 的环境（变量、路径、依赖），提供 `configureEnvironment`、`setEnvironment`、`environmentPlan` 与 `describeEnvironment`；`createProjectFromKind`/`applyProjectKind` 用项目类型播种环境，同时保留项目自身的覆盖。
+- 分层 Agent 接口（`agent`/`host`/`hidden`），工具名 `attention_manifest_protocol_<module>.<verb>`；`AgentGateway` 提供宿主绑定身份、拒绝参数注入、变更型动词强制幂等键、授权钩子与每次调用一条审计记录。
+- 端到端场景套件（`npm run scenario`）：修 bug 循环、过期检测、租约互斥、BOM/CRLF 保真、码点字节边界、二进制文档、损坏格式、归档预算、路径穿越、体积上限、项目环境与网关授权。
+
+### 变更
+
+- 二进制文件以不透明字节挂载：`readBytes`、`writeBytes`，`flush` 走 `compareAndSwapBytes`；文本 API 以 `invalid_target` 失败。
+- `package.json` 不再声明已删除的 `docs/schemas` 导出与已删除的 scoped-control 指南。
+- `attention-manifest-protocol/agent` 现在同时解析到 surface 注册表与网关。
+
+### 验证
+
+- 460/460 测试通过（含 14 个端到端场景），严格类型检查、`build`、`build:lib` 与 `demo:architecture` 全部通过。
+
 ## [0.6.1] - 2026-11-03
 
 ### 新增

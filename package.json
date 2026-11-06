@@ -3,8 +3,6 @@
   "version": "0.6.1",
   "files": [
     "lib",
-    "docs/schemas",
-    "docs/scoped-control.zh-CN.md",
     "README.md",
     "README.zh-CN.md",
     "CHANGELOG.md",
@@ -36,7 +34,6 @@
       "default": "./lib/index.js"
     },
     "./package.json": "./package.json",
-    "./schemas/*": "./docs/schemas/*",
     "./*.js": {
       "types": "./lib/*.d.ts",
       "default": "./lib/*.js"

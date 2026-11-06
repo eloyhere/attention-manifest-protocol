@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **32 built-in languages**, including Go, Swift, XML, JSON (JSONC-tolerant) and compressed archives; TeX gains `part`/`subparagraph` levels. All are registered in `builtinLanguages` and discoverable through `createDefaultLanguageRegistry()`.
+- Legacy Office readers: `.doc` (FIB plus Clx/PlcPcd piece table), `.xls` (BIFF8 `BOUNDSHEET`, `SST` with `CONTINUE`, `RK`, `MULRK`, cached formula values) and `.ppt` (MS-PPT record tree). `parseWord`/`parseExcel`/`parsePowerPoint` dispatch by container magic, so OLE and OOXML families share one language definition.
+- PhotoShop Large Document support: PSD v1 and PSB v2 share a full layer tree with groups (`lsct`/`lsdk`), `luni` names, bounds, blend and opacity, and honour the 64-bit length fields of PSB.
+- Dependency-free CFB/OLE reader (FAT, miniFAT, DIFAT, directory tree, property sets). `.max` and SolidWorks parts/assemblies/drawings now return a complete container outline instead of an unsupported error; the proprietary scene graph and feature tree remain explicitly undecoded.
+- DWG version detection and, for R13/R14/R2000, section-table metadata. R2004+ sections are compressed and encrypted and still fail with a precise `unsupported_format`.
+- Archive outline reader for ZIP (central directory only, no extraction), TAR (ustar, GNU long name, pax), TAR.GZ and GZ. 7z, RAR, XZ, bzip2 and zstd fail with a reason instead of an empty listing.
+- `Project.environment`: a versioned, CAS-guarded environment (variables, paths, dependencies) with `configureEnvironment`, `setEnvironment`, `environmentPlan` and `describeEnvironment`; `createProjectFromKind`/`applyProjectKind` seed it from a project kind while preserving project overrides.
+- Tiered agent surface (`agent`/`host`/`hidden`) under `attention_manifest_protocol_<module>.<verb>`, plus `AgentGateway` with host-bound identity, parameter-smuggling rejection, idempotency keys for mutating verbs, an authorization hook and one journal record per call.
+- End-to-end scenario suite (`npm run scenario`) covering bug-fix loops, stale detection, lease fencing, BOM/CRLF fidelity, code-point byte boundaries, binary documents, corrupted formats, archive budgets, path traversal, size ceilings, project environments and gateway authorization.
+
+### Changed
+
+- Binary files mount as opaque bytes: `readBytes`, `writeBytes` and `flush` through `compareAndSwapBytes`, while text APIs fail with `invalid_target`.
+- `package.json` no longer advertises the removed `docs/schemas` export or the deleted scoped-control guide.
+- `attention-manifest-protocol/agent` now resolves to both the surface registry and the gateway.
+
+### Validation
+
+- 460/460 tests (including 14 end-to-end scenarios), strict typecheck, `build`, `build:lib` and `demo:architecture` all pass.
+
 ## [0.6.1] - 2026-11-03
 
 ### Added
