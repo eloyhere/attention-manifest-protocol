@@ -55,6 +55,7 @@
     "build:lib": "tsc -p tsconfig.build.json && node tools/rewriteDeclarationExtensions.ts",
     "check:architecture": "tsc -p tsconfig.architecture.json",
     "test:architecture": "node tools/architectureTests.ts",
+    "scenario": "node --test src/scenario/agentScenario.test.ts",
     "demo:architecture": "node tools/architectureDemo.ts",
     "prebuild:lib": "node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\"",
     "preview": "vite preview",
