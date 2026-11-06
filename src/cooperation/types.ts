@@ -1,0 +1,11 @@
+import type { Identifier, JsonValue } from "../shared.ts";
+import type { PermissionScope } from "../profession/types.ts";
+export type Clock = () => string;
+export type DelegatedTaskState = "delegated" | "running" | "cancel_requested" | "cancelled" | "completed" | "failed" | "unknown_outcome";
+export type DelegatedTask = { readonly taskId: Identifier; readonly parentTaskId?: Identifier; readonly delegatorAgentId: Identifier; readonly ownerAgentId: Identifier; readonly ownerEpoch: number; readonly fence: string; readonly effectiveScope: PermissionScope; readonly state: DelegatedTaskState; readonly createdAt: string; readonly updatedAt: string; readonly cancellationReason?: string };
+export type DelegationRequest = { readonly taskId: Identifier; readonly parentTaskId?: Identifier; readonly delegatorAgentId: Identifier; readonly ownerAgentId: Identifier; readonly parentScope: PermissionScope; readonly requestedScope: PermissionScope };
+export type ProvenanceRecord = { readonly sourceId: Identifier; readonly sourceType: "agent" | "tool" | "user" | "external" | "derived"; readonly authorityScope?: readonly string[]; readonly chain: readonly Identifier[]; readonly taint: readonly string[] };
+export type ResultSubmission = { readonly taskId: Identifier; readonly ownerAgentId: Identifier; readonly ownerEpoch: number; readonly fence: string; readonly outcome: "success" | "failure" | "unknown_outcome"; readonly value?: JsonValue; readonly provenance: readonly ProvenanceRecord[] };
+export type ResultAcceptance = { readonly accepted: boolean; readonly reason: "accepted" | "unknown_task" | "not_owner" | "stale_epoch" | "stale_fence" | "cancelled" | "already_settled"; readonly task?: DelegatedTask };
+export type MessageKind = "trustedInstruction" | "untrustedData";
+export type CooperationMessage = { readonly messageId: Identifier; readonly taskId: Identifier; readonly senderAgentId: Identifier; readonly recipientAgentId: Identifier; readonly kind: MessageKind; readonly payload: JsonValue; readonly provenance: readonly ProvenanceRecord[]; readonly sentAt: string };

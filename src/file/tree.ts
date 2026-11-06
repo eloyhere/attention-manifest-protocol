@@ -1,466 +1,222 @@
-/**
- * Bounded workspace tree construction, indexing and revisioning.
- *
- * The tree is the read side of the filesystem domain: every file and directory
- * becomes one immutable node, directories aggregate their descendants' bytes and
- * lines, and a bounded walk stops with `truncated: true` instead of exhausting
- * memory. Exclusions come from `PathSandbox` so the tree service and the tool
- * resolver cannot disagree about what a root excludes.
- *
- * A snapshot is cached per `WorkspaceTree`. `refresh()` rebuilds it (a targeted
- * subtree rebuild is an optimisation this implementation does not need yet) and
- * the revision covers structure, annotations and the truncated flag, not
- * timestamps or raw bytes.
- */
-import { lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
-import type { Stats } from "node:fs";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { isNumber, isString, Optional, SynchronousUnorderedMap } from "semantic-typescript";
+import { useLazyProxy, type LazyProxy } from "../reactive/proxy.ts";
 
-import { digestOf } from "../semantic/canonical.ts";
-import type { SessionRoot } from "../session/types.ts";
-import { buildDirectoryNode } from "./directory.ts";
-import { fail } from "./errors.ts";
-import { buildFileNode } from "./file.ts";
-import { annotationFor, describeDirectory } from "./metadata.ts";
-import type { NodeDescription } from "./metadata.ts";
-import { PathSandbox } from "./path.ts";
-import { creationTime } from "./time.ts";
-import type { DirectoryNode, NodeAnnotation, TreeNode, TreeOptions, TreeSnapshot, TreeStats } from "./types.ts";
+export type FileTreeKind = "file" | "directory";
+export type FileTreeOperation = "metadata" | "list" | "read";
 
-const DefaultMaxNodes: number = 20000;
-const DefaultMaxBytes: bigint = 268435456n;
-const ControlCharacters: RegExp = /[\u0000-\u001f\u007f]/;
-const DriveLetter: RegExp = /^[A-Za-z]:/;
-const ReadmeName: RegExp = /^readme(?:\.(?:md|markdown|mdx|txt|rst))?$/i;
-
-interface WalkState {
-    nodes: number;
-    files: bigint;
-    directories: bigint;
-    lines: bigint;
-    bytes: bigint;
-    truncated: boolean;
-}
-
-interface WalkCandidate {
-    readonly name: string;
-    readonly relative: string;
-    readonly absolute: string;
-    readonly stat: Stats;
-    readonly directory: boolean;
-    readonly real?: string;
-}
-
-interface RevisionAnnotation {
+export interface FileTreeScope {
+    readonly tenantId: string;
+    readonly rootId: string;
     readonly path: string;
-    readonly description: string | null;
-    readonly summary: string | null;
-    readonly purpose: string | null;
 }
 
-const compareNames: (left: string, right: string) => number = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0);
+export interface FileTreeRootScope {
+    readonly tenantId: string;
+    readonly rootId: string;
+}
 
-const compareCandidates: (left: WalkCandidate, right: WalkCandidate) => number = (left: WalkCandidate, right: WalkCandidate): number => {
-    if (left.directory !== right.directory) {
-        return left.directory ? -1 : 1;
-    }
-    return compareNames(left.name, right.name);
-};
+export interface FileTreeOptions extends FileTreeRootScope {
+    readonly rootPath?: string;
+}
 
-const errnoCode: (error: unknown) => string = (error: unknown): string => {
-    if (typeof(error) === "object" && error !== null) {
-        const candidate: { code?: unknown; } = error as { code?: unknown; };
-        if (typeof(candidate.code) === "string") {
-            return candidate.code;
-        }
-    }
-    return "";
-};
+export interface FileTreeMetadata extends FileTreeScope {
+    readonly kind: FileTreeKind;
+    readonly version: number;
+    readonly hash: string;
+    readonly revision?: string;
+}
 
-const rootStat: (path: string) => Stats = (path: string): Stats => {
-    try {
-        return lstatSync(path);
-    } catch (error: unknown) {
-        const code: string = errnoCode(error);
-        if (code === "ENOENT") {
-            return fail("not_found");
-        }
-        if (code === "EACCES" || code === "EPERM") {
-            return fail("permission_denied");
-        }
-        return fail("internal_error");
-    }
-};
+export interface FileTreeRead extends FileTreeScope {
+    readonly content: string;
+    readonly version: number;
+    readonly hash: string;
+    readonly revision?: string;
+}
 
-const normalizeMaxNodes: (value: number | undefined) => number = (value: number | undefined): number => {
-    if (value === (void 0) || !Number.isFinite(value)) {
-        return DefaultMaxNodes;
-    }
-    return Math.max(1, Math.floor(value));
-};
+export interface FileTreeHost {
+    metadata(path: string): Optional<FileTreeMetadata>;
+    listChildren(scope: FileTreeScope): readonly FileTreeMetadata[];
+    readFile(scope: FileTreeScope): FileTreeRead;
+    authorize(operation: FileTreeOperation, scope: FileTreeScope): boolean;
+    revision(): string;
+}
 
-const normalizeMaxBytes: (value: bigint | undefined) => bigint = (value: bigint | undefined): bigint => {
-    if (value === (void 0)) {
-        return DefaultMaxBytes;
-    }
-    return value < 0n ? 0n : value;
-};
+export interface FileTreeNode extends FileTreeMetadata {
+    readonly children: readonly FileTreeNode[];
+    readonly content: string | undefined;
+    toJSON(): FileTreeMetadata;
+}
 
-const normalizeTreePath: (input: string) => string | undefined = (input: string): string | undefined => {
-    if (typeof(input) !== "string" || ControlCharacters.test(input)) {
-        return undefined;
-    }
-    const text: string = input.trim();
-    if (text.length === 0 || text === ".") {
-        return ".";
-    }
-    if (text.includes("\\") || DriveLetter.test(text) || text.startsWith("/")) {
-        return undefined;
-    }
-    const segments: string[] = [];
-    const parts: string[] = text.split("/");
-    for (let index: number = 0; index < parts.length; index += 1) {
-        const part: string = parts[index];
-        if (part === "" || part === ".") {
-            continue;
-        }
-        if (part === "..") {
-            return undefined;
-        }
-        segments.push(part);
-    }
-    return segments.length === 0 ? "." : segments.join("/");
-};
+function digest(content: string): string {
+    return createHash("sha256").update(content, "utf8").digest("hex");
+}
 
-const freezeNode: (node: TreeNode) => TreeNode = (node: TreeNode): TreeNode => {
-    if (node.type === "Directory") {
-        for (let index: number = 0; index < node.children.length; index += 1) {
-            freezeNode(node.children[index]);
-        }
+function validatePath(path: string): void {
+    if (path === "") return;
+    if (!isString(path) || path.includes("\0") || path.includes("\\") || path.startsWith("/") || /^[A-Za-z]:/.test(path)
+        || path.split("/").some(part => part === "" || part === "." || part === "..")) {
+        throw new TypeError(`Invalid workspace-relative file-tree path: ${path}`);
     }
-    Object.freeze(node.children);
-    return Object.freeze(node);
-};
+}
 
-const indexNode: (node: TreeNode, index: Map<string, TreeNode>) => void = (node: TreeNode, index: Map<string, TreeNode>): void => {
-    index.set(node.path, node);
-    if (node.type === "Directory") {
-        for (let child: number = 0; child < node.children.length; child += 1) {
-            indexNode(node.children[child], index);
-        }
+function scopeKey(scope: FileTreeScope): string {
+    return JSON.stringify([scope.tenantId, scope.rootId, scope.path]);
+}
+
+function requireOptional<T>(value: Optional<T>, message: string): T {
+    if (value.isEmpty()) throw new Error(message);
+    return value.get();
+}
+
+function cloneMetadata(metadata: FileTreeMetadata): FileTreeMetadata {
+    return Object.freeze({ ...metadata });
+}
+
+function validateMetadata(metadata: FileTreeMetadata, revision: string): void {
+    validatePath(metadata.path);
+    if (!metadata.tenantId || !metadata.rootId || !isString(metadata.hash) || metadata.hash.length === 0
+        || !isNumber(metadata.version) || !Number.isSafeInteger(metadata.version) || metadata.version < 0
+        || (metadata.kind !== "file" && metadata.kind !== "directory")
+        || (metadata.revision !== undefined && metadata.revision !== revision)) {
+        throw new Error("invalid file-tree metadata");
     }
-};
+}
 
-/**
- * Apply a directory's direct README paragraph as its purpose. The README file
- * node already carries the deterministic first-paragraph summary, so this needs
- * no second read. An explicit annotation always wins.
- */
-const withReadmePurpose: (node: DirectoryNode, relative: string, children: readonly TreeNode[], options: TreeOptions) => DirectoryNode = (node: DirectoryNode, relative: string, children: readonly TreeNode[], options: TreeOptions): DirectoryNode => {
-    const annotation: NodeAnnotation | undefined = annotationFor(options.annotations, relative);
-    if (annotation !== (void 0) && annotation.purpose !== (void 0)) {
+function assertSameScope(metadata: FileTreeMetadata, expected: FileTreeRootScope): void {
+    if (metadata.tenantId !== expected.tenantId || metadata.rootId !== expected.rootId) throw new Error("file-tree scope mismatch");
+}
+
+function assertDirectChild(metadata: FileTreeMetadata, parent: FileTreeScope, revision: string): void {
+    validateMetadata(metadata, revision);
+    assertSameScope(metadata, parent);
+    if (metadata.path === parent.path) throw new Error("file-tree child equals parent");
+    const prefix = parent.path === "" ? "" : `${parent.path}/`;
+    if (!metadata.path.startsWith(prefix) || metadata.path.slice(prefix.length).includes("/")) throw new Error("file-tree child is outside direct scope");
+}
+
+function assertSameVersion(metadata: FileTreeMetadata, expected: FileTreeMetadata, revision: string): void {
+    if (metadata.tenantId !== expected.tenantId || metadata.rootId !== expected.rootId || metadata.path !== expected.path
+        || metadata.kind !== expected.kind || metadata.version !== expected.version || metadata.hash !== expected.hash
+        || (metadata.revision ?? revision) !== (expected.revision ?? revision)) throw new Error("file-tree source changed");
+}
+
+/** Lazy metadata/content tree over a host port. It never accesses a real filesystem or network. */
+export class FileTree {
+    private readonly host: FileTreeHost;
+    private readonly rootPath: string;
+    private readonly scopeValue: FileTreeRootScope;
+    private revisionValue: string | undefined;
+    private rootValue: FileTreeNode | undefined;
+    private readonly cache = new SynchronousUnorderedMap<string, FileTreeNode>();
+
+    constructor(host: FileTreeHost, options: FileTreeOptions) {
+        this.host = host;
+        this.rootPath = options.rootPath ?? "";
+        this.scopeValue = { tenantId: options.tenantId, rootId: options.rootId };
+        validatePath(this.rootPath);
+        if (!this.scopeValue.tenantId || !this.scopeValue.rootId) throw new TypeError("FileTree scope is required");
+    }
+
+    root(): FileTreeNode {
+        if (this.rootValue) return this.rootValue;
+        const revision = this.captureRevision();
+        const metadata = this.readMetadata(this.rootPath, revision);
+        assertSameScope(metadata, this.scopeValue);
+        const node = this.createNode(metadata, revision);
+        this.rootValue = node;
         return node;
     }
-    let readme: TreeNode | undefined;
-    for (let index: number = 0; index < children.length; index += 1) {
-        const child: TreeNode = children[index];
-        if (child.type === "File" && ReadmeName.test(child.name) && child.charset !== "binary") {
-            readme = child;
-            break;
-        }
-    }
-    if (readme === (void 0) || readme.type !== "File") {
-        return node;
-    }
-    const fallback: string = `File ${readme.name}.`;
-    const source: string = readme.purpose !== "not declared" ? readme.purpose : readme.summary;
-    if (source.length === 0 || source === fallback) {
-        return node;
-    }
-    const described: NodeDescription = describeDirectory(relative, children, annotation, source);
-    if (described.purpose === "not declared" || described.purpose === node.purpose) {
-        return node;
-    }
-    return { ...node, purpose: described.purpose };
-};
 
-const revisionOf: (root: DirectoryNode, options: TreeOptions, truncated: boolean) => string = (root: DirectoryNode, options: TreeOptions, truncated: boolean): string => {
-    const annotations: RevisionAnnotation[] = [];
-    const configured: Readonly<Record<string, NodeAnnotation>> | undefined = options.annotations;
-    if (configured !== (void 0)) {
-        const paths: string[] = Object.keys(configured).sort(compareNames);
-        for (let index: number = 0; index < paths.length; index += 1) {
-            const path: string = paths[index];
-            const annotation: NodeAnnotation = configured[path];
-            annotations.push({
-                path,
-                description: annotation.description === (void 0) ? null : annotation.description,
-                summary: annotation.summary === (void 0) ? null : annotation.summary,
-                purpose: annotation.purpose === (void 0) ? null : annotation.purpose,
-            });
-        }
+    /** Explicitly starts a new identity/cache after the caller observes a source change. */
+    refresh(): FileTreeNode {
+        this.revisionValue = this.host.revision();
+        this.rootValue = undefined;
+        this.cache.clear();
+        return this.root();
     }
-    return digestOf({
-        version: "amp.fs.rev/1",
-        tree: root.fingerprint,
-        annotations,
-        truncated,
-    });
-};
 
-/**
- * Build one immutable snapshot of a session root.
- *
- * The walk skips hidden entries unless `includeHidden`, skips excluded paths,
- * refuses symbolic links unless `followSymlinks`, and records read failures in
- * `stats.truncated` rather than throwing mid-tree.
- *
- * @param root - Session root to scan.
- * @param options - Bounds and metadata options.
- * @returns A snapshot whose root is the session root directory.
- */
-export const buildTree: (root: SessionRoot, options?: TreeOptions) => TreeSnapshot = (root: SessionRoot, options: TreeOptions = {}): TreeSnapshot => {
-    const maxNodes: number = normalizeMaxNodes(options.maxNodes);
-    const maxBytes: bigint = normalizeMaxBytes(options.maxBytes);
-    const includeHidden: boolean = options.includeHidden === true;
-    const rootExclude: readonly string[] = Array.isArray(root.exclude) ? root.exclude : [];
-    const scopedRoot: SessionRoot = {
-        ...root,
-        exclude: [...rootExclude, ...(Array.isArray(options.exclude) ? options.exclude : [])],
-    };
-    const sandbox: PathSandbox = new PathSandbox([scopedRoot], { followSymlinks: options.followSymlinks === true });
-    const state: WalkState = {
-        nodes: 1,
-        files: 0n,
-        directories: 1n,
-        lines: 0n,
-        bytes: 0n,
-        truncated: false,
-    };
+    private captureRevision(): string {
+        const revision = this.host.revision();
+        if (this.revisionValue === undefined) this.revisionValue = revision;
+        if (this.revisionValue !== revision) throw new Error("file-tree source changed; call refresh");
+        return this.revisionValue;
+    }
 
-    const walkDirectory: (relative: string, absolute: string, stat: Stats, ancestry: ReadonlySet<string>) => DirectoryNode | undefined = (relative: string, absolute: string, stat: Stats, ancestry: ReadonlySet<string>): DirectoryNode | undefined => {
-        let names: string[];
-        try {
-            names = readdirSync(absolute);
-        } catch {
-            state.truncated = true;
-            return undefined;
-        }
-        const candidates: WalkCandidate[] = [];
-        for (let index: number = 0; index < names.length; index += 1) {
-            const name: string = names[index];
-            if (!includeHidden && name.startsWith(".")) {
-                continue;
-            }
-            const childRelative: string = relative === "." ? name : `${relative}/${name}`;
-            if (sandbox.isExcluded(scopedRoot, childRelative)) {
-                continue;
-            }
-            const childAbsolute: string = join(absolute, name);
-            let linkStat: Stats;
-            try {
-                linkStat = lstatSync(childAbsolute);
-            } catch {
-                state.truncated = true;
-                continue;
-            }
-            let entryStat: Stats = linkStat;
-            let realPath: string | undefined;
-            const symbolic: boolean = linkStat.isSymbolicLink();
-            if (symbolic) {
-                if (options.followSymlinks !== true) {
-                    continue;
-                }
-                try {
-                    entryStat = statSync(childAbsolute);
-                    realPath = realpathSync(childAbsolute);
-                } catch {
-                    state.truncated = true;
-                    continue;
-                }
-                if (!sandbox.contains(root.path, realPath)) {
-                    continue;
-                }
-            }
-            if (!entryStat.isDirectory() && !entryStat.isFile()) {
-                continue;
-            }
-            if (entryStat.isDirectory() && options.followSymlinks === true) {
-                let directoryReal: string;
-                if (realPath === (void 0)) {
-                    try {
-                        directoryReal = realpathSync(childAbsolute);
-                    } catch {
-                        state.truncated = true;
-                        continue;
+    private readMetadata(path: string, revision: string): FileTreeMetadata {
+        validatePath(path);
+        const requestScope: FileTreeScope = {
+            tenantId: this.scopeValue?.tenantId ?? "",
+            rootId: this.scopeValue?.rootId ?? "",
+            path,
+        };
+        this.authorize("metadata", requestScope);
+        const metadata = requireOptional(this.host.metadata(path), `file-tree metadata not found: ${path}`);
+        validateMetadata(metadata, revision);
+        if (this.scopeValue) assertSameScope(metadata, this.scopeValue);
+        if (metadata.path !== path) throw new Error("file-tree metadata path mismatch");
+        return cloneMetadata(metadata);
+    }
+
+    private authorize(operation: FileTreeOperation, scope: FileTreeScope): void {
+        if (!this.host.authorize(operation, scope)) throw new Error("file-tree authorization denied");
+    }
+
+    private createNode(metadata: FileTreeMetadata, revision: string): FileTreeNode {
+        const key = `${revision}:${scopeKey(metadata)}`;
+        const cached = this.cache.get(key);
+        if (cached.isPresent()) return cached.get();
+        const expectedScope: FileTreeScope = { tenantId: metadata.tenantId, rootId: metadata.rootId, path: metadata.path };
+        const assertRevision = (): void => {
+            if (this.host.revision() !== revision) throw new Error("file-tree source changed; call refresh");
+        };
+        const lazy: LazyProxy<FileTreeNode> = useLazyProxy<FileTreeNode, "children" | "content">({
+            ...metadata,
+            toJSON: (): FileTreeMetadata => { assertRevision(); this.authorize("metadata", expectedScope); return cloneMetadata(metadata); },
+        }, {
+            assertCurrent: assertRevision,
+            beforeGet: key => {
+                const operation: FileTreeOperation = key === "children" ? "list" : key === "content" ? "read" : "metadata";
+                this.authorize(operation, expectedScope);
+            },
+            load: {
+                children: () => {
+                    if (metadata.kind === "file") return Object.freeze([] as FileTreeNode[]);
+                    const children = this.host.listChildren(expectedScope);
+                    const seen = new SynchronousUnorderedMap<string, boolean>();
+                    const result: FileTreeNode[] = [];
+                    for (const child of children) {
+                        assertDirectChild(child, expectedScope, revision);
+                        if (seen.containsKey(child.path)) throw new Error("duplicate file-tree child");
+                        seen.put(child.path, true);
+                        result.push(this.createNode(cloneMetadata(child), revision));
                     }
-                } else {
-                    directoryReal = realPath;
-                }
-                if (!sandbox.contains(root.path, directoryReal)) {
-                    continue;
-                }
-                realPath = directoryReal;
-            }
-            candidates.push({ name, relative: childRelative, absolute: childAbsolute, stat: entryStat, directory: entryStat.isDirectory(), real: realPath });
-        }
-        candidates.sort(compareCandidates);
-        const children: TreeNode[] = [];
-        for (let index: number = 0; index < candidates.length; index += 1) {
-            const candidate: WalkCandidate = candidates[index];
-            if (state.nodes + 1 > maxNodes) {
-                state.truncated = true;
-                break;
-            }
-            if (candidate.directory) {
-                if (candidate.real !== (void 0) && ancestry.has(candidate.real)) {
-                    continue;
-                }
-                state.nodes += 1;
-                state.directories += 1n;
-                const childAncestry: ReadonlySet<string> =
-                    candidate.real === (void 0) ? ancestry : new Set<string>([...ancestry, candidate.real]);
-                const child: DirectoryNode | undefined = walkDirectory(candidate.relative, candidate.absolute, candidate.stat, childAncestry);
-                if (child === (void 0)) {
-                    state.nodes -= 1;
-                    state.directories -= 1n;
-                    continue;
-                }
-                children.push(child);
-                continue;
-            }
-            const size: bigint = BigInt(candidate.stat.size);
-            if (state.bytes + size > maxBytes) {
-                state.truncated = true;
-                continue;
-            }
-            try {
-                const child: TreeNode = buildFileNode(root, candidate.relative, options);
-                state.nodes += 1;
-                state.files += 1n;
-                state.bytes += child.bytes;
-                state.lines += child.lines;
-                children.push(child);
-            } catch {
-                state.truncated = true;
-            }
-        }
-        const built: DirectoryNode = buildDirectoryNode(relative, children, options, creationTime(stat), new Date(stat.mtimeMs));
-        return withReadmePurpose(built, relative, children, options);
-    };
-
-    const stat: Stats = rootStat(root.path);
-    if (!stat.isDirectory()) {
-        return fail("not_directory");
+                    return Object.freeze(result);
+                },
+                content: () => {
+                    if (metadata.kind === "directory") return undefined;
+                    const beforeRevision = this.host.revision();
+                    if (beforeRevision !== revision) throw new Error("file-tree source changed; call refresh");
+                    const before = this.readMetadata(metadata.path, revision);
+                    assertSameVersion(before, metadata, revision);
+                    const read = this.host.readFile(expectedScope);
+                    if (read.tenantId !== metadata.tenantId || read.rootId !== metadata.rootId || read.path !== metadata.path
+                        || read.version !== metadata.version || read.hash !== metadata.hash || (read.revision ?? revision) !== (metadata.revision ?? revision)
+                        || digest(read.content) !== read.hash) throw new Error("file-tree read version/hash mismatch");
+                    const afterRevision = this.host.revision();
+                    const after = this.readMetadata(metadata.path, revision);
+                    if (afterRevision !== beforeRevision) throw new Error("file-tree source changed during read");
+                    assertSameVersion(after, metadata, revision);
+                    return read.content;
+                },
+            },
+        });
+        const node = lazy.value;
+        this.cache.put(key, node);
+        return node;
     }
-    let rootReal: string = root.path;
-    try {
-        rootReal = realpathSync(root.path);
-    } catch {
-        rootReal = root.path;
-    }
-    const rootNode: DirectoryNode =
-        walkDirectory(".", root.path, stat, new Set<string>([rootReal])) ??
-        buildDirectoryNode(".", [], options, creationTime(stat), new Date(stat.mtimeMs));
-    const frozen: DirectoryNode = freezeNode(rootNode) as DirectoryNode;
-    const stats: TreeStats = Object.freeze({
-        files: state.files,
-        directories: state.directories,
-        lines: state.lines,
-        bytes: state.bytes,
-        truncated: state.truncated,
-    });
-    return Object.freeze({
-        root: frozen,
-        revision: revisionOf(frozen, options, state.truncated),
-        stats,
-    });
-};
+}
 
-/**
- * Cached, immutable view of one session root.
- */
-export class WorkspaceTree {
-    readonly root: SessionRoot;
-    readonly options: TreeOptions;
-    private cached: TreeSnapshot | undefined;
-    private index: Map<string, TreeNode> | undefined;
-
-    constructor(root: SessionRoot, options: TreeOptions = {}) {
-        this.root = { ...root, exclude: Array.isArray(root.exclude) ? [...root.exclude] : [] };
-        this.options = { ...options };
-    }
-
-    /**
-     * Return the cached snapshot, building it on first use.
-     */
-    snapshot(): TreeSnapshot {
-        return this.ensure();
-    }
-
-    /**
-     * Look up one node by root-relative POSIX path.
-     */
-    node(relative: string): TreeNode | undefined {
-        this.ensure();
-        const normalized: string | undefined = normalizeTreePath(relative);
-        if (normalized === (void 0)) {
-            return undefined;
-        }
-        const index: Map<string, TreeNode> | undefined = this.index;
-        return index === (void 0) ? undefined : index.get(normalized);
-    }
-
-    /**
-     * Direct children of a directory; an empty array for a file or missing path.
-     */
-    children(relative: string): readonly TreeNode[] {
-        const found: TreeNode | undefined = this.node(relative);
-        if (found === (void 0) || found.type === "File") {
-            return [];
-        }
-        return found.children;
-    }
-
-    /**
-     * Current tree revision.
-     */
-    revision(): string {
-        return this.ensure().revision;
-    }
-
-    /**
-     * Discard the cache and rebuild the whole tree.
-     *
-     * @param relative - Subtree hint accepted for future targeted rebuilds.
-     * @returns The fresh snapshot.
-     */
-    refresh(relative?: string): TreeSnapshot {
-        void relative;
-        return this.rebuild();
-    }
-
-    /**
-     * Aggregate statistics for the current snapshot.
-     */
-    stats(): TreeStats {
-        return this.ensure().stats;
-    }
-
-    private ensure(): TreeSnapshot {
-        const cached: TreeSnapshot | undefined = this.cached;
-        if (cached !== (void 0)) {
-            return cached;
-        }
-        return this.rebuild();
-    }
-
-    private rebuild(): TreeSnapshot {
-        const snapshot: TreeSnapshot = buildTree(this.root, this.options);
-        this.cached = snapshot;
-        const index: Map<string, TreeNode> = new Map<string, TreeNode>();
-        indexNode(snapshot.root, index);
-        this.index = index;
-        return snapshot;
-    }
+export function createFileTree(host: FileTreeHost, options: FileTreeOptions): FileTree {
+    return new FileTree(host, options);
 }

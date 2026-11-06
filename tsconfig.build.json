@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
+    "strict": true,
     "declaration": true,
     "declarationMap": false,
     "sourceMap": false,
@@ -9,6 +10,6 @@
     "rootDir": "src",
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src"],
-  "exclude": ["src/main.ts", "src/counter.ts", "src/style.css"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/selfTest.ts", "src/main.ts", "src/counter.ts", "src/style.css"]
 }

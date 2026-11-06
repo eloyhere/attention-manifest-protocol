@@ -1,433 +1,224 @@
-import type { Charset } from "../syntax/types.ts";
-import type { OutlineResult } from "../outline/types.ts";
-export type { OutlineKind, OutlineCategory, OutlineRange, OutlineType, OutlineNode, OutlineResult, WireOutlineRange, WireOutlineNode, WireOutlineResult } from "../outline/types.ts";
+import type { Identifier } from "../shared.ts";
+import type { CharsetInfo } from "./charset.ts";
+import type { Range } from "./range.ts";
 
-/**
- * Filesystem domain types.
- *
- * The model is deliberately tree-first. A directory owns an ordered set of
- * `File`/`Directory` nodes; a file has no children. Every node carries the
- * metadata an agent needs to decide whether to read it before paying for the
- * content: a content fingerprint, charset, line/byte counts, timestamps and a
- * short description/summary/purpose.
- *
- * The in-process shape uses `bigint` for `lines` and `bytes` so a large tree
- * cannot silently lose precision. JSON has no bigint, so the wire projection
- * (`WireTreeNode`) spells the same values as decimal strings; both forms are
- * part of the public contract.
- */
-import type { SessionRoot } from "../session/types.ts";
-
-/**
- * Charset detected for a node. Directories use `none`; files that do not
- * decode as UTF-8/UTF-16 and do not look like text use `binary`.
- */
-export type { Charset } from "../syntax/types.ts";
-
-/**
- * Timestamp format used by node metadata: `yyyy-MM-ddTHH:mm:ss` with no zone
- * suffix. The filesystem service defaults to host-local wall time because that
- * is what a user sees in an explorer; hosts that need reproducible snapshots
- * can request UTC.
- */
-export type NodeTime = string;
-
-/**
- * `Date.toISOString()`-shaped timestamp used by protocol envelopes, audits and
- * persistence rows. Node metadata uses the shorter `NodeTime` form.
- */
-export type IsoTime = string;
-
-/**
- * Host-supplied, path-keyed override of the derived metadata. An override is
- * descriptive only: it never changes access checks or the content fingerprint.
- */
-export interface NodeAnnotation {
-    readonly description?: string;
-    readonly summary?: string;
-    readonly purpose?: string;
+export interface WorkspaceScope {
+    readonly tenantId: Identifier;
+    readonly rootId: Identifier;
 }
 
-/**
- * Metadata shared by files and directories. `fingerprint` is a content-address
- * ref: `sha256:<hex>` of the file bytes, or a domain-separated Merkle digest of
- * the sorted child refs for a directory.
- */
-export interface NodeMetadata {
-    readonly fingerprint: string;
-    readonly charset: Charset;
-    readonly lines: bigint;
-    readonly bytes: bigint;
-    readonly create: NodeTime;
-    readonly modify: NodeTime;
-    readonly description: string;
-    readonly summary: string;
-    readonly purpose: string;
-}
+export type WorkspaceMode = "read-only" | "writable";
+export type FileState = "unmounted" | "mounted" | "active" | "stale" | "dirty";
 
-/**
- * Leaf node. `children` is always the empty tuple, which makes the tree shape
- * checkable by the type system rather than by a convention.
- */
-export interface FileNode extends NodeMetadata {
-    readonly type: "File";
+export interface FileRef extends WorkspaceScope {
     readonly path: string;
-    readonly name: string;
-    readonly extension: string;
-    readonly children: readonly [];
 }
 
-/**
- * Interior node. `bytes`/`lines` aggregate descendants; `modify` is the latest
- * descendant modification so a directory answers "when did this subtree last
- * change?" without walking it again.
- */
-export interface DirectoryNode extends NodeMetadata {
-    readonly type: "Directory";
-    readonly path: string;
-    readonly name: string;
-    readonly extension: "directory";
-    readonly children: readonly TreeNode[];
+export interface StoredFile extends FileRef {
+    /** Decoded text with `\n` line endings; `charset` restores the on-disk form. */
+    readonly content: string;
+    readonly hash: string;
+    readonly version: number;
+    readonly updatedAt: string;
+    /** Encoding, BOM and line-ending facts; absent means UTF-8, LF, no BOM. */
+    readonly charset?: CharsetInfo;
+    /** On-disk size in bytes. */
+    readonly size?: number;
 }
 
-/**
- * Any tree node.
- */
-export type TreeNode = FileNode | DirectoryNode;
-
-/**
- * Derived node statistics used by service limits without re-walking the tree.
- */
-export interface TreeStats {
-    readonly files: bigint;
-    readonly directories: bigint;
-    readonly lines: bigint;
-    readonly bytes: bigint;
-    readonly truncated: boolean;
+export interface FileLease extends FileRef {
+    readonly owner: Identifier;
+    readonly fence: number;
+    readonly token: string;
+    readonly expiresAt?: string;
 }
 
-/**
- * Options that bound a tree build. `maxNodes` and `maxBytes` stop the walk with
- * `truncated: true` instead of exhausting memory; callers can then list a
- * subtree or raise the bound explicitly.
- */
-export interface TreeOptions {
-    readonly maxNodes?: number;
-    readonly maxBytes?: bigint;
-    readonly exclude?: readonly string[];
-    readonly annotations?: Readonly<Record<string, NodeAnnotation>>;
-    readonly followSymlinks?: boolean;
-    readonly timeZone?: "local" | "utc";
-    readonly includeHidden?: boolean;
+export interface FileRangeBounds {
+    readonly start: number;
+    readonly end: number;
 }
 
-/**
- * Snapshot returned by a tree build. `revision` changes whenever a node's
- * fingerprint, annotation or child set changes.
- */
-export interface TreeSnapshot {
-    readonly root: DirectoryNode;
-    readonly revision: string;
-    readonly stats: TreeStats;
+export type FileRange =
+    | { readonly kind: "byte" | "line"; readonly start: number; readonly end: number }
+    | { readonly byte: FileRangeBounds }
+    | { readonly line: FileRangeBounds };
+
+/** How a write locates the region it replaces. */
+export type WriteMode = "line" | "byte" | "outline";
+/** How a replacement locates the region, or regions, it rewrites. */
+export type ReplaceMode = "string" | "regex" | "line" | "byte" | "outline";
+
+export interface LineTarget {
+    readonly mode: "line";
+    /** 0-based start line. */
+    readonly start: number;
+    /** 0-based end line, exclusive. */
+    readonly end: number;
 }
 
-/**
- * Wire projection of a node. Lines and bytes are decimal strings because JSON
- * cannot represent `bigint`; a reader parses them with `BigInt`.
- */
-export interface WireFileNode extends Omit<FileNode, "children" | "lines" | "bytes"> {
-    readonly children: readonly [];
-    readonly lines: string;
-    readonly bytes: string;
+export interface ByteTarget {
+    readonly mode: "byte";
+    /** UTF-8 byte offset, must fall on a code point boundary. */
+    readonly start: number;
+    /** UTF-8 byte offset, exclusive, must fall on a code point boundary. */
+    readonly end: number;
 }
 
-/**
- * Wire projection of a directory node.
- */
-export interface WireDirectoryNode extends Omit<DirectoryNode, "children" | "lines" | "bytes"> {
-    readonly children: readonly WireTreeNode[];
-    readonly lines: string;
-    readonly bytes: string;
+export interface OutlineTarget {
+    readonly mode: "outline";
+    /** Node id from the outline of the current buffer. */
+    readonly id: string;
 }
 
-/**
- * Wire node union.
- */
-export type WireTreeNode = WireFileNode | WireDirectoryNode;
-
-/**
- * A bounded directory listing. `nextOffset` is null when the page is complete.
- */
-export interface DirectoryListing {
-    readonly path: string;
-    readonly revision: string;
-    readonly entries: readonly WireTreeNode[];
-    readonly total: number;
-    readonly nextOffset: number | null;
-}
-
-/**
- * Read request. Offsets are 1-based line numbers; `maxBytes` bounds the decoded
- * text and `maxLines` bounds the line count. `startLine > 1` costs a scan to
- * that line, so a caller paging a huge file should keep the page size stable.
- */
-export interface ReadRequest {
-    readonly path: string;
-    readonly startLine?: number;
-    readonly maxLines?: number;
-    readonly maxBytes?: number;
-    readonly includeLineNumbers?: boolean;
-}
-
-/**
- * One bounded read page. `nextStartLine` is null at EOF. `text` is decoded with
- * the node charset; binary files are refused before any text is produced.
- */
-export interface ReadPage {
-    readonly path: string;
-    readonly fingerprint: string;
-    readonly charset: Charset;
-    readonly offset: number;
-    readonly startLine: number;
-    readonly endLine: number;
-    readonly totalLines: bigint;
-    readonly bytesRead: number;
-    readonly totalBytes: bigint;
+export interface StringTarget {
+    readonly mode: "string";
+    /** Literal text. It is matched exactly, without interpreting escapes or `$` patterns. */
     readonly text: string;
-    readonly nextStartLine: number | null;
+    /** 1-based match ordinal, mutually exclusive with `all`. */
+    readonly occurrence?: number;
+    /** Rewrite every match instead of requiring exactly one. */
+    readonly all?: boolean;
+}
+
+export interface RegexTarget {
+    readonly mode: "regex";
+    readonly pattern: string;
+    /** `i`, `m`, `s`, `u`, `v`; the stateful `g` and `y` flags are rejected. */
+    readonly flags?: string;
+    readonly occurrence?: number;
+    readonly all?: boolean;
+}
+
+export type WriteTarget = LineTarget | ByteTarget | OutlineTarget;
+export type ReplaceTarget = StringTarget | RegexTarget | WriteTarget;
+
+export interface EditOptions {
+    /** Reject when the buffer changed since the caller observed this `snapshot().bufferVersion`. */
+    readonly expectedBufferVersion?: number;
+    /** Reject when the committed base moved away from the hash the caller read. */
+    readonly expectedBaseHash?: string;
+}
+
+/** One step of a transactional multi-edit; all steps are resolved before anything mutates. */
+export type EditOp =
+    | { readonly kind: "write"; readonly content: string; readonly target?: FileRange | WriteTarget }
+    | { readonly kind: "replace"; readonly target: ReplaceTarget; readonly replacement: string };
+
+/** A bounded line-addressed read that carries the anchors an edit needs. */
+export interface LineRead {
+    readonly text: string;
+    readonly range: Range;
+    readonly startLine: number;
+    readonly lineCount: number;
+    readonly totalLines: number;
     readonly truncated: boolean;
-    readonly binary: boolean;
+    readonly eol: "\n" | "\r\n";
+    readonly baseHash: string;
+    readonly bufferVersion: number;
 }
 
-/**
- * Write mode. `create` fails when the file exists, `overwrite` requires an
- * existing file, and `upsert` does either. CAS via `expectFingerprint` is an
- * additional guard on top of the mode.
- */
-export type WriteMode = "create" | "overwrite" | "upsert" | "append";
-
-/**
- * Write request. When `expectFingerprint` is present the write is rejected
- * unless the current file still has that fingerprint; `null` means "expect no
- * file". `dryRun` runs every check and returns the projected node without
- * touching the disk.
- */
-export interface WriteRequest {
-    readonly path: string;
-    readonly content: string | Uint8Array;
-    readonly encoding?: "utf-8" | "utf-8-bom" | "utf-16le" | "utf-16be" | "latin1";
-    readonly mode?: WriteMode;
-    readonly expectFingerprint?: string | null;
-    readonly createParents?: boolean;
-    readonly dryRun?: boolean;
+export interface FlushOptions {
+    /** Retrying with the same key after a successful commit is a no-op. */
+    readonly idempotencyKey?: string;
 }
 
-/**
- * Result of a successful (or dry-run) write.
- */
-export interface WriteResult {
-    readonly node: FileNode;
-    readonly previousFingerprint: string | null;
-    readonly created: boolean;
-    readonly dryRun: boolean;
-    readonly bytesWritten: bigint;
-    readonly revision: string;
+/** One resolved region, in document coordinates. */
+export interface EditMatch extends Range {
+    readonly text: string;
 }
 
-/**
- * Journal record for one successful write. The journal is metadata only; the
- * previous bytes are recoverable from the object store/CAS when the host keeps
- * one, so this module does not duplicate file content.
- */
-export interface WriteJournalEntry {
+/** Dry-run result: the text that `write`/`replace` would produce and the regions it targets. */
+export interface EditPlan {
+    /** `file` means a whole-buffer write; `apply` is a transactional multi-edit. */
+    readonly mode: WriteMode | ReplaceMode | "file" | "apply";
+    readonly matches: readonly EditMatch[];
+    readonly text: string;
+    readonly changed: boolean;
+    readonly bufferVersion: number;
+}
+
+/** One outline node that an `outline` target may address. */
+export interface OutlineEntry {
     readonly id: string;
-    readonly sessionId: string;
-    readonly rootId: string;
-    readonly path: string;
-    readonly mode: WriteMode;
-    readonly previousFingerprint: string | null;
-    readonly nextFingerprint: string;
-    readonly bytes: bigint;
-    readonly at: IsoTime;
-}
-
-/**
- * Import edge kinds. `export-from` is tracked because a re-export is still a
- * dependency edge even though it is not an import statement.
- */
-export type ImportKind = "static" | "dynamic" | "require" | "export-from" | "type";
-
-/**
- * One module edge. `from` and `to` are root-relative POSIX paths; `to` is the
- * resolved path for internal edges and the bare specifier for external ones.
- */
-export interface ImportEdge {
-    readonly from: string;
-    readonly to: string;
-    readonly specifier: string;
-    readonly kind: ImportKind;
-    readonly line: number;
-    readonly resolved: boolean;
-    readonly external: boolean;
-}
-
-/**
- * Import report for one file. `importedBy` is the reverse edge list, which is
- * what makes "who breaks if I change this?" cheap.
- */
-export interface ImportReport {
-    readonly path: string;
-    readonly fingerprint: string;
-    readonly imports: readonly ImportEdge[];
-    readonly importedBy: readonly ImportEdge[];
-    readonly external: readonly string[];
-    readonly unresolved: readonly string[];
-    readonly truncated: boolean;
-}
-
-/**
- * Exported symbol kinds.
- */
-export type ExportKind = "function" | "class" | "interface" | "type" | "enum" | "const" | "let" | "var" | "default" | "namespace" | "reexport";
-
-/**
- * One exported symbol with its source range and a bounded signature.
- */
-export interface ExportSymbol {
     readonly name: string;
-    readonly kind: ExportKind;
-    readonly line: number;
-    readonly signature: string;
-    readonly reexportFrom?: string;
+    readonly kind: string;
+    readonly range: Range;
+}
+
+/** Host-supplied outline of the current buffer; it must be a pure function of `text`. */
+export interface OutlineProvider {
+    entries(path: string, text: string): readonly OutlineEntry[];
+}
+
+export interface MountOptions {
+    readonly mode?: WorkspaceMode;
+    readonly owner?: Identifier;
+    readonly leaseTtlMilliseconds?: number;
+    /** Required by `write`/`replace` targets with `mode: "outline"`. */
+    readonly outline?: OutlineProvider;
+    /** `true` mounts bytes only, `false` refuses non-text files; omitted auto-detects. */
+    readonly binary?: boolean;
+}
+
+export interface ReadOptions {
+    readonly allowStale?: boolean;
+}
+
+export interface ReloadOptions {
+    readonly discardDirty?: boolean;
+}
+
+export interface UnmountOptions {
+    readonly discardDirty?: boolean;
+}
+
+export interface FileSnapshot extends FileRef {
+    readonly state: FileState;
+    readonly mode: WorkspaceMode;
+    readonly baseHash: string;
+    readonly baseVersion: number;
+    readonly hash: string;
+    readonly version: number;
+    readonly bufferVersion: number;
+    readonly dirty: boolean;
+    readonly stale: boolean;
+    readonly encoding: CharsetInfo["encoding"];
+    readonly eol: CharsetInfo["eol"];
+    readonly bom: boolean;
+    /** True when the file is mounted as opaque bytes (proprietary/binary formats). */
+    readonly binary: boolean;
+    /** On-disk size of the committed version. */
+    readonly size: number;
+    readonly lease?: FileLease;
+}
+
+export interface FileConflict extends FileRef {
+    readonly base: StoredFile;
+    readonly ours: string;
+    readonly theirs: StoredFile;
+}
+
+export interface StoredBytes extends FileRef {
+    readonly bytes: Uint8Array;
+    readonly size: number;
+    readonly hash: string;
+    readonly version: number;
+    readonly updatedAt: string;
 }
 
 /**
- * Export report for one file.
+ * Host port for file bytes. Adapters MUST serialize `compareAndSwap` against concurrent
+ * writers: the in-memory adapter is trivially atomic, while a real filesystem adapter needs
+ * a cross-process lock plus a hash re-check immediately before the atomic replace.
  */
-export interface ExportReport {
-    readonly path: string;
-    readonly fingerprint: string;
-    readonly exports: readonly ExportSymbol[];
-    readonly reexports: readonly ImportEdge[];
-    readonly truncated: boolean;
-}
-
-/**
- * Node role in a dependency graph. Packages are included so a workspace file
- * can depend on an external package without pretending it is a source file.
- */
-export type DependencyNodeKind = "file" | "directory" | "package";
-
-/**
- * One dependency graph node.
- */
-export interface DependencyNode {
-    readonly id: string;
-    readonly path: string;
-    readonly kind: DependencyNodeKind;
-    readonly fingerprint: string;
-}
-
-/**
- * Dependency edge kinds. `import`/`export`/`reference` come from source facts;
- * `package` comes from a manifest declaration.
- */
-export type DependencyEdgeKind = "import" | "export" | "reference" | "package";
-
-/**
- * One directed dependency edge. `to` is a node id, not necessarily a path.
- */
-export interface DependencyEdge {
-    readonly from: string;
-    readonly to: string;
-    readonly kind: DependencyEdgeKind;
-    readonly specifier?: string;
-    readonly line?: number;
-}
-
-/**
- * Graph query mode. `cycles` returns strongly connected components with more
- * than one node; `topological` returns a deterministic order or the blocking
- * SCCs when the graph is cyclic.
- */
-export type DependencyMode = "cycles" | "topological" | "dependencies" | "dependents" | "closure";
-
-/**
- * Bounded dependency report. `order` is present for `topological`; `cycles`
- * is present for `cycles` (and for a cyclic topological request).
- */
-export interface DependencyReport {
-    readonly revision: string;
-    readonly mode: DependencyMode;
-    readonly roots: readonly string[];
-    readonly nodes: readonly DependencyNode[];
-    readonly edges: readonly DependencyEdge[];
-    readonly order: readonly string[];
-    readonly cycles: readonly (readonly string[])[];
-    readonly unresolved: readonly string[];
-    readonly external: readonly string[];
-    readonly truncated: boolean;
-}
-
-/**
- * Errors are classified so a transport can map them to stable tool error codes
- * without parsing messages. Every message is code-only, mirroring the existing
- * workspace service: host paths never leak through an error string.
- */
-export type FilesystemErrorCode =
-    | "invalid_arguments"
-    | "session_unavailable"
-    | "permission_denied"
-    | "invalid_path"
-    | "path_escape"
-    | "symlink_denied"
-    | "excluded_path"
-    | "not_found"
-    | "not_file"
-    | "not_directory"
-    | "already_exists"
-    | "binary_file"
-    | "charset_unsupported"
-    | "fingerprint_mismatch"
-    | "lock_conflict"
-    | "quota_exceeded"
-    | "parse_failed"
-    | "store_failure"
-    | "internal_error";
-
-/**
- * Persistence port for the filesystem domain. The SQLite adapter implements
- * this; the service itself only sees the port so the tree can also run in
- * memory for tests and one-shot CLI use.
- */
-export interface FilesystemStore {
-    loadTree(rootId: string): TreeSnapshot | undefined;
-    saveTree(rootId: string, snapshot: TreeSnapshot): void;
-    loadAnnotations(rootId: string): Record<string, NodeAnnotation>;
-    saveAnnotation(rootId: string, path: string, annotation: NodeAnnotation, source: string): void;
-    appendWrite(entry: WriteJournalEntry): void;
-    listWrites(sessionId: string, limit: number): WriteJournalEntry[];
-    loadOutline(rootId: string, path: string, fingerprint: string): OutlineResult | undefined;
-    saveOutline(rootId: string, outline: OutlineResult): void;
-    /**
-     * Drop every cached outline of one file. A writer calls this before saving
-     * the rebuilt outline so one file keeps one cache row instead of one per
-     * edited fingerprint. Optional: in-memory stores may only keep the latest.
-     */
-    removeOutline?(rootId: string, path: string): void;
-    loadImports(rootId: string, path: string, fingerprint: string): ImportReport | undefined;
-    saveImports(rootId: string, report: ImportReport): void;
-    loadExports(rootId: string, path: string, fingerprint: string): ExportReport | undefined;
-    saveExports(rootId: string, report: ExportReport): void;
-    loadDependencyRevision(rootId: string): string | undefined;
-    saveDependencyRevision(rootId: string, revision: string): void;
-}
-
-/**
- * Resolved path within one session root.
- */
-export interface RootedPath {
-    readonly root: SessionRoot;
-    readonly relative: string;
-    readonly absolute: string;
+export interface FileStoragePort {
+    read(ref: FileRef): StoredFile | undefined;
+    /** Must throw `version_conflict` when the current hash differs; must not partially write. */
+    compareAndSwap(ref: FileRef, expectedHash: string, content: string, fence: number): StoredFile;
+    acquireLease(ref: FileRef, owner: Identifier, ttlMilliseconds?: number): FileLease;
+    releaseLease(lease: FileLease): void;
+    /** Optional raw byte access, required only for binary/proprietary formats. */
+    readBytes?(ref: FileRef): StoredBytes | undefined;
+    /** Optional byte commit; must be atomic and hash-checked like `compareAndSwap`. */
+    compareAndSwapBytes?(ref: FileRef, expectedHash: string, bytes: Uint8Array, fence: number): StoredFile;
 }
