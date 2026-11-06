@@ -1,4 +1,0 @@
-test: end-to-end agent scenario and boundary suite
-
-- scenario: bug-fix loop (outline lookup, planReplace, string replace, idempotent flush), stale detection, lease fencing, BOM/CRLF fidelity, code-point byte boundaries, binary document outlines, corrupted/unsupported formats, archive budgets, path traversal, size ceiling, project environment gaps, agent gateway authorization/masking/injection/journaling, document budget truncation, durability
-- npm run scenario plus inclusion in test:architecture (460 tests)
