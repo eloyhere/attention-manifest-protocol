@@ -1,0 +1,5 @@
+feat: project kind environment bridge and agent tool gateway
+
+- project.kinds: createProjectFromKind/applyProjectKind seed Project.environment from kind defaults while preserving project overrides
+- agent: AgentGateway dispatches the declared surface with binding, visibility, parameter, idempotency, authorization and journal checks
+- tests: 446 node:test cases
