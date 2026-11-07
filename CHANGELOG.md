@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-11-07
+
+### Added
+
+- `safeStringify` rounds every non-integer finite number to at most two decimal places while producing JSON text. Rounding happens on a cloned tree, so inputs are never mutated; integers, `NaN` and `Infinity` are untouched. In-memory arithmetic keeps full precision. Adds `roundMetric` to the shared utilities with symmetric half-up rounding (so `-1.005` becomes `-1.01`, not `-1`).
+
+## [0.7.5] - 2026-11-07
+
+### Changed
+
+- The changelog is surfaced on the npm page: README/README.zh-CN gain a Changelog section, and `package.json` declares `repository`, `homepage` and `bugs` so relative links resolve. `CHANGELOG.md` and `CHANGELOG.zh-CN.md` remain in the published tarball.
+
 ## [0.7.4] - 2026-11-07
 
 ### Added

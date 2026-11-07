@@ -396,6 +396,7 @@ node --test src/file/document/archive.test.ts
 
 完整历史见 [CHANGELOG.md](CHANGELOG.md) 与 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
 
+- **0.7.6** — JSON 序列化时非整数数字最多保留 2 位小数；内存计算仍保持全精度。
 - **0.7.4** — 新增 `.log` 大纲解析：按日期 → 级别 → 条目分组，支持 ISO、时间戳、syslog 与裸级别格式，堆栈续行归入前一条记录。
 - **0.7.3** — `semantic-typescript` 升级至 `2.0.1`，修复上游致命缺陷。
 - **0.7.2** — 证据仲裁/融合/跨 Agent 接受、能力与行为生命周期、回执回滚与评测、L3 注意力调度、L5/L7/L8、`learn`/`feedback`、工作流传播与取消级联、五拓扑执行、kernel 的 project/workspace/file 流程、JPA 级联、Session/Turn 回执、六维预算与 `versionHash` 强制。

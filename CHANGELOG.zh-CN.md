@@ -5,6 +5,18 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.6] - 2026-11-07
+
+### 新增
+
+- `safeStringify` 在生成 JSON 文本时，将所有非整数有限数字最多保留 2 位小数。四舍五入发生在克隆树上，不修改输入；整数、`NaN` 与 `Infinity` 保持不变。内存中的计算仍保持全精度。共享工具新增 `roundMetric`，采用对称四舍五入（`-1.005` 得到 `-1.01`，而不是 `-1`）。
+
+## [0.7.5] - 2026-11-07
+
+### 变更
+
+- 在 npm 页面展示更新日志：README/README.zh-CN 增加更新日志小节，`package.json` 声明 `repository`、`homepage` 与 `bugs`，使相对链接可解析；`CHANGELOG.md` 与 `CHANGELOG.zh-CN.md` 继续包含在发布包中。
+
 ## [0.7.4] - 2026-11-07
 
 ### 新增
