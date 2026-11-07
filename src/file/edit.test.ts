@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryFileStorage } from "./core.ts";
+import { diffHunks } from "./edit.ts";
 import { createOutlineProvider } from "./outline.ts";
 import { Workspace } from "../workspace/core.ts";
 import { WorkspaceError } from "../workspace/types.ts";
@@ -167,4 +168,22 @@ test("a flushed outline edit commits through the same CAS path", () => {
     assert.equal(file.dirty, false);
     assert.equal(storage.read({ tenantId: "t", rootId: "r", path: "notes.md" })!.content, "# Title\n\nintro\n\n## Section\n\nnew body\n");
     assert.equal(file.outline().find(entry => entry.name === "Section")!.range.startLine, 4);
+});
+
+test("structured diff hunks use 0-based exclusive lines and count only changed lines", () => {
+    assert.deepEqual(diffHunks("a\n", "a\n"), []);
+    assert.deepEqual(diffHunks("a\nb\n", "a\nB\n"), [{ startLine: 1, endLine: 2, removed: 1, added: 1 }]);
+    assert.deepEqual(diffHunks("a\n", "a\nb\n"), [{ startLine: 1, endLine: 1, removed: 0, added: 1 }]);
+    assert.deepEqual(diffHunks("a\nb\n", "a\n"), [{ startLine: 1, endLine: 2, removed: 1, added: 0 }]);
+    assert.deepEqual(diffHunks("a\nb\n", "a\nb\nc\n"), [{ startLine: 2, endLine: 2, removed: 0, added: 1 }]);
+
+    const before = "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n";
+    const after = "0\nX\n2\n3\n4\n5\n6\n7\n8\n9\nY\n11\n";
+    const hunks = diffHunks(before, after);
+    assert.deepEqual(hunks, [
+        { startLine: 1, endLine: 2, removed: 1, added: 1 },
+        { startLine: 10, endLine: 11, removed: 1, added: 1 },
+    ]);
+    const unified = diffHunks("a\nb\nc\nd\ne\nf\ng\nh\n", "a\nb\nc\nd\nE\nf\ng\nh\n");
+    assert.deepEqual(unified, [{ startLine: 4, endLine: 5, removed: 1, added: 1 }]);
 });

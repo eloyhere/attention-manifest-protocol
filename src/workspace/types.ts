@@ -1,11 +1,11 @@
-import type { FileStoragePort, OutlineProvider } from "../file/types.ts";
+import type { FileOperationReceipt, FileStoragePort, OutlineProvider } from "../file/types.ts";
 import type { Identifier } from "../shared.ts";
 
 export type {
-    ByteTarget, EditMatch, EditOptions, EditPlan, FileConflict, FileLease, FileRange, FileRangeBounds, FileRef,
-    FileSnapshot, FileState, FileStoragePort, LineTarget, MountOptions, OutlineEntry, OutlineProvider, OutlineTarget,
-    ReadOptions, RegexTarget, ReloadOptions, ReplaceMode, ReplaceTarget, StoredFile, StringTarget, UnmountOptions,
-    WorkspaceMode, WorkspaceScope, WriteMode, WriteTarget,
+    ByteTarget, EditMatch, EditOptions, EditPlan, FileConflict, FileLease, FileOperationKind, FileOperationReceipt,
+    FileRange, FileRangeBounds, FileRef, FileSnapshot, FileState, FileStoragePort, LineTarget, MountOptions, OutlineEntry,
+    OutlineProvider, OutlineTarget, ReadOptions, RegexTarget, ReloadOptions, ReplaceMode, ReplaceTarget, StoredFile,
+    StringTarget, UnmountOptions, WorkspaceMode, WorkspaceScope, WriteMode, WriteTarget,
 } from "../file/types.ts";
 export type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind } from "../project/types.ts";
 
@@ -16,6 +16,11 @@ export interface WorkspaceOptions {
     readonly clock?: () => string;
     /** Default outline provider for `outline` edit targets on every file of this workspace. */
     readonly outline?: OutlineProvider;
+    /**
+     * Optional observer invoked after each file mount, flush and unmount. Receipts use the
+     * local `FileOperationReceipt` shape so the file layer has no receipt-module dependency.
+     */
+    readonly onFileReceipt?: (receipt: FileOperationReceipt) => void;
 }
 
 export type WorkspaceErrorCode =

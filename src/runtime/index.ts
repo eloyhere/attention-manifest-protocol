@@ -1,8 +1,8 @@
 export { LcpService } from "./lcp.ts";
 export type { LcpHost } from "./lcp.ts";
-import { createHash } from "node:crypto";
 import { Optional, SynchronousUnorderedMap } from "semantic-typescript";
 import { EvidenceLedger, createInvocation, createObservation, createReceiptCore, verifyBusinessSemantics, verifyReceiptIntegrity } from "../provenance.ts";
+import { digestOf } from "../serialization/index.ts";
 import type { BusinessVerification, ReceiptCore, ReceiptIntegrityVerification } from "../provenance.ts";
 import type { ExecutionContext, InvocationRecord, ObservationRecord } from "../shared.ts";
 import type { Executor, RunResult, ChildCall } from "../tooling.ts";
@@ -45,7 +45,7 @@ export class MemoryReceiptSink implements ReceiptSink {
 
 /** Hash scope is exactly the immutable invocation and observation encoded below. */
 export const executionFactDigest = (invocation: InvocationRecord, observation: ObservationRecord): string => {
-    return `sha256:${createHash("sha256").update(JSON.stringify({ invocation, observation })).digest("hex")}`;
+    return digestOf({ invocation, observation });
 };
 
 /**

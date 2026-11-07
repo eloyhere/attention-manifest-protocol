@@ -1,7 +1,7 @@
 import { isString } from "semantic-typescript";
 import { SourceText } from "./range.ts";
 import type {
-    ByteTarget, EditMatch, LineTarget, OutlineProvider, OutlineTarget, RegexTarget, ReplaceTarget, StringTarget, WriteTarget,
+    ByteTarget, DiffHunk, EditMatch, LineTarget, OutlineProvider, OutlineTarget, RegexTarget, ReplaceTarget, StringTarget, WriteTarget,
 } from "./types.ts";
 import { WorkspaceError } from "../workspace/types.ts";
 
@@ -243,20 +243,61 @@ function diffLines(before: readonly string[], after: readonly string[]): DiffLin
     return output;
 }
 
+interface DiffGroup {
+    readonly start: number;
+    readonly end: number;
+}
+
+/** Merges changed line indexes into unified-diff hunk ranges over the op array. */
+function diffGroups(ops: readonly DiffLine[], context: number): DiffGroup[] {
+    const changed = ops.map((line, index) => line.type === " " ? -1 : index).filter(index => index >= 0);
+    const groups: { start: number; end: number }[] = [];
+    for (const index of changed) {
+        const start = Math.max(0, index - context);
+        const end = Math.min(ops.length, index + context + 1);
+        const last = groups.at(-1);
+        if (last && start <= last.end) last.end = Math.max(last.end, end);
+        else groups.push({ start, end });
+    }
+    return groups;
+}
+
+/**
+ * Structured view of the unified diff hunks. The grouping (3 context lines) is identical to
+ * `unifiedDiff`; each hunk reports the changed lines only, using 0-based exclusive lines in
+ * the base text and counts of removed/added lines.
+ */
+export function diffHunks(before: string, after: string, context = 3): readonly DiffHunk[] {
+    if (before === after) return Object.freeze([]);
+    const ops = diffLines(before.split("\n"), after.split("\n"));
+    const output: DiffHunk[] = [];
+    for (const group of diffGroups(ops, context)) {
+        let removed = 0;
+        let added = 0;
+        let startLine = Number.POSITIVE_INFINITY;
+        let endLine = -1;
+        for (const op of ops.slice(group.start, group.end)) {
+            if (op.type === "+") {
+                added += 1;
+                startLine = Math.min(startLine, op.beforeLine);
+            } else if (op.type === "-") {
+                removed += 1;
+                startLine = Math.min(startLine, op.beforeLine - 1);
+                endLine = Math.max(endLine, op.beforeLine);
+            }
+        }
+        if (!Number.isFinite(startLine)) continue;
+        output.push(Object.freeze({ startLine, endLine: endLine < 0 ? startLine : endLine, removed, added }));
+    }
+    return Object.freeze(output);
+}
+
 /** Unified diff with 3 context lines; returns "" when the texts are identical. */
 export function unifiedDiff(before: string, after: string, fromLabel = "a", toLabel = "b", context = 3): string {
     if (before === after) return "";
     const ops = diffLines(before.split("\n"), after.split("\n"));
-    const changed = ops.map((line, index) => line.type === " " ? -1 : index).filter(index => index >= 0);
-    if (changed.length === 0) return "";
-    const hunks: { start: number; end: number }[] = [];
-    for (const index of changed) {
-        const start = Math.max(0, index - context);
-        const end = Math.min(ops.length, index + context + 1);
-        const last = hunks.at(-1);
-        if (last && start <= last.end) last.end = Math.max(last.end, end);
-        else hunks.push({ start, end });
-    }
+    const hunks = diffGroups(ops, context);
+    if (hunks.length === 0) return "";
     const lines: string[] = [`--- ${fromLabel}`, `+++ ${toLabel}`];
     for (const hunk of hunks) {
         const slice = ops.slice(hunk.start, hunk.end);

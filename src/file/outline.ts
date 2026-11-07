@@ -2,6 +2,7 @@ import { Optional, SynchronousAbstractSyntaxTree, SynchronousUnorderedMap, isNum
 import type { FileSnapshot, OutlineEntry, OutlineProvider, StoredFile } from "./types.ts";
 import { fileDigest } from "./core.ts";
 import { useLazyProxy } from "../reactive/proxy.ts";
+import { safeStringify } from "../serialization/index.ts";
 import { createDefaultLanguageRegistry } from "./language/builtins.ts";
 import { validateParsedNodes, type LanguageRegistry } from "./language/registry.ts";
 import { SourceText, freezeRange, isRange, unionRange, type Range } from "./range.ts";
@@ -29,6 +30,8 @@ export interface OutlineNode {
     readonly name: string;
     readonly summary: string;
     readonly range: Range;
+    /** Hash of the source text this node's range was computed against. */
+    readonly versionHash?: string;
     /** True when the node describes content that is not committed to the stored file version. */
     readonly dirty: boolean;
 }
@@ -94,7 +97,7 @@ function dirtySource(source: StoredFile | FileSnapshot | SourceVersion, version:
 }
 
 function identityKey(identity: FileIdentity): string {
-    return JSON.stringify([identity.tenantId, identity.rootId, identity.path]);
+    return safeStringify([identity.tenantId, identity.rootId, identity.path]);
 }
 
 function sameVersion(left: SourceVersion, right: OutlineCurrentVersion): boolean {
@@ -109,6 +112,7 @@ interface InternalNode {
     readonly name: string;
     readonly summary: string;
     range: Range;
+    readonly versionHash: string;
     readonly dirty: boolean;
     readonly parentId?: string;
     childIds: string[];
@@ -116,7 +120,8 @@ interface InternalNode {
 
 function snapshot(node: InternalNode): OutlineNode {
     return {
-        id: node.id, kind: node.kind, name: node.name, summary: node.summary, range: freezeRange(node.range), dirty: node.dirty,
+        id: node.id, kind: node.kind, name: node.name, summary: node.summary, range: freezeRange(node.range),
+        versionHash: node.versionHash, dirty: node.dirty,
         ...(node.parentId === undefined ? {} : { parentId: node.parentId }), childIds: Object.freeze([...node.childIds]),
     };
 }
@@ -146,7 +151,7 @@ export class FileOutline {
             if (parsed.id === this.rootId || mutableNodes.containsKey(parsed.id)) throw new TypeError(`duplicate outline node id: ${parsed.id}`);
             const parentId = parsed.parentId ?? this.rootId;
             const node: InternalNode = { id: parsed.id, kind: parsed.kind, name: parsed.name, summary: parsed.summary,
-                range: freezeRange(parsed.range), dirty, parentId, childIds: [] };
+                range: freezeRange(parsed.range), versionHash: version.contentHash, dirty, parentId, childIds: [] };
             mutableNodes.put(node.id, node);
             const children = childrenByParent.get(parentId).orElse([]) as string[];
             children.push(node.id);
@@ -154,7 +159,8 @@ export class FileOutline {
         }
 
         const root: InternalNode = { id: this.rootId, kind: "file", name: version.path, summary: "File outline",
-            range: freezeRange({ startLine: 0, endLine: text.lineCount, startByte: 0, endByte: text.byteLength }), dirty,
+            range: freezeRange({ startLine: 0, endLine: text.lineCount, startByte: 0, endByte: text.byteLength }),
+            versionHash: version.contentHash, dirty,
             childIds: childrenByParent.get(this.rootId).orElse([]) as string[] };
 
         // Children precede parents here, so widening a parent also covers widened descendants.
@@ -327,7 +333,7 @@ export function createOutlineProvider(options: OutlineBuildOptions = {}): Outlin
             const version: SourceVersion = { tenantId: "outline", rootId: "outline", path,
                 contentHash: fileDigest(text), version: 0, bufferVersion: 0 };
             return Object.freeze(createFileOutline(version, text, options).entries()
-                .map(node => Object.freeze({ id: node.id, name: node.name, kind: node.kind, range: node.range })));
+                .map(node => Object.freeze({ id: node.id, name: node.name, kind: node.kind, range: node.range, versionHash: node.versionHash })));
         },
     });
 }

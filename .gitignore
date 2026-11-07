@@ -30,3 +30,6 @@ lib
 *.njsproj
 *.sln
 *.sw?
+
+# local persistence store
+.attention-manifest-protocol/

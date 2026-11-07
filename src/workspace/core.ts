@@ -1,6 +1,6 @@
 import type { WorkspaceFile } from "../file/core.ts";
 import { WorkspaceFile as File } from "../file/core.ts";
-import type { FileStoragePort, MountOptions, OutlineProvider } from "../file/types.ts";
+import type { FileOperationReceipt, FileStoragePort, MountOptions, OutlineProvider } from "../file/types.ts";
 import type { WorkspaceOptions } from "./types.ts";
 import { WorkspaceError } from "./types.ts";
 
@@ -9,6 +9,7 @@ export class Workspace {
     readonly tenantId: string;
     readonly rootId: string;
     readonly storage: FileStoragePort;
+    readonly onFileReceipt?: (receipt: FileOperationReceipt) => void;
     private readonly outlineProvider?: OutlineProvider;
 
     constructor(options: WorkspaceOptions) {
@@ -17,6 +18,7 @@ export class Workspace {
         this.rootId = options.rootId;
         this.storage = options.storage;
         this.outlineProvider = options.outline;
+        this.onFileReceipt = options.onFileReceipt;
     }
 
     file(path: string, options: MountOptions = {}): WorkspaceFile {

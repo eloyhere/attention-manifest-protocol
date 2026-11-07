@@ -4,10 +4,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InMemoryFileStorage } from "./core.ts";
+import { defaultCharset } from "./charset.ts";
 import { NodeFileStorage } from "./node.ts";
 import { Workspace } from "../workspace/core.ts";
 import { WorkspaceError } from "../workspace/types.ts";
-import type { EditOp } from "./types.ts";
+import type { EditOp, FileOperationReceipt, FileStoragePort, OutlineProvider } from "./types.ts";
 
 function memory(content: string) {
     const storage = new InMemoryFileStorage();
@@ -115,4 +116,111 @@ test("the real adapter keeps CRLF and encoding across a WorkspaceFile commit", (
     file.flush();
     assert.equal(readFileSync(join(root, "notes.md"), "utf8"), "ONE\r\ntwo\r\n");
     assert.equal(file.readLines(0, 1).eol, "\r\n");
+});
+
+/** Read-only adapter returning deliberately inconsistent metadata for validate() tests. */
+function readOnlyStorage(content: string, hash: string): FileStoragePort {
+    return {
+        read: ref => ({ ...ref, content, hash, version: 3, updatedAt: "2026-01-01T00:00:00.000Z", charset: defaultCharset,
+            size: Buffer.byteLength(content, "utf8") }),
+        compareAndSwap: () => { throw new Error("fixture storage cannot commit"); },
+        acquireLease: () => { throw new Error("fixture storage cannot lease"); },
+        releaseLease: () => { /* no leases */ },
+    };
+}
+
+test("validate reports hash and range findings without changing state", () => {
+    const { file } = memory("alpha\n");
+    const clean = file.validate();
+    assert.deepEqual(clean, { valid: true, reasons: [] });
+    assert.equal(file.state, "active");
+
+    file.write("beta\n");
+    assert.deepEqual(file.validate(), { valid: true, reasons: [] });
+    assert.equal(file.state, "dirty", "validate must not clear a dirty buffer");
+
+    const corrupt = new Workspace({ tenantId: "t", rootId: "r", storage: readOnlyStorage("alpha\n", "not-the-hash") }).mount("bad.txt");
+    const hashReport = corrupt.validate();
+    assert.equal(hashReport.valid, false);
+    assert.equal(hashReport.reasons.some(reason => reason.includes("hash")), true);
+
+    const external = memory("alpha\n");
+    external.storage.put({ tenantId: "t", rootId: "r", path: "notes.md" }, "external\n");
+    const externalReport = external.file.validate();
+    assert.equal(externalReport.valid, false);
+    assert.equal(externalReport.reasons.some(reason => reason.includes("stored file hash")), true);
+    assert.equal(external.file.state, "active", "validate must report a hash mismatch without marking the file stale");
+
+    const outline: OutlineProvider = { entries: () => [{ id: "bad", name: "bad", kind: "symbol",
+        range: { startLine: 0, endLine: 99, startByte: 0, endByte: 9999 } }] };
+    const rangedStorage = new InMemoryFileStorage();
+    rangedStorage.put({ tenantId: "t", rootId: "r", path: "notes.md" }, "alpha\n");
+    const ranged = new Workspace({ tenantId: "t", rootId: "r", storage: rangedStorage }).mount("notes.md", { outline });
+    const rangeReport = ranged.validate();
+    assert.equal(rangeReport.valid, false);
+    assert.equal(rangeReport.reasons.some(reason => reason.includes("range")), true);
+
+    const unmounted = new Workspace({ tenantId: "t", rootId: "r", storage: new InMemoryFileStorage() }).file("ghost.txt");
+    assert.throws(() => unmounted.validate(), code("not_mounted"));
+});
+
+test("validate reports a buffer that cannot round-trip its charset", () => {
+    const { file } = memory("alpha\n");
+    file.write("lone\uD800surrogate\n");
+    const report = file.validate();
+    assert.equal(report.valid, false);
+    assert.equal(report.reasons.some(reason => reason.includes("round trip")), true);
+    assert.equal(file.state, "dirty");
+});
+
+test("diffHunks mirrors diff() for disk and hash-addressed baselines", () => {
+    const { file } = memory("alpha\nbeta\ngamma\n");
+    assert.deepEqual(file.diffHunks(), []);
+    file.write("alpha\nBETA\ngamma\n");
+    const expected = [{ startLine: 1, endLine: 2, removed: 1, added: 1 }];
+    assert.deepEqual(file.diffHunks(), expected);
+    assert.deepEqual(file.diffHunks("disk"), expected);
+    assert.deepEqual(file.diffHunks({ hash: file.snapshot().baseHash }), expected);
+    assert.throws(() => file.diffHunks({ hash: "sha256:deadbeef" }), code("version_conflict"));
+    file.flush();
+    assert.deepEqual(file.diffHunks(), []);
+});
+
+test("a reverting replace becomes clean and flush returns to active without a commit", () => {
+    const { storage, file } = memory("alpha\n");
+    file.replace({ mode: "string", text: "alpha" }, "beta");
+    assert.equal(file.state, "dirty");
+    file.replace({ mode: "string", text: "beta" }, "alpha");
+    assert.equal(file.dirty, false);
+    const flushed = file.flush();
+    assert.equal(flushed.state, "active");
+    assert.equal(flushed.version, 0);
+    assert.equal(storage.read({ tenantId: "t", rootId: "r", path: "notes.md" })?.content, "alpha\n");
+});
+
+test("optional receipts fire after mount, flush and unmount", () => {
+    const receipts: FileOperationReceipt[] = [];
+    const storage = new InMemoryFileStorage();
+    storage.put({ tenantId: "t", rootId: "r", path: "notes.md" }, "alpha\n");
+    const workspace = new Workspace({ tenantId: "t", rootId: "r", storage, onFileReceipt: receipt => { receipts.push(receipt); } });
+    const file = workspace.mount("notes.md", { mode: "writable", owner: "agent" });
+    const mounted = file.snapshot();
+    assert.equal(receipts.length, 1);
+    assert.deepEqual({ kind: receipts[0]!.kind, path: receipts[0]!.path, version: receipts[0]!.version, hash: receipts[0]!.hash },
+        { kind: "mount", path: "notes.md", version: mounted.version, hash: mounted.baseHash });
+    assert.deepEqual({ ...receipts[0]!.workspaceAnchor }, { tenantId: "t", rootId: "r" });
+    assert.equal(Number.isFinite(Date.parse(receipts[0]!.at)), true);
+
+    file.write("beta\n");
+    const flushed = file.flush();
+    assert.equal(receipts.length, 2);
+    assert.equal(receipts[1]!.kind, "flush");
+    assert.equal(receipts[1]!.version, flushed.version);
+    assert.equal(receipts[1]!.hash, flushed.baseHash);
+
+    file.unmount();
+    assert.equal(receipts.length, 3);
+    assert.equal(receipts[2]!.kind, "unmount");
+    assert.equal(receipts[2]!.version, flushed.version);
+    assert.equal(receipts[2]!.hash, flushed.baseHash);
 });

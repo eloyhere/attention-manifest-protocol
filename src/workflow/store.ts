@@ -1,6 +1,9 @@
 import { Optional, SynchronousOrderedCollectable, SynchronousOrderedMap, SynchronousUnorderedMap } from "semantic-typescript";
 import type { Identifier } from "../shared.ts";
-import { initialWorkflowStates, isWorkflowTerminal, workflowTransitions } from "./transitions.ts";
+import {
+    initialWorkflowStates, isActionExecutingState, isPlanExecutingState, isTaskActiveState, isTaskCompletedState,
+    isWorkflowSettled, isWorkflowTerminal, workflowTransitions,
+} from "./transitions.ts";
 import { WorkflowError } from "./types.ts";
 import type { Acceptance, Action, ActionAttempt, CreateEntity, Goal, Task, TransitionOptions, WorkflowEntities, WorkflowEntity, WorkflowEvent, WorkflowKind, WorkflowSnapshot } from "./types.ts";
 
@@ -77,9 +80,11 @@ export class WorkflowStore {
         if (this.entities.containsKey(`${kind}:${input.id}`)) throw new WorkflowError("duplicate", `${kind} ${input.id} already exists`);
         requireGuard(Boolean(input.id && input.sessionId && actor), "IDs and actor must be nonempty");
         const now = this.clock();
+        const sessionType = (input as unknown as { readonly sessionType?: string }).sessionType ?? "user_interactive";
         const entity = {
             ...clone(input), kind, state: initialWorkflowStates[kind], version: 0, cancellationEpoch: 0,
             createdAt: now, updatedAt: now,
+            ...(kind === "session" ? { sessionType } : {}),
             ...(kind === "goal" ? { validity: "verification_pending" } : {}),
             ...(kind === "action" ? { attemptIds: [] } : {}),
         } as unknown as WorkflowEntities[K];
@@ -97,10 +102,11 @@ export class WorkflowStore {
         }
         requireGuard(to !== "cancel_requested", "Use requestCancel to propagate cancellation and fence epochs");
         if (kind === "action") {
-            requireGuard(!["running", "succeeded", "failed", "completed_after_cancel"].includes(to), "Use startAttempt, settleAttempt or reconcileAction for execution facts");
+            requireGuard(!["running", "executing", "succeeded", "failed", "completed_after_cancel"].includes(to), "Use startAttempt, settleAttempt or reconcileAction for execution facts");
         }
         this.guardTransition(current, to, options);
-        const patch: Partial<WorkflowEntity> = options.acceptance && ["achieved", "succeeded"].includes(to)
+        const taskCompletion = kind === "task" && to === "completed";
+        const patch: Partial<WorkflowEntity> = options.acceptance && (["achieved", "succeeded"].includes(to) || taskCompletion)
             ? { assessment: clone(options.acceptance), ...(kind === "goal" ? { validity: "valid", achievedAt: this.clock() } : {}) } : {};
         return this.update(current, to, options.actor, `transition.${to}`, options.reason, patch) as WorkflowEntities[K];
     }
@@ -130,11 +136,13 @@ export class WorkflowStore {
         this.assertEpoch(action, cancellationEpoch);
         const chain = this.ancestors(action);
         requireGuard(![action, ...chain].some(item => cancellingStates.includes(item.state)), "Cancellation prevents new execution/commit");
-        requireGuard(action.state === "ready" || action.state === "running", "Action must be ready/running");
+        requireGuard(action.state === "ready" || isActionExecutingState(action.state), "Action must be ready/running");
         requireGuard(chain.every(item => {
             if (item.kind === "session") return item.state === "active" || item.state === "idle";
             if (item.kind === "mission") return item.state === "active" || item.state === "achieved";
             if (item.kind === "goal") return item.state === "active" || (item.state === "achieved" && item.validity !== "valid");
+            if (item.kind === "plan") return isPlanExecutingState(item.state);
+            if (item.kind === "task") return isTaskActiveState(item.state);
             return item.state === "running";
         }), "Work ancestors are not executable");
         const goal = Optional.ofNullable(chain.find((item): item is Goal => item.kind === "goal"));
@@ -176,7 +184,7 @@ export class WorkflowStore {
         let to: Action["state"] = input.outcome === "cancelled" ? "cancelled" : input.outcome;
         if (cancelled && input.outcome === "succeeded") to = "completed_after_cancel";
         else if (cancelled && input.outcome !== "unknown_outcome") to = "cancelled";
-        requireGuard(["running", "cancel_requested", "draining"].includes(action.state), "Action is not awaiting this attempt");
+        requireGuard(["running", "executing", "cancel_requested", "draining"].includes(action.state), "Action is not awaiting this attempt");
         const settled = { ...attempt, state: input.outcome, version: attempt.version + 1, settledAt: this.clock(), observedInTurnId: input.observedInTurnId };
         this.attempts.put(attemptId, settled);
         this.update(action, to, input.actor, "attempt.settled");
@@ -246,7 +254,11 @@ export class WorkflowStore {
             const parent = this.parent(entity);
             parent.ifPresent(value => this.requireSameSession(entity, value));
             switch (entity.kind) {
-                case "session": requireGuard(Array.isArray(entity.participants), "Invalid participants"); break;
+                case "session":
+                    requireGuard(Array.isArray(entity.participants), "Invalid participants");
+                    requireGuard(entity.sessionType === void 0 || ["user_interactive", "autonomous", "scheduled", "delegated"].includes(entity.sessionType), "Invalid session type");
+                    requireGuard(entity.expiresAt === void 0 || date(entity.expiresAt), "Invalid session expiry");
+                    break;
                 case "turn":
                     requireGuard(["steering", "status", "cancel", "new_intent"].includes(entity.classification), "Invalid Turn classification");
                     if (entity.replyTo) this.requireSameSession(entity, this.get("turn", entity.replyTo));
@@ -274,7 +286,7 @@ export class WorkflowStore {
                     break;
                 case "task":
                     requireGuard(Array.isArray(entity.dependsOn) && Array.isArray(entity.requiredEffects) && text(entity.contractVersion) && typeof entity.required === "boolean", "Invalid Task contract");
-                    if (entity.state === "succeeded") this.checkAcceptance(entity.assessment, entity.contractVersion);
+                    if (["succeeded", "completed"].includes(entity.state)) this.checkAcceptance(entity.assessment, entity.contractVersion);
                     break;
                 case "action":
                     requireGuard(text(entity.operationId) && text(entity.effect) && Array.isArray(entity.attemptIds) && typeof entity.sideEffect === "boolean" && typeof entity.required === "boolean", "Invalid Action");
@@ -299,8 +311,8 @@ export class WorkflowStore {
             const attempts = action.attemptIds.map(id => this.getAttempt(id));
             const pending = attempts.filter(item => unresolvedStates.includes(item.state));
             requireGuard(pending.length <= 1, "Multiple unresolved attempts");
-            if (pending.length) requireGuard(["running", "cancel_requested", "draining", "unknown_outcome", "reconciling"].includes(action.state), "Unresolved attempt on settled Action");
-            if (["running", "unknown_outcome", "reconciling"].includes(action.state)) requireGuard(pending.length === 1, "Action lacks unresolved attempt");
+            if (pending.length) requireGuard(["running", "executing", "cancel_requested", "draining", "unknown_outcome", "reconciling"].includes(action.state), "Unresolved attempt on settled Action");
+            if (["running", "executing", "unknown_outcome", "reconciling"].includes(action.state)) requireGuard(pending.length === 1, "Action lacks unresolved attempt");
         }
         const latest = new SynchronousUnorderedMap<string, WorkflowEvent>();
         requireGuard(snapshot.events.length === snapshot.sequence, "Event sequence counter mismatch");
@@ -325,6 +337,8 @@ export class WorkflowStore {
     private validateCreation(entity: WorkflowEntity): void {
         if (entity.kind === "session") {
             requireGuard(entity.id === entity.sessionId, "Session ID must equal sessionId");
+            requireGuard(entity.sessionType === void 0 || ["user_interactive", "autonomous", "scheduled", "delegated"].includes(entity.sessionType), "Invalid session type");
+            requireGuard(entity.expiresAt === void 0 || Number.isFinite(Date.parse(entity.expiresAt)), "Invalid session expiry");
             return;
         }
         const session = this.get("session", entity.sessionId);
@@ -365,7 +379,7 @@ export class WorkflowStore {
             case "action": {
                 const task = this.get("task", entity.taskId);
                 this.requireSameSession(entity, task);
-                requireGuard(["pending", "ready", "running"].includes(task.state), "Task does not accept new Actions");
+                requireGuard(["pending", "proposed", "ready", "running", "active"].includes(task.state), "Task does not accept new Actions");
                 requireGuard(Boolean(entity.operationId && entity.effect) && ["idempotent", "query", "reconcile", "compensate"].includes(entity.recovery), "Action requires stable operation ID and recovery strategy");
                 requireGuard(!this.list("action", entity.sessionId).some(item => item.operationId === entity.operationId), "Operation ID already belongs to an Action");
                 break;
@@ -380,7 +394,7 @@ export class WorkflowStore {
         if (entity.kind === "turn" && entity.state === "clarifying" && to === "interpreting") {
             requireGuard(options.clarification?.replyTo === entity.id && options.clarification?.continuationKey === entity.continuationKey, "Clarification must match replyTo and continuationKey");
         }
-        if (["ready", "running", "active", "achieved", "succeeded", "completed"].includes(to) && !["session", "turn", "intent"].includes(entity.kind)) {
+        if (["ready", "running", "executing", "approved", "active", "achieved", "succeeded", "completed", "unblocked", "fulfilled", "partially_achieved"].includes(to) && !["session", "turn", "intent"].includes(entity.kind)) {
             requireGuard(!this.ancestors(entity).some(item => cancellingStates.includes(item.state)), "Cancelled ancestors prevent business advancement");
         }
         if (["achieved", "succeeded", "completed"].includes(to) && !["session", "turn"].includes(entity.kind)) {
@@ -393,23 +407,23 @@ export class WorkflowStore {
         if (to === "unknown_outcome") requireGuard(this.descendantAttempts(entity).some(item => item.state === "unknown_outcome"), "Unknown outcome requires an unresolved execution observation");
         if (entity.kind === "session" && to === "closed") {
             const work = this.listAll().filter(item => item.sessionId === entity.id && item.kind !== "session");
-            requireGuard(work.every(item => isWorkflowTerminal(item) || (item.kind === "action" && item.state === "failed")), "Session still has active work");
+            requireGuard(work.every(item => isWorkflowSettled(item) || (item.kind === "action" && item.state === "failed")), "Session still has active work");
             requireGuard(!this.attempts.values().toArray().some(item => item.sessionId === entity.id && unresolvedStates.includes(item.state)), "Session has unsettled attempts");
         }
         if (entity.kind === "task" && to === "ready") {
-            requireGuard(entity.dependsOn.every(id => this.get("task", id).state === "succeeded"), "Task dependencies are not satisfied");
-            requireGuard(["ready", "running"].includes(this.get("plan", entity.planId).state), "Plan must be ready/running");
+            requireGuard(entity.dependsOn.every(id => isTaskCompletedState(this.get("task", id).state)), "Task dependencies are not satisfied");
+            requireGuard(["ready", "approved", "running", "executing"].includes(this.get("plan", entity.planId).state), "Plan must be approved/ready or executing/running");
         }
         if (entity.kind === "task" && to === "skipped") requireGuard(!entity.required, "Required Task cannot be skipped");
-        if (entity.kind === "task" && to === "succeeded") {
+        if (entity.kind === "task" && (to === "succeeded" || to === "completed")) {
             this.checkAcceptance(options.acceptance, entity.contractVersion);
             const actions = this.list("action", entity.sessionId).filter(item => item.taskId === entity.id);
             requireGuard(actions.filter(item => item.required).every(item => item.state === "succeeded"), "Required actions have not succeeded");
             requireGuard(entity.requiredEffects.every(effect => actions.some(item => item.effect === effect && item.state === "succeeded")), "Required effects are missing");
         }
-        if (entity.kind === "plan" && to === "ready") this.validateDag(entity.id);
+        if (entity.kind === "plan" && (to === "ready" || to === "approved")) this.validateDag(entity.id);
         if (entity.kind === "plan" && to === "completed") {
-            requireGuard(this.list("task", entity.sessionId).filter(item => item.planId === entity.id).every(item => item.state === "succeeded" || (!item.required && item.state === "skipped")), "Plan has unaccepted tasks");
+            requireGuard(this.list("task", entity.sessionId).filter(item => item.planId === entity.id).every(item => isTaskCompletedState(item.state) || (!item.required && item.state === "skipped")), "Plan has unaccepted tasks");
         }
         if (entity.kind === "goal" && to === "achieved") this.checkAcceptance(options.acceptance, entity.contractVersion);
         if (entity.kind === "mission" && to === "achieved") {

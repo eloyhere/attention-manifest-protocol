@@ -70,14 +70,14 @@ test("budget rejects negative and non-finite amounts", () => {
     assert.throws(() => ledger.reserve("nan", "k", { tokens: Number.NaN }), (error: unknown) => error instanceof BudgetError && error.code === "invalid_amount");
 });
 
-test("budget snapshots and reservations are detached and unknown budgets reject reservations", () => {
+test("budget snapshots and reservations are deeply frozen and unknown budgets reject reservations", () => {
     const ledger = new BudgetLedger();
     assert.throws(() => ledger.reserve("unknown", "missing", { calls: 1 }), (error: unknown) => error instanceof BudgetError && error.code === "budget_not_configured");
     ledger.configure("k", { calls: 2 });
     const reservation = ledger.reserve("a", "k", { calls: 1 });
-    reservation.amount.calls = 999;
+    assert.throws(() => { reservation.amount.calls = 999; }, TypeError);
     const snapshot = ledger.snapshot("k");
-    snapshot.reserved.calls = 999;
+    assert.throws(() => { snapshot.reserved.calls = 999; }, TypeError);
     const stored = ledger.getReservation("a");
     assert.equal(stored?.amount.calls, 1);
     assert.equal(ledger.snapshot("k").reserved.calls, 1);

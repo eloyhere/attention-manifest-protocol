@@ -4,6 +4,7 @@ import type { BudgetUsage } from "../shared.ts";
 import type { AttentionObject } from "../attention/types.ts";
 import type { CompileContextOptions, CompiledAttentionItem, CompiledContext, ContextExclusion } from "./types.ts";
 import { AttentionError, inScope, isExpired, timestamp, validateBudget, validateObject, validateScope } from "../attention/validation.ts";
+import { safeStringify } from "../serialization/index.ts";
 
 export function attentionPriority(object: AttentionObject): number {
     return object.intensity + object.scores.relevance + object.scores.urgency + object.scores.importance + object.scores.confidence;
@@ -55,7 +56,9 @@ export function compileContext(objects: readonly AttentionObject[], options: Com
             sourceVersion: object.pointer.version, expiresAt: object.expiresAt,
             reason: object.lastReason, budget: object.budget,
         };
-        const serialized = JSON.stringify(projection);
+        // Projections are model payloads: a circular pointer must not abort the
+        // whole compilation, so serialize through the cycle-safe helper.
+        const serialized = safeStringify(projection);
         const tokens = countTokens(serialized);
         if (!Number.isSafeInteger(tokens) || tokens < 0) throw new AttentionError("invalid", "Tokenizer returned invalid token count");
         const itemUsage: BudgetUsage = {

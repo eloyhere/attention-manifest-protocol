@@ -13,9 +13,16 @@ export class PlanService extends CancellableWorkflowService<"plan"> {
         return this.store.list("task", plan.sessionId).filter(task => task.planId === id);
     }
     bounds(id: Identifier): ProgressBounds { return this.get(id).bounds; }
-    /** The common writer validates the complete DAG before admitting ready. */
+    /** The common writer validates the complete DAG before admitting approved/ready. */
+    approve(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "approved", options); }
     ready(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "ready", options); }
+    /** §4.6 approved/ready -> executing; `running` remains an accepted alias. */
+    execute(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "executing", options); }
     start(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "running", options); }
+    pause(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "paused", options); }
+    resume(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "executing", options); }
+    /** §4.6 executing -> replanning -> approved (new version). */
+    replan(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "replanning", options); }
     complete(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "completed", options); }
     supersede(id: Identifier, options: TransitionOptions): Plan { return this.transition(id, "superseded", options); }
 }

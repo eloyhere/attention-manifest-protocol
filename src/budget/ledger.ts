@@ -1,9 +1,22 @@
 import { EmptyBudgetUsage, addBudgetUsage, exceedsBudget, normalizeBudgetUsage } from "../shared.ts";
 import type { Budget, BudgetUsage, Identifier } from "../shared.ts";
-import { isNumber, SynchronousOrderedMap, SynchronousOrderedSet } from "semantic-typescript";
+import { SynchronousOrderedMap, SynchronousOrderedSet } from "semantic-typescript";
 import type { BudgetReservation, BudgetSnapshot } from "../tool/types.ts";
 
-export type BudgetErrorCode = "invalid_amount" | "limit_exceeded" | "budget_not_configured" | "reservation_not_found" | "reservation_not_open" | "settlement_exceeds_reservation";
+export type BudgetErrorCode =
+    | "invalid_amount"
+    | "limit_exceeded"
+    | "budget_not_configured"
+    | "reservation_not_found"
+    | "reservation_not_open"
+    | "settlement_exceeds_reservation"
+    | "budget_exhausted"
+    | "invalid_node"
+    | "node_not_found"
+    | "node_exists"
+    | "node_closed"
+    | "invalid_parent"
+    | "invalid_release";
 export class BudgetError extends Error {
     readonly code: BudgetErrorCode;
     constructor(code: BudgetErrorCode, message: string) {
@@ -16,12 +29,22 @@ export class BudgetError extends Error {
 function normalize(amount: Budget): BudgetUsage {
     try {
         for (const [key, value] of Object.entries(amount)) {
-            if (!isNumber(value)) throw new BudgetError("invalid_amount", `Budget dimension ${key} must be numeric.`);
+            if (!Number.isSafeInteger(value) || value < 0) {
+                throw new BudgetError("invalid_amount", `Budget dimension ${key} must be a nonnegative safe integer.`);
+            }
         }
         return normalizeBudgetUsage(amount);
     } catch (error) {
+        if (error instanceof BudgetError) throw error;
         throw new BudgetError("invalid_amount", error instanceof Error ? error.message : String(error));
     }
+}
+
+/** Freeze a detached copy so callers cannot mutate live accounting facts. */
+function freezeDeep<T>(value: T): T {
+    if (value === null || typeof value !== "object") return value;
+    for (const child of Object.values(value)) freezeDeep(child);
+    return Object.freeze(value);
 }
 
 function withinReservation(actual: BudgetUsage, reserved: BudgetUsage): boolean {
@@ -36,7 +59,7 @@ function total(left: BudgetUsage, right: BudgetUsage): BudgetUsage {
 }
 
 function cloneReservation(reservation: BudgetReservation): BudgetReservation {
-    return structuredClone(reservation);
+    return freezeDeep(structuredClone(reservation));
 }
 
 function difference(next: BudgetUsage, previous: BudgetUsage): BudgetUsage {
@@ -61,7 +84,7 @@ export class BudgetLedger {
         if (exceedsBudget(projected, limit)) {
             throw new BudgetError("limit_exceeded", "New limit is below already consumed or reserved budget.");
         }
-        this.limits.put(key, { ...limit });
+        this.limits.put(key, Object.freeze({ ...limit }));
     }
 
     snapshot(key: Identifier): BudgetSnapshot {
@@ -79,7 +102,7 @@ export class BudgetLedger {
                 }
             }
         }
-        return structuredClone({ limit, settled, reserved });
+        return freezeDeep(structuredClone({ limit, settled, reserved }));
     }
 
     reserve(id: Identifier, key: Identifier, amount: Budget): BudgetReservation {
@@ -89,7 +112,13 @@ export class BudgetLedger {
         if (!this.limits.containsKey(key)) throw new BudgetError("budget_not_configured", `Budget key ${key} is not configured.`);
         const normalized = normalize(amount);
         const current = this.snapshot(key);
-        const projected = total(total(current.settled, current.reserved), normalized);
+        let projected: BudgetUsage;
+        try {
+            projected = total(total(current.settled, current.reserved), normalized);
+        } catch {
+            // Summing past MAX_SAFE_INTEGER is still a budget overrun, not a malformed amount.
+            throw new BudgetError("limit_exceeded", "Reservation would exceed the configured budget.");
+        }
         if (exceedsBudget(projected, current.limit)) {
             throw new BudgetError("limit_exceeded", "Reservation would exceed the configured budget.");
         }

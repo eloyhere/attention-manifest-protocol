@@ -40,6 +40,8 @@ export interface ToolDescriptor {
     readonly mutating: boolean;
     readonly authority: readonly string[];
     readonly description: string;
+    /** Stable action synonyms for discovery; never authorization. */
+    readonly keywords?: readonly string[];
 }
 
 export interface AgentSurface {
@@ -61,6 +63,15 @@ export interface AgentBinding {
 }
 
 export const SURFACE_PREFIX = "attention_manifest_protocol";
+export const DISCOVER_TOOL_NAME = `${SURFACE_PREFIX}_discover`;
+
+/** Bootstrap entry, independent of any domain module. */
+export const DISCOVER_TOOL: ToolDescriptor = Object.freeze({
+    name: DISCOVER_TOOL_NAME, module: "discovery", verb: "discover", mutating: false,
+    authority: Object.freeze(["execution:find"]),
+    description: "Search authorized host modules, AMP tools, session files/content, session outlines, conversation and network; accepts query, sources, limit, maxPerModule, minimumScore and weights, and returns a bounded weighted relevance tree.",
+    keywords: Object.freeze(["search", "discover", "find", "搜索", "查找", "发现"]),
+});
 
 const RESERVED_PARAMETERS: readonly string[] = Object.freeze([
     "tenantId", "principalId", "sessionId", "turnId", "attemptId", "operationId",
@@ -85,6 +96,7 @@ const AUTHORITY = {
     attentionRead: ["attention:read"],
     attentionFocus: ["attention:focus"],
     projectRead: ["project:read"],
+    projectWrite: ["project:write"],
     workspaceRead: ["workspace:read"],
     workspaceWrite: ["workspace:write"],
     cooperationRead: ["cooperation:read"],
@@ -97,6 +109,41 @@ const AUTHORITY = {
     executionHandle: ["execution:handle"],
     budgetRead: ["budget:read"],
 } as const;
+
+/** Action vocabulary is deliberately broad; it is search metadata, not a permission or a contract. */
+const VERB_KEYWORDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+    get: ["fetch", "lookup", "show", "详情", "获取", "查询"],
+    list: ["browse", "enumerate", "列表", "浏览", "列出"],
+    report_status: ["status", "state", "状态", "汇报"],
+    current: ["now", "present", "当前", "现在"],
+    respond: ["answer", "reply", "回复", "回答"],
+    clarify: ["question", "ask", "澄清", "提问"],
+    report: ["progress", "update", "进度", "汇报"],
+    submit_clarification: ["clarify", "澄清"],
+    submit_evidence: ["evidence", "proof", "证据", "佐证"],
+    ready_tasks: ["ready", "available", "待办", "就绪", "可执行"],
+    propose_draft: ["draft", "proposal", "propose", "草稿", "提议"],
+    list_ready: ["ready", "todo", "待办", "可领取"],
+    report_progress: ["progress", "status", "进度", "汇报"],
+    context: ["prompt", "compiled", "上下文", "提示"],
+    request_focus: ["focus", "attention", "聚焦", "关注"],
+    rules: ["policy", "convention", "规则", "规范"],
+    metadata: ["meta", "tags", "元数据", "标签"],
+    environment: ["env", "dependencies", "配置", "环境", "依赖"],
+    describe_environment: ["brief", "gap", "配置", "环境", "简报"],
+    outline: ["structure", "symbols", "大纲", "结构"],
+    document_outline: ["document", "docx", "pdf", "文档"],
+    write: ["edit", "modify", "change", "update", "save", "create", "写入", "修改", "编辑", "保存"],
+    inbox: ["messages", "mail", "收件箱", "消息"],
+    send: ["message", "reply", "发送", "消息"],
+    report_result: ["result", "submit", "结果", "提交"],
+    cite: ["citation", "reference", "引用", "引用证据"],
+    find_tools: ["search", "discover", "find", "搜索", "查找", "发现"],
+    inspect_tool: ["schema", "contract", "inspect", "契约", "查看"],
+    run: ["execute", "invoke", "call", "运行", "执行", "调用"],
+    read_handle: ["page", "cursor", "handle", "分页", "游标"],
+    remaining: ["budget", "left", "quota", "余额", "剩余", "预算"],
+});
 
 function verb(verbName: string, mutating: boolean, authority: readonly string[], summary: string): SurfaceVerb {
     return Object.freeze({ verb: verbName, mutating, authority: Object.freeze([...authority]), summary });
@@ -223,16 +270,16 @@ export const SURFACE_MODULES: readonly SurfaceModule[] = Object.freeze([
         exposed: Object.freeze([
             verb("rules", false, AUTHORITY.projectRead, "Read project rules."),
             verb("metadata", false, AUTHORITY.projectRead, "Read project metadata."),
-            verb("views", false, AUTHORITY.projectRead, "Read project views."),
             verb("environment", false, AUTHORITY.projectRead, "Read the project environment (names, paths, dependencies)."),
             verb("describe_environment", false, AUTHORITY.projectRead, "Read the configuration brief and remaining gaps."),
-            verb("outline", false, AUTHORITY.projectRead, "Read the project outline tree."),
+            verb("configure_environment", true, AUTHORITY.projectWrite, "Apply a project environment patch (variables, paths, dependencies) with CAS."),
+            verb("put_rule", true, AUTHORITY.projectWrite, "Create or update a project rule with an expected version."),
         ]),
         withheld: Object.freeze([
-            withheld("putRule", "project knowledge is written by the host or a plugin"),
             withheld("putMetadata", "project metadata is written by the host or a plugin"),
             withheld("putView", "views are produced by the host pipeline"),
-            withheld("configureEnvironment", "the agent is guided to configure, not granted the write"),
+            withheld("views", "§13.5 视图渲染与脑图结构不进模型上下文"),
+            withheld("outline", "§13.5 视图渲染与脑图结构不进模型上下文"),
         ]),
     }),
     Object.freeze({
@@ -242,6 +289,7 @@ export const SURFACE_MODULES: readonly SurfaceModule[] = Object.freeze([
             verb("read", false, AUTHORITY.workspaceRead, "Read a text range or line window."),
             verb("outline", false, AUTHORITY.workspaceRead, "Read a file outline."),
             verb("document_outline", false, AUTHORITY.workspaceRead, "Read a binary document outline."),
+            verb("diff", false, AUTHORITY.workspaceRead, "Compare the buffer with the committed base and return structured hunks."),
             verb("write", true, AUTHORITY.workspaceWrite, "Write text with expected hash and line/byte/outline targeting."),
         ]),
         withheld: Object.freeze([
@@ -370,7 +418,8 @@ function buildTools(): readonly ToolDescriptor[] {
             if (item.authority.length === 0) throw new TypeError(`tool ${name} must declare authority`);
             names.add(name);
             tools.push(Object.freeze({ name, module: entry.module, verb: item.verb, mutating: item.mutating,
-                authority: item.authority, description: item.summary }));
+                authority: item.authority, description: item.summary,
+                keywords: Object.freeze([...(VERB_KEYWORDS[item.verb] ?? [])]) }));
         }
     }
     return Object.freeze(tools);
@@ -383,7 +432,14 @@ export function findModule(module: string): Optional<SurfaceModule> {
 }
 
 export function findTool(name: string): Optional<ToolDescriptor> {
+    if (name === DISCOVER_TOOL_NAME) { return Optional.of(DISCOVER_TOOL); }
     return Optional.ofNullable(ALL_TOOLS.find(tool => tool.name === name));
+}
+
+/** Offer this single entry initially; load selected domain contracts after discovery. */
+export function createDiscoverySurface(): AgentSurface {
+    return Object.freeze({ prefix: SURFACE_PREFIX, tools: Object.freeze([DISCOVER_TOOL]),
+        modules: Object.freeze([] as string[]), hidden: Object.freeze([] as string[]) });
 }
 
 /** Throws unless the module may be offered to the model. */

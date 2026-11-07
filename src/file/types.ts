@@ -14,6 +14,24 @@ export interface FileRef extends WorkspaceScope {
     readonly path: string;
 }
 
+/** Lifecycle operation that produced a file receipt. */
+export type FileOperationKind = "mount" | "flush" | "unmount";
+
+/**
+ * Host-facing receipt for a file operation. It is deliberately defined locally so the file
+ * module does not depend on the receipt module; hosts may map it onto their own receipt type.
+ */
+export interface FileOperationReceipt extends FileRef {
+    readonly kind: FileOperationKind;
+    /** File version observed when the operation completed (the last committed version for unmount). */
+    readonly version: number;
+    /** File hash observed when the operation completed. */
+    readonly hash: string;
+    readonly at: string;
+    /** Workspace boundary the path belongs to; the anchor the receipt can be traced back to. */
+    readonly workspaceAnchor: WorkspaceScope;
+}
+
 export interface StoredFile extends FileRef {
     /** Decoded text with `\n` line endings; `charset` restores the on-disk form. */
     readonly content: string;
@@ -137,12 +155,58 @@ export interface EditPlan {
     readonly bufferVersion: number;
 }
 
+/**
+ * One structured diff hunk. Lines are 0-based and `endLine` is exclusive, matching `Range`;
+ * for a pure insertion `startLine === endLine` is the insertion point. Hunks use the same
+ * 3-line context grouping as the unified `diff()` string, but only count changed lines.
+ */
+export interface DiffHunk {
+    readonly startLine: number;
+    readonly endLine: number;
+    readonly removed: number;
+    readonly added: number;
+}
+
+/** Line counts over the complete diff, before `maxHunks` truncation. */
+export interface FileDiffSummary {
+    /** Total lines that only exist in the buffer. */
+    readonly added: number;
+    /** Total lines that only exist in the compared baseline. */
+    readonly removed: number;
+    /** Total number of change regions (hunks) in the complete diff. */
+    readonly changed: number;
+}
+
+/**
+ * Structured diff of a resolved baseline against the current buffer.
+ *
+ * `base` echoes the requested selector (`disk` is the mounted committed base); `baseHash` is the
+ * hash of the content that was actually compared. `hunks` is clipped to `maxHunks`, while
+ * `summary` always describes the complete diff, so `truncated` means only `hunks` is partial.
+ */
+export interface FileDiff {
+    readonly base: "disk" | { readonly hash: string };
+    readonly baseHash: string;
+    readonly bufferVersion: number;
+    readonly hunks: readonly DiffHunk[];
+    readonly summary: FileDiffSummary;
+    readonly truncated: boolean;
+}
+
+/** Result of `WorkspaceFile.validate()`: internal consistency findings without a state change. */
+export interface FileValidation {
+    readonly valid: boolean;
+    readonly reasons: readonly string[];
+}
+
 /** One outline node that an `outline` target may address. */
 export interface OutlineEntry {
     readonly id: string;
     readonly name: string;
     readonly kind: string;
     readonly range: Range;
+    /** Hash of the source text the range was computed against; absent on legacy providers. */
+    readonly versionHash?: string;
 }
 
 /** Host-supplied outline of the current buffer; it must be a pure function of `text`. */

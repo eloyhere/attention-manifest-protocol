@@ -89,10 +89,10 @@ export function detectLineEnding(text: string): { readonly eol: LineEnding; read
             else cr += 1;
         } else if (code === 10) lf += 1;
     }
-    const dominantLf = lf > 0 && crlf > 0 ? lf : 0;
     const mixed = (crlf > 0 && lf > 0) || cr > 0;
-    const eol: LineEnding = crlf >= lf ? "\r\n" : "\n";
-    void dominantLf;
+    // A text without any newline (including "" and a BOM-only file) has no CR evidence,
+    // so it must default to LF rather than let the 0 >= 0 tie pick CRLF.
+    const eol: LineEnding = (crlf > 0 || cr > 0) && crlf >= lf ? "\r\n" : "\n";
     return { eol, mixed, finalNewline: /\r?\n$/.test(text) };
 }
 

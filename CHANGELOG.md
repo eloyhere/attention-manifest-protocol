@@ -17,7 +17,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Archive outline reader for ZIP (central directory only, no extraction), TAR (ustar, GNU long name, pax), TAR.GZ and GZ. 7z, RAR, XZ, bzip2 and zstd fail with a reason instead of an empty listing.
 - `Project.environment`: a versioned, CAS-guarded environment (variables, paths, dependencies) with `configureEnvironment`, `setEnvironment`, `environmentPlan` and `describeEnvironment`; `createProjectFromKind`/`applyProjectKind` seed it from a project kind while preserving project overrides.
 - Tiered agent surface (`agent`/`host`/`hidden`) under `attention_manifest_protocol_<module>.<verb>`, plus `AgentGateway` with host-bound identity, parameter-smuggling rejection, idempotency keys for mutating verbs, an authorization hook and one journal record per call.
+- `attention_manifest_protocol_discover`: a bootstrap discovery entry over host-registered modules, AMP tools, current-session files/content and outlines, conversation and opt-in network. It returns a bounded `query → source → group → item` relevance tree with lexical, semantic, signature and context scores, and accepts generic `DiscoveryProvider` ports instead of binding to a plugin runtime.
+- Elasticsearch discovery adapter (`createElasticsearchDiscoveryProvider`) over the existing `@elastic/elasticsearch` dependency: one index per source, tenant/session term filters, `_source` document validation and optional normalized BM25 `scoreSignal`.
 - End-to-end scenario suite (`npm run scenario`) covering bug-fix loops, stale detection, lease fencing, BOM/CRLF fidelity, code-point byte boundaries, binary documents, corrupted formats, archive budgets, path traversal, size ceilings, project environments and gateway authorization.
+- **Persistence stack.** Five layers now carry an aggregate from metadata to disk: `entity` (JPA-style `Entity`, `Key`, `Column`, `Index`, `UniqueConstraint` and `Association` metadata, plus `ManyToMany<Target>` and the other association wrappers; no `Metadata` suffix), `cache` (an independent TTL LRU over `semantic-typescript`'s `SynchronousOrderedLRUMap`, with `createEntityCache`, `createServiceProxy`/`ServiceRegistry` and `createCachingProxy`; service proxies cache reads and invalidate a namespace on writes), `service` (`Store`: global identity map, lazy loading proxies, write-through mutations with CAS, `new`/`managed`/`detached`/`removed` states and nested transactions), `repository` (generic `Repository<T>` with `expectedVersion` CAS and an append-only event log) and `sql`/`connection` (`node:sqlite` with WAL, foreign keys and versioned migrations; a synchronous connection pool with transactions and LIFO savepoints). Cascades are declared in the metadata but not executed in this release.
+- Hidden persistence directory: `Store.open()` defaults to the git-ignored `.attention-manifest-protocol/store.sqlite`; `path` accepts a directory, an explicit `.sqlite` file or `:memory:`.
 
 ### Changed
 
@@ -27,7 +31,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Validation
 
-- 460/460 tests (including 14 end-to-end scenarios), strict typecheck, `build`, `build:lib` and `demo:architecture` all pass.
+- 460/460 baseline tests (including 14 end-to-end scenarios), strict typecheck, `build`, `build:lib` and `demo:architecture` passed before the current additions.
+- Persistence: 81/81 focused tests pass across `entity`, `cache`, `connection`, `repository`, `sql` and `service`; a final full-suite re-run is pending.
 
 ## [0.6.1] - 2026-11-03
 

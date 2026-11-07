@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
 import { Optional, isNumber, isObject, isString } from "semantic-typescript";
+import { safeParse, safeStringify } from "../serialization/index.ts";
 import { WorkspaceError } from "../workspace/types.ts";
 
 /** Durable lock metadata stored next to the target file. */
@@ -53,7 +54,7 @@ function ioError(action: string, error: unknown): WorkspaceError {
 function parseRecord(raw: string, target: string): Optional<LockRecord> {
     let parsed: unknown;
     try {
-        parsed = JSON.parse(raw);
+        parsed = safeParse(raw);
     } catch {
         return Optional.empty();
     }
@@ -162,7 +163,7 @@ export class NodeFileLock {
         try {
             const fd = openSync(lockPathOf(target), "w", 0o600);
             try {
-                writeSync(fd, JSON.stringify(record));
+                writeSync(fd, safeStringify(record));
                 if (this.fsync) fsyncSync(fd);
             } finally {
                 closeSync(fd);
@@ -196,7 +197,7 @@ export class NodeFileLock {
     private writeExclusive(lockPath: string, record: LockRecord): void {
         const fd = openSync(lockPath, "wx", 0o600);
         try {
-            writeSync(fd, JSON.stringify(record));
+            writeSync(fd, safeStringify(record));
             if (this.fsync) fsyncSync(fd);
         } finally {
             closeSync(fd);

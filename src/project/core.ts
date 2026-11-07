@@ -6,10 +6,107 @@ import {
     describeEnvironment as renderEnvironment, emptyEnvironment, mergeEnvironment, planEnvironment, validateEnvironment,
     type EnvironmentPatch, type EnvironmentPlan, type ProjectEnvironment,
 } from "./environment.ts";
-import type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind } from "./types.ts";
+import type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind, ViewPurpose, ViewValidationOptions } from "./types.ts";
 
 const clone = <T>(value: T): T => isObject(value) ? structuredClone(value) as T : value;
 const nowIso = (): string => new Date().toISOString();
+
+const VIEW_PURPOSES: readonly ViewPurpose[] = Object.freeze(["routing", "verification", "planning", "diagnosis", "retention"]);
+const VIEW_KINDS: readonly ViewKind[] = Object.freeze(["er", "sequence", "flow", "venn", "architecture", "mindmap"]);
+
+function requireViewPurpose(value: unknown): asserts value is ViewPurpose {
+    if (typeof value !== "string" || !VIEW_PURPOSES.includes(value as ViewPurpose)) {
+        throw new WorkspaceError("invalid_project", `view purpose must be one of ${VIEW_PURPOSES.join(", ")}`);
+    }
+}
+
+function requireViewKind(value: unknown): asserts value is ViewKind {
+    if (typeof value !== "string" || !VIEW_KINDS.includes(value as ViewKind)) {
+        throw new WorkspaceError("invalid_project", `view kind must be one of ${VIEW_KINDS.join(", ")}`);
+    }
+}
+
+function requireFreshness(value: unknown): asserts value is number {
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+        throw new WorkspaceError("invalid_project", "view freshness must be a number between 0 and 1");
+    }
+}
+
+function requireStringList(value: unknown, label: string): asserts value is readonly string[] {
+    if (!Array.isArray(value) || value.some(item => typeof item !== "string" || item.trim() === "")) {
+        throw new WorkspaceError("invalid_project", `${label} must be an array of non-empty strings`);
+    }
+}
+
+function requireNonEmptyText(value: unknown, label: string): asserts value is string {
+    if (typeof value !== "string" || value.trim() === "") {
+        throw new WorkspaceError("invalid_project", `${label} must be nonempty text`);
+    }
+}
+
+function requireViewVersion(value: unknown, label: string): asserts value is number {
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+        throw new WorkspaceError("invalid_project", `${label} must be a positive safe integer`);
+    }
+}
+
+function requireSourceVersions(value: unknown): asserts value is readonly { readonly ruleId: string; readonly version: number }[] {
+    if (!Array.isArray(value)) throw new WorkspaceError("invalid_project", "view sourceVersions must be an array");
+    for (const entry of value) {
+        if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+            throw new WorkspaceError("invalid_project", "view sourceVersions entries must be objects");
+        }
+        const record = entry as { readonly ruleId?: unknown; readonly version?: unknown };
+        requireNonEmptyText(record.ruleId, "view source version ruleId");
+        requireViewVersion(record.version, "view source version");
+    }
+}
+
+function resolveAnchorChecks(options: ViewValidationOptions): readonly ((anchor: string) => boolean)[] {
+    const checks: ((anchor: string) => boolean)[] = [];
+    if (options.anchorExists) checks.push(options.anchorExists);
+    if (options.knownAnchors) {
+        const known = new Set(options.knownAnchors);
+        checks.push(anchor => known.has(anchor));
+    }
+    return checks;
+}
+
+function validateViewContract(view: ProjectView, options: ViewValidationOptions = {}): void {
+    if (!isObject(view)) throw new WorkspaceError("invalid_project", "view must be an object");
+    requireViewKind(view.kind);
+    if (!Object.prototype.hasOwnProperty.call(view, "projection")) {
+        throw new WorkspaceError("invalid_project", "view projection is required");
+    }
+    requireNonEmptyText(view.tenantId, "view tenantId");
+    requireNonEmptyText(view.rootId, "view rootId");
+    requireViewVersion(view.version, "view version");
+    if (typeof view.stale !== "boolean") throw new WorkspaceError("invalid_project", "view stale must be a boolean");
+    requireNonEmptyText(view.updatedAt, "view updatedAt");
+    requireStringList(view.sourceRuleIds, "view sourceRuleIds");
+    requireSourceVersions(view.sourceVersions);
+    if (view.purpose !== undefined) requireViewPurpose(view.purpose);
+    if (view.freshness !== undefined) requireFreshness(view.freshness);
+    if (view.anchors !== undefined) requireStringList(view.anchors, "view anchors");
+    if (view.constraints !== undefined) requireStringList(view.constraints, "view constraints");
+
+    if (view.anchors !== undefined) {
+        const checks = resolveAnchorChecks(options);
+        for (const anchor of view.anchors) {
+            const exists = checks.every(check => check(anchor));
+            if (!exists) throw new WorkspaceError("invalid_project", `view anchor ${anchor} does not exist`);
+        }
+    }
+}
+
+/**
+ * Validate the deterministic view contract: identity, version/stale fields,
+ * purpose, constraints, freshness in 0..1, and — when an anchor resolver is
+ * supplied — that every declared anchor exists.
+ */
+export function validateView(view: ProjectView, options: ViewValidationOptions = {}): void {
+    validateViewContract(view, options);
+}
 
 function digest(value: string): string {
     return createHash("sha256").update(value, "utf8").digest("hex");
@@ -31,6 +128,7 @@ export class Project {
     private environmentVersionValue = 0;
     private readonly kindId?: string;
     private readonly extraGuidance: readonly string[];
+    private readonly anchorResolver?: (anchor: string) => boolean;
 
     constructor(options: ProjectOptions) {
         if (!options.tenantId || !options.rootId) throw new WorkspaceError("invalid_project", "tenantId and rootId are required");
@@ -39,6 +137,7 @@ export class Project {
         this.clock = options.clock ?? nowIso;
         this.kindId = options.kind;
         this.extraGuidance = Object.freeze([...(options.guidance ?? [])]);
+        this.anchorResolver = options.anchorExists;
         try {
             this.environmentValue = mergeEnvironment(emptyEnvironment(), options.environment ?? {});
         } catch (error) {
@@ -154,6 +253,8 @@ export class Project {
 
     putView(input: Omit<ProjectView, "version" | "updatedAt" | "stale" | "sourceVersions">): ProjectView {
         this.assertScope(input);
+        requireViewKind(input.kind);
+        requireStringList(input.sourceRuleIds, "view sourceRuleIds");
         const previous = this.views.get(input.kind).orElse(undefined);
         const sourceVersions = input.sourceRuleIds.map(ruleId => {
             const rule = this.rules.get(ruleId).orElse(undefined);
@@ -167,8 +268,21 @@ export class Project {
             stale: false,
             updatedAt: this.clock(),
         };
+        this.validateView(view);
         this.views.put(input.kind, clone(view));
         return clone(view);
+    }
+
+    /**
+     * Validate a view against this project's anchor resolver. Callers can pass
+     * an explicit resolver or anchor set when validating detached views.
+     */
+    validateView(view: ProjectView, options: ViewValidationOptions = {}): void {
+        const anchorExists = options.anchorExists ?? this.anchorResolver;
+        validateViewContract(view, {
+            ...(anchorExists === undefined ? {} : { anchorExists }),
+            ...(options.knownAnchors === undefined ? {} : { knownAnchors: options.knownAnchors }),
+        });
     }
 
     findView(kind: ViewKind): Optional<ProjectView> {
@@ -220,5 +334,5 @@ export class Project {
     }
 }
 
-export type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind } from "./types.ts";
+export type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind, ViewPurpose, ViewValidationOptions } from "./types.ts";
 export type { WorkspaceError } from "../workspace/types.ts";

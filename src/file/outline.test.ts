@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fileDigest } from "./core.ts";
-import { createFileOutline, markdownHeadingParser, type SourceVersion } from "./outline.ts";
+import { createFileOutline, createOutlineProvider, markdownHeadingParser, type SourceVersion } from "./outline.ts";
 
 const sourceText = "# Root\n\n```md\n# Not a heading\n```\n## Nested\n### Deep\n## Repeat\n## Repeat\n";
 const version: SourceVersion = { tenantId: "tenant-a", rootId: "root-a", path: "docs/guide.md", contentHash: fileDigest(sourceText), version: 4 };
@@ -94,6 +94,16 @@ test("unknown language needs an injected parser and parser output is validated",
     const invalid = { language: "test", parse: () => [{ id: "bad", kind: "symbol" as const, name: "bad", summary: "bad",
         range: { startLine: 0, endLine: 1, startByte: 0, endByte: 9999 } }] };
     assert.throws(() => createFileOutline(version, sourceText, { parser: invalid }), /invalid range/);
+});
+
+test("outline nodes and provider entries carry the source version hash", () => {
+    const outline = createFileOutline(version, sourceText);
+    assert.equal(outline.find("Root").get().versionHash, version.contentHash);
+    assert.equal(outline.entries().every(node => node.versionHash === version.contentHash), true);
+    const entries = createOutlineProvider().entries(version.path, sourceText);
+    assert.equal(entries.length > 0, true);
+    assert.equal(entries.every(entry => entry.versionHash === version.contentHash), true);
+    assert.equal(entries.every(entry => entry.versionHash === fileDigest(sourceText)), true);
 });
 
 test("Markdown parser itself preserves heading order and ignores fences", () => {

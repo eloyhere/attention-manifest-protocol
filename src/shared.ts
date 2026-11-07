@@ -1,5 +1,3 @@
-import { isNumber } from "semantic-typescript";
-
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export type Identifier = string;
@@ -67,9 +65,10 @@ export const EmptyBudgetUsage: Readonly<BudgetUsage> = Object.freeze({
 
 export function validateBudget(budget: Budget): void {
     for (const [key, value] of Object.entries(budget)) {
+        // Safe integers only: larger values would round silently in later arithmetic.
         if (!["tokens", "milliseconds", "calls", "bytes"].includes(key)
-            || !isNumber(value) || value < 0) {
-            throw new Error(`Invalid budget dimension: ${key}`);
+            || !Number.isSafeInteger(value) || value < 0) {
+            throw new Error(`Invalid budget dimension: ${key} must be a nonnegative safe integer.`);
         }
     }
 }
@@ -80,14 +79,20 @@ export function normalizeBudgetUsage(budget: Budget): BudgetUsage {
 }
 
 export function addBudgetUsage(left: BudgetUsage, right: Budget): BudgetUsage {
-    validateBudget(left);
+    // Usage ledgers may carry a fractional wall-clock measurement; round that
+    // one timing dimension at the arithmetic boundary. Every limit dimension and
+    // every other usage dimension must remain a nonnegative safe integer.
+    validateBudget({ ...left, milliseconds: Math.ceil(left.milliseconds) });
     validateBudget(right);
-    return {
+    const sum: BudgetUsage = {
         tokens: left.tokens + (right.tokens ?? 0),
-        milliseconds: left.milliseconds + (right.milliseconds ?? 0),
+        milliseconds: Math.ceil(left.milliseconds + (right.milliseconds ?? 0)),
         calls: left.calls + (right.calls ?? 0),
         bytes: left.bytes + (right.bytes ?? 0),
     };
+    // Reject arithmetic overflow instead of silently rounding past MAX_SAFE_INTEGER.
+    validateBudget(sum);
+    return sum;
 }
 
 export function exceedsBudget(usage: BudgetUsage, budget: Budget): boolean {

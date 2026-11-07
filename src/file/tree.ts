@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isNumber, isString, Optional, SynchronousUnorderedMap } from "semantic-typescript";
 import { useLazyProxy, type LazyProxy } from "../reactive/proxy.ts";
+import { safeStringify } from "../serialization/index.ts";
 
 export type FileTreeKind = "file" | "directory";
 export type FileTreeOperation = "metadata" | "list" | "read";
@@ -61,7 +62,7 @@ function validatePath(path: string): void {
 }
 
 function scopeKey(scope: FileTreeScope): string {
-    return JSON.stringify([scope.tenantId, scope.rootId, scope.path]);
+    return safeStringify([scope.tenantId, scope.rootId, scope.path]);
 }
 
 function requireOptional<T>(value: Optional<T>, message: string): T {

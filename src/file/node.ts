@@ -185,8 +185,16 @@ export class NodeFileStorage implements FileStoragePort {
         return this.stored(ref, normalizeToLf(content), charset, bytes.byteLength, Math.trunc(stat.mtimeMs));
     }
 
-    acquireLease(ref: FileRef, owner: string, ttlMilliseconds?: number): FileLease {        const path = this.resolvePath(ref.path);
-        if (!statSync(path).isFile()) throw new WorkspaceError("not_found", `file ${ref.path} does not exist`);
+    acquireLease(ref: FileRef, owner: string, ttlMilliseconds?: number): FileLease {
+        const path = this.resolvePath(ref.path);
+        let stat;
+        try {
+            stat = statSync(path);
+        } catch (error) {
+            if (errno(error) === "ENOENT") throw new WorkspaceError("not_found", `file ${ref.path} does not exist`);
+            throw toStorageError("lease", error);
+        }
+        if (!stat.isFile()) throw new WorkspaceError("not_found", `file ${ref.path} does not exist`);
         const handle = this.lock.acquire(path, owner, ttlMilliseconds);
         return Object.freeze({ ...ref, owner, fence: handle.record.fence, token: handle.record.token, expiresAt: handle.record.expiresAt });
     }

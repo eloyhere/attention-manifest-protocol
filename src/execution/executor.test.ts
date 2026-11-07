@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Executor, childOperationKey } from "./executor.ts";
+import { Executor, childOperationKey, ExecutorError } from "./executor.ts";
 import type { ExecutorOptions } from "./executor.ts";
 import { ManifestStore } from "../manifest/index.ts";
 import { BudgetLedger } from "../budget/index.ts";
@@ -85,4 +85,26 @@ test("manifest rejects malformed expiry and immutable key replacement", () => {
     const invalidClock = new ManifestStore<JsonValue>(() => "invalid");
     invalidClock.put(state.manifest);
     assert.throws(() => invalidClock.findTool(state.call.tool), /Invalid/);
+});
+
+test("default child call limit and stable boundary errors", async () => {
+    const state = fixture(async () => null);
+    const calls = Array.from({ length: 33 }, (_, index) => ({ ...state.call, id: `call-${index}` }));
+    await assert.rejects(state.executor.run(calls, context, "s"), (error: unknown) => error instanceof ExecutorError && error.code === "child_limit_exceeded");
+});
+
+test("a cancelled waiter does not cancel a shared single-flight operation", async () => {
+    let finish!: (value: JsonValue) => void;
+    const pending = new Promise<JsonValue>(resolve => { finish = resolve; });
+    const state = fixture(() => pending);
+    const controller = new AbortController();
+    const first = state.executor.run([state.call], context, "s");
+    const waiting = state.executor.run([state.call], context, "s", { signal: controller.signal });
+    controller.abort();
+    const cancelled = await waiting;
+    assert.equal(cancelled.children[0]?.observation.error, "aborted");
+    finish({ ok: true });
+    const completed = await first;
+    assert.equal(completed.children[0]?.observation.status, "success");
+    assert.equal(state.invoked(), 1);
 });

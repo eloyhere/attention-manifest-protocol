@@ -17,7 +17,11 @@
 - 归档大纲读取器：ZIP（仅中央目录，不解压）、TAR（ustar、GNU longname、pax）、TAR.GZ 与 GZ。7z、RAR、XZ、bzip2、zstd 会给出原因，而不是空列表。
 - `Project.environment`：带版本与 CAS 的环境（变量、路径、依赖），提供 `configureEnvironment`、`setEnvironment`、`environmentPlan` 与 `describeEnvironment`；`createProjectFromKind`/`applyProjectKind` 用项目类型播种环境，同时保留项目自身的覆盖。
 - 分层 Agent 接口（`agent`/`host`/`hidden`），工具名 `attention_manifest_protocol_<module>.<verb>`；`AgentGateway` 提供宿主绑定身份、拒绝参数注入、变更型动词强制幂等键、授权钩子与每次调用一条审计记录。
+- `attention_manifest_protocol_discover`：启动式聚合发现入口，覆盖宿主已注册模块、AMP 工具、当前会话文件/内容与大纲、对话以及按需启用的网络。返回有界的 `query → source → group → item` 相关树，带词法、语义、签名与上下文四项评分；通过通用 `DiscoveryProvider` 端口接入，不绑定插件运行时。
+- Elasticsearch 发现适配器（`createElasticsearchDiscoveryProvider`），基于已有的 `@elastic/elasticsearch` 依赖：每个来源一个索引，附加租户/会话 term 过滤，校验 `_source` 文档，并可选把 BM25 `_score` 归一化为评分信号。
 - 端到端场景套件（`npm run scenario`）：修 bug 循环、过期检测、租约互斥、BOM/CRLF 保真、码点字节边界、二进制文档、损坏格式、归档预算、路径穿越、体积上限、项目环境与网关授权。
+- **持久化五层链路。** 五层现在把聚合从元数据带到磁盘：`entity`（JPA 风格 `Entity`、`Key`、`Column`、`Index`、`UniqueConstraint`、`Association` 元数据，以及 `ManyToMany<Target>` 等关联包装；没有 `Metadata` 后缀）、`cache`（基于 `semantic-typescript` `SynchronousOrderedLRUMap` 的独立 TTL LRU，提供 `createEntityCache`、`createServiceProxy`/`ServiceRegistry` 与 `createCachingProxy`；服务 Proxy 缓存读取并在写入后失效命名空间）、`service`（`Store`：全局身份映射、懒加载 Proxy、带 CAS 的写穿透、`new`/`managed`/`detached`/`removed` 状态与嵌套事务）、`repository`（泛型 `Repository<T>`，`expectedVersion` CAS 与追加式事件日志）、`sql`/`connection`（`node:sqlite`，WAL、外键、版本化迁移；同步连接池、事务与 LIFO 保存点）。级联仅作为元数据声明，本版本不执行。
+- 隐藏持久化目录：`Store.open()` 默认写入已 gitignore 的 `.attention-manifest-protocol/store.sqlite`；`path` 接受目录、显式 `.sqlite` 文件或 `:memory:`。
 
 ### 变更
 
@@ -27,7 +31,8 @@
 
 ### 验证
 
-- 460/460 测试通过（含 14 个端到端场景），严格类型检查、`build`、`build:lib` 与 `demo:architecture` 全部通过。
+- 460/460 基线测试通过（含 14 个端到端场景），严格类型检查、`build`、`build:lib` 与 `demo:architecture` 全部通过；该计数不含本次新增。
+- 持久化定向测试 81/81 通过（`entity`、`cache`、`connection`、`repository`、`sql`、`service`）；全量测试待最终重跑。
 
 ## [0.6.1] - 2026-11-03
 

@@ -1,19 +1,20 @@
 import { createHash } from "node:crypto";
-import { isFunction, isObject, SynchronousUnorderedMap } from "semantic-typescript";
+import { isFunction, isObject, isString, SynchronousUnorderedMap } from "semantic-typescript";
 import type {
-    ByteTarget, EditMatch, EditOp, EditOptions, EditPlan, FileConflict, FileLease, FileRange, FileRef, FileSnapshot,
-    FileStoragePort, FlushOptions, LineRead, LineTarget, MountOptions, OutlineEntry, OutlineProvider, ReadOptions,
-    RegexTarget, ReloadOptions, ReplaceTarget, StoredBytes, StoredFile, StringTarget, UnmountOptions, WorkspaceMode,
-    WorkspaceScope, WriteTarget,
+    ByteTarget, DiffHunk, EditMatch, EditOp, EditOptions, EditPlan, FileConflict, FileDiff, FileLease, FileOperationKind,
+    FileOperationReceipt, FileRange, FileRef, FileSnapshot, FileStoragePort, FileValidation, FlushOptions, LineRead,
+    LineTarget, MountOptions, OutlineEntry, OutlineProvider, ReadOptions, RegexTarget, ReloadOptions, ReplaceTarget,
+    StoredBytes, StoredFile, StringTarget, UnmountOptions, WorkspaceMode, WorkspaceScope, WriteTarget,
 } from "./types.ts";
 import { WorkspaceError } from "../workspace/types.ts";
-import { SourceText } from "./range.ts";
-import { defaultCharset, type CharsetInfo } from "./charset.ts";
+import { safeStringify } from "../serialization/index.ts";
+import { SourceText, isRange } from "./range.ts";
+import { decodeText, defaultCharset, encodeText, normalizeToLf, type CharsetInfo } from "./charset.ts";
 import { createDocumentOutline } from "./document/outline.ts";
 import type { DocumentOutline } from "./document/types.ts";
 import {
     isWriteTarget, literalReplacement, regexReplacement, resolveRegions, selectRegions, spliceRegions,
-    structuralReplacement, toEditMatches, unifiedDiff, type Region,
+    structuralReplacement, toEditMatches, unifiedDiff, diffHunks as structuredDiffHunks, type Region,
 } from "./edit.ts";
 
 const clone = <T>(value: T): T => isObject(value) ? structuredClone(value) as T : value;
@@ -23,8 +24,13 @@ export function fileDigest(content: string): string {
     return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
+/** Normalizes the two hash spellings in use (`<hex>` and `sha256:<hex>`) for comparison. */
+function hashKey(value: string): string {
+    return value.startsWith("sha256:") ? value.slice("sha256:".length) : value;
+}
+
 function scopedKey(ref: FileRef): string {
-    return JSON.stringify([ref.tenantId, ref.rootId, ref.path]);
+    return safeStringify([ref.tenantId, ref.rootId, ref.path]);
 }
 
 function validatePath(path: string): void {
@@ -89,6 +95,8 @@ export class InMemoryFileStorage implements FileStoragePort {
         const stored: StoredFile = { ...ref, content, hash: fileDigest(content), version: previous ? previous.version + 1 : 0,
             updatedAt: this.clock(), charset: defaultCharset, size: Buffer.byteLength(content, "utf8") };
         this.files.put(key, clone(stored));
+        // A text commit is authoritative: the byte view of the previous binary value is gone.
+        this.binaries.remove(key);
         return clone(stored);
     }
 
@@ -143,6 +151,7 @@ export class InMemoryFileStorage implements FileStoragePort {
         const next: StoredFile = { ...current, content, hash: fileDigest(content), version: current.version + 1,
             updatedAt: this.clock(), charset: current.charset ?? defaultCharset, size: Buffer.byteLength(content, "utf8") };
         this.files.put(key, clone(next));
+        this.binaries.remove(key);
         return clone(next);
     }
 
@@ -151,6 +160,7 @@ export class InMemoryFileStorage implements FileStoragePort {
         if (!owner) throw new WorkspaceError("invalid_scope", "lease owner is required");
         if (!Number.isSafeInteger(ttlMilliseconds) || ttlMilliseconds <= 0) throw new WorkspaceError("invalid_scope", "lease TTL must be positive");
         const key = scopedKey(ref);
+        if (this.files.get(key).isEmpty()) throw new WorkspaceError("not_found", `File ${ref.path} does not exist`);
         const current = this.leases.get(key).orElse(undefined);
         if (current && !this.expired(current) && current.owner !== owner) throw new WorkspaceError("fence_rejected", "file lease is held by another owner");
         const fence = (this.fences.get(key).orElse(0) as number) + 1;
@@ -179,6 +189,8 @@ export class InMemoryFileStorage implements FileStoragePort {
 
 export interface FileWorkspaceHost extends WorkspaceScope {
     readonly storage: FileStoragePort;
+    /** Optional observer invoked after mount/flush/unmount; failures are isolated from the operation. */
+    readonly onFileReceipt?: (receipt: FileOperationReceipt) => void;
 }
 
 export class WorkspaceFile {
@@ -234,7 +246,9 @@ export class WorkspaceFile {
         this.bufferVersionValue = 0;
         this.binaryDirty = false;
         this.stateValue = "mounted";
-        return this.snapshot();
+        const snapshot = this.snapshot();
+        this.emitReceipt("mount", snapshot);
+        return snapshot;
     }
 
     /** Loads opaque bytes as the mount base; returns false when the file is absent. */
@@ -323,7 +337,9 @@ export class WorkspaceFile {
         this.requireText();
         this.detectStale();
         if (!this.outlineProvider) throw new WorkspaceError("outline_unavailable", "this mount has no outline provider");
-        return Object.freeze([...this.outlineProvider.entries(this.path, this.buffer)]);
+        const versionHash = fileDigest(this.buffer);
+        return Object.freeze(this.outlineProvider.entries(this.path, this.buffer)
+            .map(entry => entry.versionHash === undefined ? Object.freeze({ ...entry, versionHash }) : entry));
     }
 
     /** Bounded line read carrying the anchors (`baseHash`, `bufferVersion`) an edit needs. */
@@ -394,6 +410,127 @@ export class WorkspaceFile {
         return unifiedDiff(this.base?.content ?? "", this.buffer, `a/${this.path}`, `b/${this.path}`);
     }
 
+    /** Structured hunks for the same comparison `diff()` renders as unified text. */
+    diffHunks(base: "disk" | { readonly hash: string } = "disk"): readonly DiffHunk[] {
+        this.requireMounted();
+        this.requireText();
+        return structuredDiffHunks(this.resolveDiffBase(base).content, this.buffer);
+    }
+
+    /**
+     * Structured diff carrying the baseline identity, full-diff line counts and a hunk bound.
+     * The legacy `diff()` string and `diffHunks()` list stay unchanged. A stale base is still
+     * diffable, matching those existing views; a binary mount is rejected as `invalid_target`.
+     */
+    diffStructured(base: "disk" | { readonly hash: string } = "disk", options: { readonly maxHunks?: number } = {}): FileDiff {
+        this.requireMounted();
+        this.requireText();
+        const maxHunks = options.maxHunks ?? 500;
+        if (!Number.isSafeInteger(maxHunks) || maxHunks < 0) {
+            throw new WorkspaceError("invalid_target", "maxHunks must be a nonnegative safe integer");
+        }
+        const resolved = this.resolveDiffBase(base);
+        const hunks = structuredDiffHunks(resolved.content, this.buffer);
+        let added = 0;
+        let removed = 0;
+        for (const hunk of hunks) {
+            added += hunk.added;
+            removed += hunk.removed;
+        }
+        return Object.freeze({
+            base: base === "disk" ? "disk" : Object.freeze({ hash: base.hash }),
+            baseHash: resolved.hash,
+            bufferVersion: this.bufferVersionValue,
+            hunks: Object.freeze(hunks.slice(0, maxHunks)),
+            summary: Object.freeze({ added, removed, changed: hunks.length }),
+            truncated: hunks.length > maxHunks,
+        });
+    }
+
+    /**
+     * Validates workspace scope, base-hash integrity, buffer decodability and outline ranges.
+     * The state is never mutated; findings are returned instead of thrown.
+     */
+    validate(): FileValidation {
+        this.requireActive();
+        const reasons: string[] = [];
+        if (!isString(this.workspace.tenantId) || this.workspace.tenantId === ""
+            || !isString(this.workspace.rootId) || this.workspace.rootId === "") reasons.push("workspace scope is incomplete");
+        if (this.binaryValue) {
+            if (this.base) {
+                if (!this.binaryDirty) {
+                    const hex = createHash("sha256").update(this.bytesBuffer).digest("hex");
+                    if (this.base.hash !== hex && this.base.hash !== `sha256:${hex}`) reasons.push("byte buffer does not match the committed base hash");
+                }
+                const readBytes = this.workspace.storage.readBytes;
+                if (isFunction(readBytes)) {
+                    try {
+                        const current = readBytes.call(this.workspace.storage, this.ref());
+                        if (!current) reasons.push("committed file is missing from storage");
+                        else if (current.hash !== this.base.hash) reasons.push("committed base no longer matches the stored byte hash");
+                    } catch (error) {
+                        reasons.push(`storage byte read failed: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                }
+            }
+            return Object.freeze({ valid: reasons.length === 0, reasons: Object.freeze(reasons) });
+        }
+        const base = this.base;
+        const charset = base?.charset ?? this.charsetValue;
+        if (base) {
+            const digest = fileDigest(base.content);
+            if (base.hash !== digest && base.hash !== `sha256:${digest}`) reasons.push("committed content does not match the committed base hash");
+            try {
+                const current = this.workspace.storage.read(this.ref());
+                if (!current) reasons.push("committed file is missing from storage");
+                else if (current.hash !== base.hash) reasons.push("committed base no longer matches the stored file hash");
+            } catch (error) {
+                reasons.push(`storage read failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        if (charset.binary) {
+            reasons.push("committed charset marks the file as binary");
+        } else {
+            try {
+                const decoded = decodeText(encodeText(this.buffer, charset), charset);
+                if (decoded !== normalizeToLf(this.buffer)) reasons.push("buffer does not survive an encode/decode round trip");
+            } catch (error) {
+                reasons.push(`buffer cannot be encoded as ${charset.encoding}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        if (this.outlineProvider) {
+            try {
+                const text = new SourceText(this.buffer);
+                for (const entry of this.outlineProvider.entries(this.path, this.buffer)) {
+                    if (!isRange(entry.range)) reasons.push(`outline entry ${entry.id} has an invalid range`);
+                    else if (entry.range.endLine > text.lineCount || entry.range.endByte > text.byteLength) {
+                        reasons.push(`outline entry ${entry.id} has a range outside the buffer`);
+                    }
+                }
+            } catch (error) {
+                reasons.push(`outline provider failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        return Object.freeze({ valid: reasons.length === 0, reasons: Object.freeze(reasons) });
+    }
+
+    /** Resolves a diff baseline by committed hash; only the current committed version is addressable. */
+    private resolveDiffBase(base: "disk" | { readonly hash: string }): { readonly content: string; readonly hash: string } {
+        if (base === "disk") return { content: this.base?.content ?? "", hash: this.base?.hash ?? "" };
+        if (!isObject(base) || !isString(base.hash) || base.hash === "") {
+            throw new WorkspaceError("invalid_target", "diff base must be \"disk\" or an object with a hash");
+        }
+        if (!this.base) throw new WorkspaceError("not_mounted", `${this.path} is not mounted`);
+        if (hashKey(base.hash) === hashKey(this.base.hash)) return { content: this.base.content, hash: this.base.hash };
+        try {
+            const current = this.workspace.storage.read(this.ref());
+            if (current && hashKey(current.hash) === hashKey(base.hash)) return { content: current.content, hash: current.hash };
+        } catch {
+            /* fall through to the explicit version_conflict */
+        }
+        throw new WorkspaceError("version_conflict", `no baseline matches hash ${base.hash}`);
+    }
+
     /** Applies several edits atomically: every target is resolved on a scratch copy first. */
     apply(edits: readonly EditOp[], options: EditOptions = {}): FileSnapshot {
         return this.commit(this.planApply(edits, options));
@@ -439,6 +576,13 @@ export class WorkspaceFile {
     flush(options: FlushOptions = {}): FileSnapshot {
         this.requireActive();
         if (this.modeValue !== "writable") throw new WorkspaceError("read_only", "file is mounted read-only");
+        const snapshot = this.commitFlush(options);
+        this.emitReceipt("flush", snapshot);
+        return snapshot;
+    }
+
+    /** Commit half of `flush`; the public entry point emits the receipt after it returns. */
+    private commitFlush(options: FlushOptions): FileSnapshot {
         if (this.binaryValue) {
             if (!this.binaryDirty) return this.snapshot();
             this.detectStale();
@@ -454,6 +598,9 @@ export class WorkspaceFile {
         }
         const key = options.idempotencyKey;
         if (!this.isDirty()) {
+            // A buffer can be back at the base content after an edit (or a reverting replace);
+            // it is no longer dirty, so normalize the state instead of leaving it stuck at dirty.
+            if (this.stateValue === "dirty") this.stateValue = "active";
             if (key !== undefined) this.lastFlush = { key, hash: this.base?.hash ?? "" };
             return this.snapshot();
         }
@@ -494,6 +641,7 @@ export class WorkspaceFile {
     unmount(options: UnmountOptions = {}): void {
         this.requireMounted();
         if (this.isDirty() && !options.discardDirty) throw new WorkspaceError("dirty", "unmount would discard dirty buffer");
+        const snapshot = this.snapshot();
         if (this.lease) this.workspace.storage.releaseLease(this.lease);
         this.lease = undefined;
         this.base = undefined;
@@ -502,6 +650,7 @@ export class WorkspaceFile {
         this.binaryValue = false;
         this.binaryDirty = false;
         this.stateValue = "unmounted";
+        this.emitReceipt("unmount", snapshot);
     }
 
     snapshot(): FileSnapshot {
@@ -548,14 +697,30 @@ export class WorkspaceFile {
         if (target.mode === "string" || target.mode === "regex") {
             const selected = selectRegions(this.buffer, regions, target as StringTarget | RegexTarget);
             const expand = target.mode === "regex" ? regexReplacement(replacement, this.buffer) : literalReplacement(replacement);
+            const text = spliceRegions(this.buffer, selected, expand);
             return Object.freeze({ mode: target.mode, matches: toEditMatches(this.buffer, selected),
-                text: spliceRegions(this.buffer, selected, expand), changed: true, bufferVersion: this.bufferVersionValue });
+                text, changed: text !== this.buffer, bufferVersion: this.bufferVersionValue });
         }
         const region = regions[0]!;
-        const text = structuralReplacement(this.buffer, region, replacement);
+        const structural = structuralReplacement(this.buffer, region, replacement);
+        const text = this.buffer.slice(0, region.start) + structural + this.buffer.slice(region.end);
         return Object.freeze({ mode: target.mode, matches: toEditMatches(this.buffer, [region]),
-            text: this.buffer.slice(0, region.start) + text + this.buffer.slice(region.end),
-            changed: true, bufferVersion: this.bufferVersionValue });
+            text, changed: text !== this.buffer, bufferVersion: this.bufferVersionValue });
+    }
+
+    private emitReceipt(kind: FileOperationKind, snapshot: FileSnapshot): void {
+        const hook = this.workspace.onFileReceipt;
+        if (!isFunction(hook)) return;
+        const lifecycleAnchor = Object.freeze({ tenantId: this.workspace.tenantId, rootId: this.workspace.rootId });
+        const receipt: FileOperationReceipt = Object.freeze({
+            tenantId: this.workspace.tenantId, rootId: this.workspace.rootId, path: this.path,
+            kind, version: snapshot.version, hash: snapshot.baseHash, at: nowIso(), workspaceAnchor: lifecycleAnchor,
+        });
+        try {
+            hook(receipt);
+        } catch {
+            /* Receipt observers must never turn a completed file operation into a failure. */
+        }
     }
 
     private guardEdit(options: EditOptions): void {

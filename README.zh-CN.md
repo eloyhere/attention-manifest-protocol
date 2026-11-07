@@ -26,8 +26,8 @@ AMP 是面向 agent 的元认知协议：它让 agent 声明自己知道什么�
 | 工作区 | `workspace`、`file` | 作用域文件、大纲、编辑原语、存储适配器、文档与归档读取 |
 | 项目 | `project` | 规则、元数据、视图、项目大纲、项目类型、环境与工具链系列 |
 | 协作 | `cooperation`、`profession`、`behavior`、`governance` | 委派、权限收紧、行为发布、治理流程 |
-| Agent 接口 | `agent`、`model`、`runtime`、`workflow` | 模型可见的工具注册表、分发网关、模型端口、单写者生命周期 |
-| 持久化 | `repository`、`entity`、`service`、`sql` | 持久状态的端口与适配器 |
+| Agent 接口 | `agent`、`model`、`runtime`、`workflow` | 模型可见的工具注册表、分发网关、加权发现树、模型端口、单写者生命周期 |
+| 持久化 | `entity`、`cache`、`service`、`repository`、`sql`、`connection` | JPA 风格元数据、LRU 缓存、持久化上下文、泛型仓储、SQLite 与连接池 |
 
 Agent 永远拿不到可变存储，只能拿到投影、版本号，以及一份明确列出"允许尝试哪些动作"的清单。
 
@@ -36,7 +36,7 @@ Agent 永远拿不到可变存储，只能拿到投影、版本号，以及一�
 ```sh
 npm ci
 npm run check:architecture     # 严格类型检查，不允许未使用符号
-npm run test:architecture      # 460 项测试
+npm run test:architecture      # 460+ 项测试
 npm run scenario               # 单独运行端到端场景套件
 npm run build                  # 浏览器演示构建到 dist/
 npm run build:lib              # 生成可发布的 ESM 库到 lib/
@@ -163,6 +163,8 @@ project.describeEnvironment();          // 带编号下一步的 Markdown 简报
 | `host` | `capability`、`manifest`、`provenance`、`receipt`、`verification`、`retrieval`、`model`、`runtime` | 仅宿主；不会出现在工具列表 |
 | `hidden` | `workflow`、`policy`、`profession`、`behaviour` | 永不暴露；`assertAgentAccessible` 直接拒绝 |
 
+启动工具 `attention_manifest_protocol_discover` 是唯一的命名例外（`<prefix>_discover`），不在表中，见 [Discovery](#discovery)。
+
 `AgentGateway` 按注册表分发，并强制以下机制：
 
 1. binding（`tenantId`、`principalId`、`sessionId`、`policyVersion`、`cancellationEpoch`）由宿主提供并校验；
@@ -174,6 +176,41 @@ project.describeEnvironment();          // 带编号下一步的 Markdown 简报
 
 错误类型固定：`binding_invalid`、`unknown_tool`、`not_exposed`、`invalid_parameters`、`unauthorized`、`mutating_requires_idempotency_key`、`handler_missing`、`handler_failed`。网关不实现策略、预算与租约；缺少它们时它只会拒绝分发。
 
+### Discovery
+
+`attention_manifest_protocol_discover` 是启动入口，不属于领域动词。给 `AgentGateway` 配置 `discovery` 后，`gateway.tools` 只包含这个工具；`gateway.catalog` 仍暴露配置的完整 surface，宿主可在发现调用后挑选并加载契约。加载后的完整 surface 依然可以分发。
+
+```ts
+import {
+    AgentGateway, DISCOVER_TOOL_NAME, createConversationDiscoveryProvider, createHostModuleDiscoveryProvider,
+    createNetworkDiscoveryProvider, createSessionFileDiscoveryProvider, createSessionOutlineDiscoveryProvider,
+} from "attention-manifest-protocol/agent";
+
+const gateway = new AgentGateway({
+    handlers,
+    authorize: (authority, binding) => policy.allows(authority, binding),
+    discovery: { providers: [
+        createHostModuleDiscoveryProvider(readHostRegistry),
+        createSessionFileDiscoveryProvider(readSessionFiles),
+        createSessionOutlineDiscoveryProvider(readSessionOutlines),
+        createConversationDiscoveryProvider(readConversation),
+        createNetworkDiscoveryProvider(searchWeb),
+    ] },
+});
+const tree = await gateway.call(DISCOVER_TOOL_NAME, {
+    query: "修改失败的测试",
+    sources: ["amp", "session_files", "session_outlines"],
+}, { binding });
+```
+
+`query` 必填。`sources` 可取 `host_modules`、`amp`、`session_files`、`session_outlines`、`conversation`、`network`，默认前五项，因此只有显式请求时才会访问网络。`limit`（默认 6，最大 50）、`maxPerModule`（3）、`minimumScore`（0.1）与 `weights`（`lexical` 0.45、`semantic` 0.3、`signature` 0.1、`context` 0.15）限制返回规模与排序。AMP 工具自带稳定的动作同义词；`discovery.keywords` 可补充本地词汇，`discovery.signals` 提供语义、签名与上下文分数。
+
+Elasticsearch 通过已有的 `@elastic/elasticsearch` 依赖接入。宿主创建 `Client`（`new Client({ node: process.env.ELASTICSEARCH_URL })`），把 `createElasticsearchDiscoveryProvider({ client, index, source })` 注册为 provider。索引中的文档需符合 `ElasticsearchDiscoveryDocument`（`id`、`source`、`kind`、`module`、`name`、`summary`、`target`，可选 `keywords`、`searchText`，作用域字段 `tenantId`/`principalId`/`sessionId`，可选 0–1 的 `semantic`/`signature`/`context`）。`source`/`kind`/`module` 与作用域字段映射为 `keyword`，`name`/`summary`/`searchText` 映射为 `text`，`target` 映射为 `object` 或 `flattened`，评分信号映射为 `float`。一个 provider 对应一个来源；每次查询都会附加租户与会话过滤，`scoreSignal` 可把 BM25 `_score` 归一化后并入一个评分维度。索引、mapping 与写入路径由宿主负责；索引缺失时该来源会被标记为不可用。
+
+结果是 `query → source → group → item` 的相关树。每个 item 带 `score`、`scores`、生效的 `weights`、`matchedTerms` 和仅用于导航的 `target`（工具名、文件 id/路径/版本/行、大纲节点、消息/回合或 URL）。`unavailableSources` 区分“未搜索”和“没有匹配”；`authorization` 始终是 `not_granted`。
+
+provider 是通用宿主端口，不绑定插件体系。provider 接收 binding，只返回该 binding 可见的记录；会话记录在排序前还会校验 `tenantId`/`principalId`/`sessionId`。某个 provider 失败只会把对应来源标记为不可用，不会丢弃其他来源。核心不遍历文件系统，也不发起网络请求：`createNetworkDiscoveryProvider` 调用宿主提供的搜索函数，AMP 工具则要求已有 handler 并通过自身 authority。每次请求按来源校验 `discovery:<source>`，入口本身由 `execution:find` 控制。
+
 ## 执行、证据与治理
 
 - `execution` 通过执行器运行类型化的子调用；`policy` 提供 PEP，`budget` 提供账本。工具成功不等于验收通过。
@@ -181,9 +218,139 @@ project.describeEnvironment();          // 带编号下一步的 Markdown 简报
 - `workflow` 是带版本守卫与取消 epoch 的单写者生命周期，因此刻意不在 Agent 接口中。
 - `capability`、`manifest`、`profession`、`behaviour` 与 `governance` 负责收紧或释放权力，都是宿主动作。
 
+## 持久化
+
+五层链路把聚合从声明带到磁盘：**entity → cache → service → repository → sql**。
+
+| 层 | 模块 | 职责 |
+| --- | --- | --- |
+| 实体 | `src/entity` | JPA 风格元数据：`Entity`、`Key`、`Column`、`Index`、`UniqueConstraint`、`Association`，以及 `OneToOne<T>`/`OneToMany<T>`/`ManyToOne<T>`/`ManyToMany<T>` 包装；没有 `Metadata` 后缀 |
+| 缓存 | `src/cache` | 独立缓存层：基于 `semantic-typescript` 的 `SynchronousOrderedLRUMap` 实现带 TTL 的 LRU；另有一个缓存服务读取、写入后按命名空间失效的 `Proxy` |
+| 服务 | `src/service` | `Store` 持久化上下文：全局身份映射、懒加载 Proxy、写穿透、`new`/`managed`/`detached`/`removed` 状态与嵌套事务 |
+| 仓储 | `src/repository` | 泛型 `Repository<T>`（`get`/`put`/`delete`/`list`/`count`）、通过 `expectedVersion` 的乐观 CAS、追加式事件日志（`appendEvent`/`readEvents`） |
+| SQL | `src/sql`、`src/connection` | `node:sqlite` 驱动，含 WAL、外键与版本化迁移；同步连接池、事务与保存点 |
+
+这条链路是声明式的层次，而不是严格的调用栈：`Store` 为每种实体组合一个仓储；仓储经实体缓存读取、写入 SQLite；服务 `Proxy` 是调用方选择缓存某个服务读取结果的方式。
+
+### 缓存
+
+缓存层独立于 Store。`createEntityCache({ maxEntries, ttlMilliseconds })` 返回 TTL LRU（`semantic-typescript` 的 `SynchronousOrderedLRUMap`），提供 `get`/`set`/`invalidate`/`clear`/`stats`。`createServiceProxy(service, cache, { namespace })` 把任意服务包进 `Proxy`：按方法名与稳定参数元组缓存 `get`/`find`/`list`/`read` 等读取；成功的 `set`/`save`/`update`/`delete` 等写入只失效该命名空间。`ServiceRegistry`/`registerService` 把一个命名空间绑定到服务名。`createCachingProxy`/`createCacheProxyHandle` 提供自带 LRU、支持 `all`/`byArgs` 失效的自包含变体。失败的读取不会被保留；命中时返回同一引用，异步读取则返回同一个 Promise。
+
+### Store 与身份
+
+`Store.open()` 默认写入当前工作目录下隐藏且已 gitignore 的 `.attention-manifest-protocol/` 目录，并在其中创建 `store.sqlite`。`path` 可以是目录、显式的 `.sqlite` 文件或 `:memory:`。
+
+```ts
+import { Store } from "attention-manifest-protocol/service";
+
+const store = Store.open();                                  // .attention-manifest-protocol/store.sqlite
+const projectStore = Store.open({ path: "var/state" });      // var/state/store.sqlite
+const scratch = Store.open({ path: ":memory:" });
+
+const goal = store.save("goal", { id: "g1", title: "Ship" });
+goal.title = "Ship v1";                                      // 写穿透：版本递增并做 CAS
+store.load("goal", "g1");                                    // 懒加载 Proxy；读取属性前不查询
+store.resolve("goal", "g1");                                 // 立即检查是否存在
+store.state("goal", "g1");                                   // "managed"
+store.detach("goal", "g1");                                  // 此 Proxy 之后的写入只留在本地
+store.transaction((tx) => {
+    tx.save("goal", { id: "g2", title: "Second" });
+    tx.save("task", { id: "t1", goalId: "g2" });
+});
+```
+
+受管 Proxy 在 `(数据库路径, kind, id)` 上全局唯一：同一文件打开两次得到同一身份，仓储缓存命中返回同一对象引用。`load` 懒加载，`resolve` 立即检查存在性，`refresh` 替换受管快照。`detach` 把身份标为 `detached`：旧 Proxy 保留本地快照，之后的变更不再写入 SQLite；再次 `load`/`resolve` 会创建新的受管 Proxy。`remove` 把身份标为 `removed`，旧 Proxy 的访问以 `not_found` 失败。
+
+`Store.transaction(work)` 是同步的：嵌套调用变成保存点，抛错会同时回滚行、缓存条目与该事务中写入过的 Proxy 的已加载状态，返回 Promise 会被拒绝。写入立即发生，不延迟到提交。
+
+### 连接、事务与保存点
+
+底层 API 单独导出：
+
+```ts
+import { createConnectionPool } from "attention-manifest-protocol/connection";
+import { openSqlite } from "attention-manifest-protocol/sql";
+
+const path = ".attention-manifest-protocol/store.sqlite";    // 由 Store.open() 创建
+const pool = createConnectionPool({
+    maxConnections: 4,
+    open: () => openSqlite({ path }),
+});
+
+const connection = pool.acquire();
+try {
+    const transaction = connection.startTransaction();
+    try {
+        const savePoint = transaction.savePoint("before_cleanup");
+        transaction.run({ sql: "DELETE FROM events WHERE kind = ?", parameters: ["scratch"] });
+        savePoint.rollback();                                // 只撤销这一段
+        transaction.commit();                                // 存在活动保存点时会失败
+    } finally {
+        if (transaction.state === "active") transaction.rollback();
+    }
+} finally {
+    connection.release();                                    // release 也会回滚活动事务
+}
+pool.close();
+```
+
+连接池是同步的：`acquire()` 返回空闲连接，或在达到上限时抛出 `ConnectionPoolError`，错误码为 `pool_exhausted`；`withConnection`/`withTransaction` 自动管理租借。事务以 `BEGIN IMMEDIATE` 开始，保存点严格按 LIFO 操作，存在活动保存点时 `commit()` 会失败。`openSqlite` 基于 `node:sqlite`：文件数据库默认启用 WAL、外键与五秒 busy timeout；内存库与只读连接跳过 WAL。`migrate()` 在各自事务中应用带版本的 `CORE_MIGRATIONS`，可重复执行；`schemaVersion()` 返回当前版本。
+
+### JPA 元数据
+
+元数据类型是 `Entity<T>`、`Key`、`Column`、`Index`、`UniqueConstraint` 与 `Association`；构建函数是 `entity`、`id`/`generatedId`/`compositeId`、`column`、`index`、`uniqueConstraint` 以及各关联构造函数。没有 `Metadata` 后缀。
+
+```ts
+import { entity, id, column, index, uniqueConstraint, manyToMany } from "attention-manifest-protocol/entity";
+import type { Entity, ManyToMany } from "attention-manifest-protocol/entity";
+
+interface Goal {
+    readonly id: string;
+    readonly version: number;
+    readonly updatedAt: string;
+    readonly payload: { readonly title: string };
+    readonly dependencies: ManyToMany<Goal>;                 // 关联声明；不是持久化列
+}
+
+const goalEntity: Entity<Goal> = entity<Goal>({
+    kind: "goal",
+    table: "entities",
+    key: id(),
+    columns: [
+        column("id", { nullable: false }),
+        column("tenantId"),
+        column("sessionId"),
+        column("version", { nullable: false, version: true }),
+        column("updatedAt", { nullable: false }),
+        column("payload", { nullable: false }),
+    ],
+    indexes: [index("goals_tenant_session", ["tenant_id", "session_id"])],
+    uniqueConstraints: [uniqueConstraint("goals_tenant_id", ["tenant_id", "id"])],
+    associations: [
+        manyToMany("dependencies", "goal", {
+            joinTable: "goal_dependencies",
+            joinColumns: ["goal_id"],
+            inverseJoinColumns: ["dependency_id"],
+            cascade: ["persist"],
+            fetch: "lazy",
+        }),
+    ],
+});
+```
+
+`entity()` 构建并校验元数据（键与列的对应、列名与索引名唯一、关联所有权以及唯一的 `@Version` 列），但不会自动注册。所有内置 `EntityKind` 都登记在 `ENTITY_REGISTRY` 中，`Store` 通过该注册表解析类型；所有聚合共用 `entities` 表，并以 JSON 载荷保存。对内置注册表，`index` 与 `uniqueConstraint` 声明会在打开时建成 SQLite 索引（`Store.indexReport` 列出已应用与已跳过项）。
+
+### 持久化边界
+
+- **级联只声明，不执行。** `cascade: ["persist"]` 只是元数据；`Store.cascadePlan` 只暴露该类型声明的关联，保留的 `CascadePolicy` 形状固定 `implemented: false`。不会运行 persist/merge/remove/refresh/detach 中的任何一种级联。
+- **detach 后写入只留在本地。** `detach` 之后，变更只更新 Proxy 的快照，绝不写穿透。
+- **缓存命中返回同一引用。** 仓储缓存保留引用，读取时不复制。
+- **同一 `(数据库路径, kind, id)` 只有一个身份。** 进程内该元组只有一个受管 Proxy；`detach` 会退休它，之后加载会创建新的 Proxy。每个 `:memory:` Store 拥有独立的身份命名空间。
+- **事务同步、SQLite 单写者。** `Store` 持有一个池化连接；`Store.transaction` 拒绝 Promise；连接池是同步的；写事务使用 `BEGIN IMMEDIATE`。WAL 允许其他读者继续，但没有异步连接获取，也没有多写者并行。
+
 ## 测试
 
-测试套件即可执行文档：领域测试共 **460 项**，另有在真实临时目录上运行的端到端场景。
+测试套件即可执行文档：领域测试共 **460+ 项**，另有在真实临时目录上运行的端到端场景。持久化层另有 81 项定向测试。
 
 | 范围 | 覆盖内容 |
 | --- | --- |
@@ -191,6 +358,7 @@ project.describeEnvironment();          // 带编号下一步的 Markdown 简报
 | 文档 | DOCX/XLSX/PPTX、旧版 DOC/XLS/PPT、PSD/PSB 图层树、DXF/DWG 容器、3DS、CFB 容器、归档 |
 | 失败路径 | 损坏归档、不支持格式、路径穿越、体积上限、预算截断 |
 | 项目 | 环境播种、缺口、CAS、类型应用与覆盖 |
+| 持久化 | JPA 元数据校验、LRU/TTL 缓存、Proxy 失效、连接池耗尽、LIFO 保存点、CAS、身份映射、detach 语义、迁移 |
 | Agent | surface 分层、网关授权、隐藏工具屏蔽、参数注入、审计日志 |
 
 ```sh
@@ -205,8 +373,14 @@ node --test src/file/document/archive.test.ts
 | [src](src/) | `src/index.ts` 导出的领域模块 |
 | [src/file](src/file/) | 范围、字符集、编辑、大纲、语言、文档、归档、存储适配器 |
 | [src/workspace](src/workspace/) | 挂载与文件生命周期 |
+| [src/entity](src/entity/) | JPA 风格元数据：键、列、索引、关联与实体注册表 |
+| [src/cache](src/cache/) | LRU 实体缓存与带缓存的服务 Proxy |
+| [src/service](src/service/) | `Store` 持久化上下文 |
+| [src/repository](src/repository/) | 泛型仓储、CAS 与事件 |
+| [src/sql](src/sql/) | `node:sqlite` 驱动与迁移 |
+| [src/connection](src/connection/) | 同步连接池、事务与保存点 |
 | [src/project](src/project/) | 规则、元数据、视图、大纲、项目类型、环境、工具链系列 |
-| [src/agent](src/agent/) | Agent surface 注册表与分发网关 |
+| [src/agent](src/agent/) | Agent surface 注册表、分发网关、加权发现树与通用发现 provider |
 | [src/scenario](src/scenario/) | 端到端场景套件 |
 | [tools](tools/) | 测试发现、演示与声明重写 |
 | [document](document/) | 实现说明 |

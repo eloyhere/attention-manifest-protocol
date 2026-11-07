@@ -1,4 +1,5 @@
 import { Optional, SynchronousOrderedMap, SynchronousUnorderedSet } from "semantic-typescript";
+import { safeStringify } from "../serialization/index.ts";
 import type { Identifier } from "../shared.ts";
 import type { Manifest, ToolDefinition, ToolHandle } from "../tool/types.ts";
 
@@ -11,17 +12,37 @@ export type ManifestKey = {
 };
 
 function keyOf(key: ManifestKey): string {
-    return JSON.stringify([key.tenantId, key.endpointId, key.version, key.digest, key.policyScope]);
+    return safeStringify([key.tenantId, key.endpointId, key.version, key.digest, key.policyScope]);
 }
 
 function validDate(value: string, field: string): number {
-    const parsed = Date.parse(value);
+    const parsed = typeof value === "string" ? Date.parse(value) : Number.NaN;
     if (!Number.isFinite(parsed)) throw new Error(`Invalid manifest ${field}.`);
     return parsed;
 }
 
+function requireText(value: unknown, field: string): void {
+    if (typeof value !== "string" || value.trim() === "") throw new Error(`Manifest ${field} is required.`);
+}
+
+function validateIdentityAndVersion<Schema>(manifest: Manifest<Schema>): void {
+    // These fields participate in the manifest/handle identity or version pin;
+    // accepting an empty value would create an unaddressable or unpinned entry.
+    for (const field of ["manifestId", "tenantId", "endpointId", "endpointIdentity", "serverVersion", "digest", "policyScope"] as const) {
+        requireText(manifest[field], field);
+    }
+    for (const tool of manifest.tools) {
+        requireText(tool.toolId, "toolId");
+        requireText(tool.version, "toolVersion");
+        requireText(tool.digest, "toolDigest");
+        requireText(tool.policyScope, "toolPolicyScope");
+    }
+}
+
 function contentOf<Schema>(manifest: Manifest<Schema>): string {
-    return JSON.stringify(manifest);
+    // Immutability is about content, not about the order a caller happened to
+    // build the object in; stable keys make the comparison order-insensitive.
+    return safeStringify(manifest, { stableKeys: true });
 }
 
 export class ManifestStore<Schema = import("../shared.ts").JsonValue> {
@@ -34,6 +55,7 @@ export class ManifestStore<Schema = import("../shared.ts").JsonValue> {
     }
 
     put(manifest: Manifest<Schema>): void {
+        validateIdentityAndVersion(manifest);
         validDate(manifest.issuedAt, "issuedAt");
         if (manifest.expiresAt !== undefined) {
             const issued = Date.parse(manifest.issuedAt);
@@ -74,7 +96,17 @@ export class ManifestStore<Schema = import("../shared.ts").JsonValue> {
     findManifest(key: ManifestKey) {
         const encoded = keyOf(key);
         if (this.revoked.contains(encoded)) return Optional.empty<Manifest<Schema>>();
-        return this.manifests.get(encoded).map((manifest) => structuredClone(manifest));
+        const stored = this.manifests.get(encoded);
+        if (stored.isEmpty()) return Optional.empty<Manifest<Schema>>();
+        const manifest = stored.get();
+        if (this.expired(manifest)) return Optional.empty<Manifest<Schema>>();
+        return Optional.of(structuredClone(manifest));
+    }
+
+    /** Expiry is inclusive: `now === expiresAt` is already expired. */
+    private expired(manifest: Manifest<Schema>): boolean {
+        if (manifest.expiresAt === undefined) return false;
+        return Date.parse(manifest.expiresAt) <= validDate(this.now(), "now");
     }
 
     get(key: ManifestKey): Manifest<Schema> | undefined {
@@ -92,10 +124,6 @@ export class ManifestStore<Schema = import("../shared.ts").JsonValue> {
         };
         const manifest = this.findManifest(key);
         return manifest.flatMap((value) => {
-            if (value.expiresAt !== undefined) {
-                const now = validDate(this.now(), "now");
-                if (Date.parse(value.expiresAt) <= now) return Optional.empty<ToolDefinition<Schema>>();
-            }
             const tool = value.tools.find((candidate) => candidate.toolId === handle.toolId
                 && (handle.toolVersion === undefined || candidate.version === handle.toolVersion)
                 && (handle.toolDigest === undefined || candidate.digest === handle.toolDigest));

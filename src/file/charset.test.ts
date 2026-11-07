@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeText, detectCharset, encodeText, normalizeToEol, normalizeToLf } from "./charset.ts";
+import { decodeText, detectCharset, detectLineEnding, encodeText, normalizeToEol, normalizeToLf } from "./charset.ts";
 
 const bytes = (...values: number[]): Uint8Array => Uint8Array.from(values);
 
@@ -19,6 +19,16 @@ test("mixed line endings are reported instead of silently normalized", () => {
     assert.equal(mixed.mixedEol, true);
     assert.equal(mixed.eol, "\r\n");
     assert.equal(detectCharset(new TextEncoder().encode("a\rb")).mixedEol, true);
+});
+
+test("newline-free and empty text default to LF instead of CRLF", () => {
+    assert.deepEqual(detectLineEnding("abc"), { eol: "\n", mixed: false, finalNewline: false });
+    assert.equal(detectLineEnding("").eol, "\n");
+    assert.equal(detectLineEnding("\uFEFF").eol, "\n", "a BOM-only document has no line-ending evidence");
+    assert.equal(detectCharset(bytes(0xef, 0xbb, 0xbf)).eol, "\n");
+    assert.equal(detectLineEnding("a\rb").eol, "\r\n", "lone CR still selects the CRLF family");
+    assert.equal(detectLineEnding("a\r\nb").eol, "\r\n");
+    assert.equal(detectLineEnding("a\nb\r\nc\n").eol, "\n");
 });
 
 test("BOMs select UTF-8, UTF-16LE and UTF-16BE and are stripped from the buffer", () => {
