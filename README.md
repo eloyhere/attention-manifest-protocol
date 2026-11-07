@@ -392,6 +392,15 @@ node --test src/file/document/archive.test.ts
 - Unsupported formats fail with `unsupported_format` and a reason; they never return an empty outline that looks like success.
 - Provenance proves integrity, not truth or authority to act. Sandbox isolation, multi-tenancy and production hardening remain host responsibilities.
 
+## Changelog
+
+Full history: [CHANGELOG.md](CHANGELOG.md) · [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md).
+
+- **0.7.4** — dedicated `.log` outline parser: entries grouped by day → severity → line, covering ISO, timestamped, syslog and bare-level formats, with stack traces attached to the preceding entry.
+- **0.7.3** — `semantic-typescript` upgraded to `2.0.1` (fixes an upstream fatal bug).
+- **0.7.2** — evidence arbitration/fusion/cross-agent acceptance, capability and behavior lifecycles, receipt rollback/evaluation, L3 attention scheduling, L5/L7/L8, `learn`/`feedback`, workflow propagation and cancellation cascade, five-topology execution, kernel project/workspace/file flow, JPA cascades, session/turn receipts, six-dimensional budgets and `versionHash` enforcement.
+- **0.7.1** — the repository no longer ships tests; the published package contains `lib/` only.
+
 ## Licence and history
 
 [Apache License 2.0](LICENSE), copyright 2026 Eloy Kim; retain [NOTICE](NOTICE), the licence and attribution notices when redistributing. History: [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md).

@@ -392,6 +392,15 @@ node --test src/file/document/archive.test.ts
 - 不支持的格式会以 `unsupported_format` 与原因失败，绝不返回看起来成功的空大纲。
 - 来源证明完整性，不证明真值或行动权威。沙箱隔离、多租户与生产加固仍是宿主的责任。
 
+## 更新日志
+
+完整历史见 [CHANGELOG.md](CHANGELOG.md) 与 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
+
+- **0.7.4** — 新增 `.log` 大纲解析：按日期 → 级别 → 条目分组，支持 ISO、时间戳、syslog 与裸级别格式，堆栈续行归入前一条记录。
+- **0.7.3** — `semantic-typescript` 升级至 `2.0.1`，修复上游致命缺陷。
+- **0.7.2** — 证据仲裁/融合/跨 Agent 接受、能力与行为生命周期、回执回滚与评测、L3 注意力调度、L5/L7/L8、`learn`/`feedback`、工作流传播与取消级联、五拓扑执行、kernel 的 project/workspace/file 流程、JPA 级联、Session/Turn 回执、六维预算与 `versionHash` 强制。
+- **0.7.1** — 仓库不再包含测试文件，发布包仅含 `lib/`。
+
 ## 许可证与历史
 
 [Apache License 2.0](LICENSE)，版权 2026 Eloy Kim；再分发时请保留 [NOTICE](NOTICE)、许可证与署名声明。历史记录见 [CHANGELOG.md](CHANGELOG.md) 与 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。

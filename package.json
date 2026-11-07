@@ -1,6 +1,6 @@
 {
   "name": "attention-manifest-protocol",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "files": [
     "lib",
     "README.md",
@@ -25,6 +25,14 @@
   ],
   "license": "Apache-2.0",
   "author": "Eloy Kim",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eloyhere/attention-manifest-protocol.git"
+  },
+  "homepage": "https://github.com/eloyhere/attention-manifest-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/eloyhere/attention-manifest-protocol/issues"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
