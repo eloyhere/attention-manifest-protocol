@@ -396,6 +396,7 @@ node --test src/file/document/archive.test.ts
 
 完整历史见 [CHANGELOG.md](CHANGELOG.md) 与 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
 
+- **0.7.9** — 新增独立 agent 工具 `attention_manifest_protocol_replace`，支持字面量/正则/行/字节/大纲节点替换与 CAS 保护。
 - **0.7.8** — `discover` 的 query 支持字符串或字符串数组，`regex: true` 时按不区分大小写的正则匹配。
 - **0.7.6** — JSON 序列化时非整数数字最多保留 2 位小数；内存计算仍保持全精度。
 - **0.7.4** — 新增 `.log` 大纲解析：按日期 → 级别 → 条目分组，支持 ISO、时间戳、syslog 与裸级别格式，堆栈续行归入前一条记录。

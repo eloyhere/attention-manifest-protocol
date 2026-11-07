@@ -5,6 +5,12 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.9] - 2026-11-07
+
+### 新增
+
+- 独立的 agent 工具 `attention_manifest_protocol_replace`（变更型，`workspace:write`）。支持按字面量、正则、行区间、UTF-8 字节区间或大纲节点改写工作区文件的一部分，支持全量替换与 CAS 保护（`expectedBufferVersion`、`expectedBaseHash`），提交后 flush 并返回快照摘要。宿主通过 `createReplaceToolHandler(workspace)` 注册 handler。
+
 ## [0.7.8] - 2026-11-07
 
 ### 新增

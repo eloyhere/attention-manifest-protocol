@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] - 2026-11-07
+
+### Added
+
+- Standalone agent tool `attention_manifest_protocol_replace` (mutating, `workspace:write`). It rewrites part of a workspace file by literal string, regular expression, line range, UTF-8 byte range or outline node, supports all-matches and compare-and-swap guards (`expectedBufferVersion`, `expectedBaseHash`), flushes the committed buffer and returns the resulting snapshot summary. Hosts register the handler from `createReplaceToolHandler(workspace)`.
+
 ## [0.7.8] - 2026-11-07
 
 ### Added

@@ -65,6 +65,16 @@ export interface AgentBinding {
 export const SURFACE_PREFIX = "attention_manifest_protocol";
 export const DISCOVER_TOOL_NAME = `${SURFACE_PREFIX}_discover`;
 
+/** Standalone replace tool; hosts register its handler under this exact name. */
+export const REPLACE_TOOL_NAME = `${SURFACE_PREFIX}_replace`;
+
+export const REPLACE_TOOL: ToolDescriptor = Object.freeze({
+    name: REPLACE_TOOL_NAME, module: "workspace", verb: "replace", mutating: true,
+    authority: Object.freeze(["workspace:write"]),
+    description: "Replace text in a workspace file by literal string, regular expression, line range, UTF-8 byte range or outline node; supports all-matches and compare-and-swap guards (expectedBufferVersion, expectedBaseHash).",
+    keywords: Object.freeze(["replace", "edit", "substitute", "rewrite", "替换", "修改", "重写"]),
+});
+
 /** Bootstrap entry, independent of any domain module. */
 export const DISCOVER_TOOL: ToolDescriptor = Object.freeze({
     name: DISCOVER_TOOL_NAME, module: "discovery", verb: "discover", mutating: false,
@@ -405,7 +415,8 @@ for (const entry of SURFACE_MODULES) {
 
 function buildTools(): readonly ToolDescriptor[] {
     const names = new SynchronousUnorderedSet<string>();
-    const tools: ToolDescriptor[] = [];
+    const tools: ToolDescriptor[] = [REPLACE_TOOL];
+    names.add(REPLACE_TOOL_NAME);
     for (const entry of SURFACE_MODULES) {
         if (entry.tier !== "agent") {
             if (entry.exposed.length > 0) throw new TypeError(`module ${entry.module} is ${entry.tier} but exposes verbs`);
@@ -433,6 +444,7 @@ export function findModule(module: string): Optional<SurfaceModule> {
 
 export function findTool(name: string): Optional<ToolDescriptor> {
     if (name === DISCOVER_TOOL_NAME) { return Optional.of(DISCOVER_TOOL); }
+    if (name === REPLACE_TOOL_NAME) { return Optional.of(REPLACE_TOOL); }
     return Optional.ofNullable(ALL_TOOLS.find(tool => tool.name === name));
 }
 

@@ -396,6 +396,7 @@ node --test src/file/document/archive.test.ts
 
 Full history: [CHANGELOG.md](CHANGELOG.md) · [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md).
 
+- **0.7.9** — new standalone agent tool `attention_manifest_protocol_replace` for string, regex, line, byte and outline node replacement with CAS guards.
 - **0.7.8** — `discover` accepts a query string or string array, and `regex: true` matches entries as case-insensitive regular expressions.
 - **0.7.6** — JSON serialization rounds non-integer numbers to at most two decimal places; in-memory arithmetic keeps full precision.
 - **0.7.4** — dedicated `.log` outline parser: entries grouped by day → severity → line, covering ISO, timestamped, syslog and bare-level formats, with stack traces attached to the preceding entry.
