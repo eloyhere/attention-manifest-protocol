@@ -44,8 +44,46 @@ export interface DiscoveryCandidate {
     readonly target: Readonly<Record<string, string>>;
 }
 
+export type DiscoveryQuery = string | readonly string[];
+
+/**
+ * Accepts one query or several and returns the trimmed, de-duplicated,
+ * space-joined text used by lexical scoring and providers. Each entry and the
+ * combined text are capped at 4096 characters.
+ */
+export function normalizeDiscoveryQuery(query: DiscoveryQuery): string {
+    if (typeof query !== "string" && !Array.isArray(query)) { throw new TypeError("query must be a string or an array of strings"); }
+    const parts: readonly unknown[] = typeof query === "string" ? [query] : query;
+    if (parts.length === 0 || parts.length > 32) { throw new TypeError("query must contain between 1 and 32 entries"); }
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const part of parts) {
+        if (typeof part !== "string") { throw new TypeError("query entries must be strings"); }
+        const trimmed = part.trim();
+        if (!trimmed) { throw new TypeError("query entries must be nonempty"); }
+        if (trimmed.length > 4096) { throw new TypeError("each query must be at most 4096 characters"); }
+        if (seen.has(trimmed)) { continue; }
+        seen.add(trimmed);
+        unique.push(trimmed);
+    }
+    const joined = unique.join(" ");
+    if (joined.length > 4096) { throw new TypeError("query must be at most 4096 characters in total"); }
+    return joined;
+}
+
+/** Compiles each query entry as a case-insensitive regular expression. */
+export function compileDiscoveryPatterns(query: DiscoveryQuery): readonly RegExp[] {
+    const parts = typeof query === "string" ? [query] : query;
+    return Object.freeze(parts.map(part => {
+        try { return new RegExp(part, "i"); }
+        catch { throw new TypeError(`invalid regular expression: ${String(part)}`); }
+    }));
+}
+
 export interface DiscoveryOptions {
-    readonly query: string;
+    readonly query: DiscoveryQuery;
+    /** Treat query entries as regular expressions instead of word matching. */
+    readonly regex?: boolean;
     /** Defaults to local sources. Network is queried only when explicitly selected. */
     readonly sources?: readonly DiscoverySource[];
     readonly limit?: number;
@@ -109,10 +147,11 @@ export interface DiscoveryCollection {
 /** Scope checks also protect callers whose provider accidentally returns another session's records. */
 export const collectDiscoveryCandidates = async (host: DiscoveryHost, options: DiscoveryOptions, binding: AgentBinding): Promise<DiscoveryCollection> => {
     const sources = options.sources ?? DEFAULT_DISCOVERY_SOURCES;
+    const query = normalizeDiscoveryQuery(options.query);
     const providers = (host.providers ?? []).filter(provider => sources.includes(provider.source));
     const results = await Promise.allSettled(providers.map(async provider => {
         if (!DISCOVERY_SOURCES.includes(provider.source) || (provider.source as string) === "amp") { throw new TypeError("invalid discovery provider source"); }
-        const candidates = await provider.search(options.query, Object.freeze({ ...binding }));
+        const candidates = await provider.search(query, Object.freeze({ ...binding }));
         return candidates.filter(candidate => {
             if (candidate.source !== provider.source) { throw new TypeError("discovery provider source mismatch"); }
             if (provider.source === "host_modules" || provider.source === "network") { return true; }
@@ -164,14 +203,18 @@ const terms = (text: string): string[] => {
 
 /** Validate untyped model input; scoring signals and candidate scopes are host-only. */
 export const parseDiscoveryOptions = (parameters: Readonly<Record<string, unknown>>): DiscoveryOptions => {
-    const allowed: readonly string[] = ["query", "sources", "limit", "maxPerModule", "minimumScore", "weights"];
+    const allowed: readonly string[] = ["query", "sources", "limit", "maxPerModule", "minimumScore", "weights", "regex"];
     for (const key of Object.keys(parameters)) {
         if (!allowed.includes(key)) { throw new TypeError(`unknown discovery parameter: ${key}`); }
     }
-    if (typeof parameters.query !== "string" || !parameters.query.trim() || parameters.query.length > 4096) {
-        throw new TypeError("query must be nonempty and at most 4096 characters");
+    if (parameters.regex !== undefined && typeof parameters.regex !== "boolean") { throw new TypeError("regex must be a boolean"); }
+    const normalizedQuery = normalizeDiscoveryQuery(parameters.query as DiscoveryQuery);
+    // Regex mode allows patterns that contain no searchable words.
+    if (parameters.regex !== true) {
+        if (terms(normalizedQuery).length === 0) { throw new TypeError("query must contain searchable words"); }
+    } else {
+        compileDiscoveryPatterns(parameters.query as DiscoveryQuery);
     }
-    if (terms(parameters.query).length === 0) { throw new TypeError("query must contain searchable words"); }
     if (parameters.sources !== undefined && (!Array.isArray(parameters.sources) || parameters.sources.length === 0
         || !parameters.sources.every(source => DISCOVERY_SOURCES.includes(source))
         || new Set(parameters.sources).size !== parameters.sources.length)) { throw new TypeError("sources must be a nonempty list of unique discovery source names"); }
@@ -185,7 +228,7 @@ export const parseDiscoveryOptions = (parameters: Readonly<Record<string, unknow
             unit(value, key);
         }
     }
-    const options = parameters as unknown as DiscoveryOptions;
+    const options = { ...(parameters as unknown as DiscoveryOptions), query: parameters.query as DiscoveryQuery } as DiscoveryOptions;
     boundedInteger(options.limit ?? 6, 50, "limit");
     boundedInteger(options.maxPerModule ?? 3, 50, "maxPerModule");
     unit(options.minimumScore ?? 0.1, "minimumScore");
@@ -197,8 +240,10 @@ export const parseDiscoveryOptions = (parameters: Readonly<Record<string, unknow
 /** Pure ranking over a host-authorized snapshot. No reads, execution or authority are implied. */
 export const discover = (candidates: readonly DiscoveryCandidate[], input: DiscoveryOptions): DiscoveryResult => {
     const options = parseDiscoveryOptions({ ...input });
-    const queryTerms = terms(options.query);
-    if (queryTerms.length === 0) { throw new TypeError("query must contain searchable words"); }
+    const query = normalizeDiscoveryQuery(options.query);
+    if (options.regex !== true && terms(query).length === 0) { throw new TypeError("query must contain searchable words"); }
+    const queryTerms = terms(query);
+    const patterns = options.regex === true ? compileDiscoveryPatterns(options.query) : undefined;
     const weights = { ...DefaultWeights, ...options.weights };
     const selectedSources = options.sources ?? DEFAULT_DISCOVERY_SOURCES;
     const scoped = candidates.filter(candidate => selectedSources.includes(candidate.source));
@@ -228,8 +273,17 @@ export const discover = (candidates: readonly DiscoveryCandidate[], input: Disco
         addTerms((candidate.keywords ?? []).join(" "), 0.7);
         addTerms(candidate.summary, 0.4);
         if (candidate.searchText !== undefined) { addTerms(candidate.searchText, 0.3); }
-        const matchedTerms = queryTerms.filter(term => vocabulary.has(term));
-        const lexical = matchedTerms.reduce((sum, term) => sum + (vocabulary.get(term) ?? 0), 0) / queryTerms.length;
+        let matchedTerms: readonly string[];
+        let lexical: number;
+        if (patterns !== undefined) {
+            const fields = [candidate.name, candidate.module, (candidate.keywords ?? []).join(" "), candidate.summary,
+                candidate.searchText ?? ""];
+            matchedTerms = patterns.filter(pattern => fields.some(field => pattern.test(field))).map(pattern => pattern.source);
+            lexical = matchedTerms.length === 0 ? 0 : matchedTerms.length / patterns.length;
+        } else {
+            matchedTerms = queryTerms.filter(term => vocabulary.has(term));
+            lexical = matchedTerms.reduce((sum, term) => sum + (vocabulary.get(term) ?? 0), 0) / queryTerms.length;
+        }
         const scores: { -readonly [K in keyof DiscoveryWeights]?: number } = { lexical };
         for (const dimension of ["semantic", "signature", "context"] as const) {
             const signal = candidate.signals?.[dimension];
@@ -243,7 +297,7 @@ export const discover = (candidates: readonly DiscoveryCandidate[], input: Disco
             score += (scores[dimension] ?? 0) * effective[dimension]!;
         }
         // Context or signature alone must not introduce an unrelated tool.
-        if (!(scores.lexical! > 0 || (scores.semantic ?? 0) > 0) || score <= 0 || score < (options.minimumScore ?? 0.1)) { continue; }
+        if (!(queryTerms.length === 0 || scores.lexical! > 0 || (scores.semantic ?? 0) > 0) || score <= 0 || score < (options.minimumScore ?? 0.1)) { continue; }
         ranked.push({ candidate, leaf: { kind: candidate.kind, id: candidate.id, name: candidate.name, summary: candidate.summary.slice(0, 320),
             score, scores, weights: effective, matchedTerms, target: { ...candidate.target } } });
     }
@@ -271,6 +325,6 @@ export const discover = (candidates: readonly DiscoveryCandidate[], input: Disco
         return { kind: "source", name: source, score: branches[0].score, children: branches };
     });
     children.sort((a, b) => b.score - a.score || compare(a.name, b.name));
-    return { query: options.query, tree: { kind: "query", children }, considered: scoped.length, matched: ranked.length,
+    return { query, tree: { kind: "query", children }, considered: scoped.length, matched: ranked.length,
         sources: [...selectedSources], unavailableSources: [], returned: selected.length, truncated: selected.length < ranked.length, authorization: "not_granted" };
 };

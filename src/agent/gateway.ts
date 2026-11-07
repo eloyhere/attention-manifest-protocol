@@ -1,5 +1,5 @@
 import { createAgentSurface, createDiscoverySurface, DISCOVER_TOOL_NAME, findModule, findTool, assertBinding, assertModelParameters } from "./surface.ts";
-import { DEFAULT_DISCOVERY_SOURCES, DISCOVERY_SOURCES, collectDiscoveryCandidates, discover, parseDiscoveryOptions } from "./discovery.ts";
+import { DEFAULT_DISCOVERY_SOURCES, DISCOVERY_SOURCES, collectDiscoveryCandidates, discover, normalizeDiscoveryQuery, parseDiscoveryOptions } from "./discovery.ts";
 import type { DiscoveryCandidate, DiscoveryHost, DiscoveryOptions, DiscoveryResult } from "./discovery.ts";
 import type { AgentBinding, AgentSurface, ToolDescriptor } from "./surface.ts";
 
@@ -109,6 +109,7 @@ export class AgentGateway {
         let options: DiscoveryOptions;
         try { options = parseDiscoveryOptions(parameters); }
         catch (error) { throw new GatewayError("invalid_parameters", messageOf(error)); }
+        const query = normalizeDiscoveryQuery(options.query);
         const candidates: DiscoveryCandidate[] = [];
         const sources = options.sources ?? DEFAULT_DISCOVERY_SOURCES;
         for (const source of sources) {
@@ -124,7 +125,7 @@ export class AgentGateway {
                 summary: tool.description,
                 keywords: [tool.verb, tool.module, ...(tool.keywords ?? []), ...(module.isPresent() ? [module.get().summary] : []),
                     ...(host.keywords?.(tool) ?? [])],
-                signals: host.signals?.(tool, options.query, binding), target: { kind: "surface", name: tool.name } });
+                signals: host.signals?.(tool, query, binding), target: { kind: "surface", name: tool.name } });
         }
         const collected = await collectDiscoveryCandidates(host, options, binding);
         candidates.push(...collected.candidates);

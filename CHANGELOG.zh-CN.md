@@ -5,6 +5,18 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.8] - 2026-11-07
+
+### 新增
+
+- `discover` 的 `query` 支持单个字符串或字符串数组；当 `regex: true` 时，每个条目按不区分大小写的正则表达式编译，并匹配候选的 name、module、keywords、summary 与 searchText；非法表达式以 `invalid regular expression` 失败。
+
+## [0.7.7] - 2026-11-07
+
+### 变更
+
+- 仅文档发布：npm 页面通过 README 摘要与仓库元数据展示更新日志。
+
 ## [0.7.6] - 2026-11-07
 
 ### 新增

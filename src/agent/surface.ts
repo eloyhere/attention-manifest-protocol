@@ -69,7 +69,7 @@ export const DISCOVER_TOOL_NAME = `${SURFACE_PREFIX}_discover`;
 export const DISCOVER_TOOL: ToolDescriptor = Object.freeze({
     name: DISCOVER_TOOL_NAME, module: "discovery", verb: "discover", mutating: false,
     authority: Object.freeze(["execution:find"]),
-    description: "Search authorized host modules, AMP tools, session files/content, session outlines, conversation and network; accepts query, sources, limit, maxPerModule, minimumScore and weights, and returns a bounded weighted relevance tree.",
+    description: "Search authorized host modules, AMP tools, session files/content, session outlines, conversation and network; accepts query (a string or a string array; set regex to true for regular expressions), sources, limit, maxPerModule, minimumScore and weights, and returns a bounded weighted relevance tree.",
     keywords: Object.freeze(["search", "discover", "find", "搜索", "查找", "发现"]),
 });
 

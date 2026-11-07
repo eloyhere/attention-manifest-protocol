@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-11-07
+
+### Added
+
+- `discover` accepts `query` as a single string or an array of strings. With `regex: true`, each entry is compiled as a case-insensitive regular expression and matched against candidate name, module, keywords, summary and search text; invalid patterns fail with `invalid regular expression`.
+
+## [0.7.7] - 2026-11-07
+
+### Changed
+
+- Documentation-only release: the npm page now surfaces the changelog through README summaries and repository metadata.
+
 ## [0.7.6] - 2026-11-07
 
 ### Added
