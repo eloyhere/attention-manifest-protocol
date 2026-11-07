@@ -72,6 +72,6 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.5.1",
-    "semantic-typescript": "^2.0.0"
+    "semantic-typescript": "2.0.1"
   }
 }
