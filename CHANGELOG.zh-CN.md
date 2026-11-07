@@ -5,6 +5,45 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.4] - 2026-11-07
+
+### 新增
+
+- 新增独立的 `.log` 语言与大纲解析器（`src/file/language/log.ts`）。日志按日期 → 级别（`FATAL`/`ERROR`/`WARN`/`INFO`/`DEBUG`/`TRACE`）→ 单条记录分组。支持 ISO 时间戳（`2026-11-07T12:34:56.789Z`）、`YYYY-MM-DD HH:MM:SS,mmm`、syslog（`Nov  7 12:34:56`）与仅级别的行（`ERROR ...`、`[warn] ...`）；堆栈等续行会挂到前一条记录。
+
+### 变更
+
+- `.log` 不再由纯文本扫描器处理，而是通过 `createDefaultLanguageRegistry()` 解析到新的 `log` 语言。
+
+## [0.7.3] - 2026-11-07
+
+### 变更
+
+- `semantic-typescript` 由 `^2.0.0`（锁定 2.0.0）升级到 `2.0.1`，修复上游致命缺陷。序列化冒烟验证：循环与共享引用仍被过滤，`digestOf` 与键序无关，`traverseSafely` 会跳过循环。
+
+## [0.7.2] - 2026-11-07
+
+### 新增
+
+- 证据仲裁、融合与跨 Agent 接受（§5.5/§5.7/§5.8）：`arbitrate`、`fuseEvidence`、`crossAgentAcceptance`。
+- 能力与行为生命周期（§6.4–6.8、§7.4–7.6）：Tool/Skill/Protocol/Cognition 状态机、联动传播、`abstractBehavior`/`evaluateBehavior`/`publishBehavior`。
+- 回执回滚、评测聚合与跨 Agent 互验（§9.4–9.6）：`planRollback`/`applyRollback`、`aggregateReceipts`、`verifyForeignReceipt`。
+- L3 注意力调度（§11.9）：九阶段路由、focus/blur/switch/suppress、脑图路由、决策日志与 top-N 调度上下文。
+- L5/L7/L8（§11.11/§11.13/§11.14）：`selectCognition`/`evaluateCognition`、`FusionLayer`、`SedimentPipeline`。
+- `learn` 与 `feedback` 生命周期；工作流传播（§4.9）与取消级联；五种拓扑执行器、共识投票与合并回执。
+- kernel 编排 project/workspace/file、文件操作回执入证据链、预算耗尽传播到 Turn/Session。
+- JPA 级联（`cascade: "persist" | "remove" | "all"`）、Session/Turn 回执、结构化文件 diff、Project agent 工具、视图锚点注册表、六维预算、大纲 `versionHash` 强制与 `filterShared` 循环安全序列化。
+
+### 变更
+
+- 执行事实的 `hashAlgorithm` 升级为 `sha256-json-execution-facts/2`。
+
+## [0.7.1] - 2026-11-07
+
+### 移除
+
+- 仓库不再包含测试文件；发布包仅包含 `lib/`。
+
 ## [0.7.0] - 2026-11-07
 
 ### 新增

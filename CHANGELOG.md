@@ -5,6 +5,45 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-11-07
+
+### Added
+
+- Dedicated `.log` language and outline parser (`src/file/language/log.ts`). Entries are grouped by calendar day, then severity (`FATAL`/`ERROR`/`WARN`/`INFO`/`DEBUG`/`TRACE`), then individual line. It recognises ISO timestamps (`2026-11-07T12:34:56.789Z`), `YYYY-MM-DD HH:MM:SS,mmm`, syslog (`Nov  7 12:34:56`) and bare level lines (`ERROR ...`, `[warn] ...`); continuation lines such as stack traces attach to the preceding entry.
+
+### Changed
+
+- `.log` is no longer handled by the plain-text scanner; it resolves to the new `log` language through `createDefaultLanguageRegistry()`.
+
+## [0.7.3] - 2026-11-07
+
+### Changed
+
+- Upgraded `semantic-typescript` from `^2.0.0` (locked 2.0.0) to `2.0.1`, which fixes an upstream fatal bug. Serialization smoke checks confirm circular and shared references are still filtered, `digestOf` stays key-order independent, and `traverseSafely` skips cycles.
+
+## [0.7.2] - 2026-11-07
+
+### Added
+
+- Evidence arbitration, fusion and cross-agent acceptance (§5.5/§5.7/§5.8): `arbitrate`, `fuseEvidence`, `crossAgentAcceptance`.
+- Capability and behavior lifecycles (§6.4–6.8, §7.4–7.6): tool/skill/protocol/cognition state machines, propagation, `abstractBehavior`/`evaluateBehavior`/`publishBehavior`.
+- Receipt rollback, aggregation and cross-agent verification (§9.4–9.6): `planRollback`/`applyRollback`, `aggregateReceipts`, `verifyForeignReceipt`.
+- L3 attention scheduling (§11.9): nine-stage routing, focus/blur/switch/suppress, mind-map routing, decision log and top-N scheduled context.
+- L5/L7/L8 (§11.11/§11.13/§11.14): `selectCognition`/`evaluateCognition`, `FusionLayer`, `SedimentPipeline`.
+- `learn` and `feedback` lifecycles; workflow propagation (§4.9) with cancellation cascade; five-topology executors with consensus voting and merge receipts.
+- Kernel flow for project/workspace/file, file operation receipts chained into evidence, and budget-exhaustion propagation to turn/session.
+- JPA cascades (`cascade: "persist" | "remove" | "all"`), session/turn receipts, structured file diff, project agent tools, view anchor registry, six-dimensional budget, outline `versionHash` enforcement and circular-safe serialization with `filterShared`.
+
+### Changed
+
+- `hashAlgorithm` for execution facts is now `sha256-json-execution-facts/2`.
+
+## [0.7.1] - 2026-11-07
+
+### Removed
+
+- Test files are no longer part of the repository; the published package contains `lib/` only.
+
 ## [0.7.0] - 2026-11-07
 
 ### Added
