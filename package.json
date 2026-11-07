@@ -1,6 +1,6 @@
 {
   "name": "attention-manifest-protocol",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "files": [
     "lib",
     "README.md",
