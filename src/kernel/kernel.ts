@@ -80,6 +80,8 @@ import type {
     CaptureIntentInput,
     CloseSessionInput,
     CloseSessionResult,
+    ClosureReceipt,
+    ClosureReceiptSummary,
     CompileTurnContextInput,
     CompileTurnContextResult,
     ConfirmIntentInput,
@@ -166,6 +168,12 @@ interface ReceiptCreation {
     readonly policyVersion?: string;
 }
 
+/** Input shape accepted by the receipt port's core constructor. */
+type ReceiptCoreInput = Parameters<KernelPorts["receipt"]["createReceiptCore"]>[0];
+
+/** The two closure receipt kinds the kernel synthesizes itself. */
+type ClosureReceiptKind = ClosureReceipt["kind"];
+
 interface VerificationRequest {
     readonly criteriaVersion: string;
     readonly verifier?: Identifier;
@@ -176,7 +184,7 @@ interface VerificationRequest {
 
 class KernelImpl implements Kernel {
     readonly store: Store;
-    readonly ports!: KernelPorts;
+    ports!: KernelPorts;
     readonly flow!: KernelFlow;
     private readonly tenantId: Identifier;
     private readonly rootId: Identifier;
@@ -395,6 +403,30 @@ class KernelImpl implements Kernel {
                 });
             }
         });
+    }
+
+    /**
+     * Rebuilds the single writer from the durable facts after a transaction was
+     * rolled back. `WorkflowStore` has no in-place rewind, so the only way to
+     * keep memory and the store consistent is to re-adopt the persisted state
+     * and rebind the services to the rebuilt writer.
+     */
+    private restoreWorkflowAfterRollback(): void {
+        const workflow = this.persistence.restoreWorkflow(this.clock);
+        this.ports = {
+            ...this.ports,
+            workflow,
+            services: {
+                session: new SessionService(workflow),
+                turn: new TurnService(workflow),
+                intent: new IntentService(workflow),
+                mission: new MissionService(workflow),
+                goal: new GoalService(workflow),
+                plan: new PlanService(workflow),
+                task: new TaskService(workflow),
+                action: new ActionService(workflow),
+            },
+        };
     }
 
     private applyEntity<T extends WorkflowEntity>(work: () => T): T {
@@ -1048,6 +1080,170 @@ class KernelImpl implements Kernel {
         return receipt;
     }
 
+    /* -------------------------------------------------------------- */
+    /* Session / Turn closure receipts                                */
+    /* -------------------------------------------------------------- */
+
+    /**
+     * Stable identity of a closure receipt. The Session and each of its Turns
+     * own exactly one receipt, so `closeSession` can be replayed without
+     * issuing a second one.
+     */
+    private closureReceiptId(kind: ClosureReceiptKind, entityId: Identifier): Identifier {
+        return kind === "session_receipt" ? `receipt:session:${entityId}` : `receipt:turn:${entityId}`;
+    }
+
+    /**
+     * Workspace coordinates available to the kernel. The configured workspace
+     * root is the only anchor the kernel owns; snapshot/change data is host
+     * state and stays absent until a host supplies it.
+     */
+    private closureWorkspaceAnchor(): WorkspaceAnchor | undefined {
+        const workspaceId = this.ports.workspace.rootId;
+        return typeof workspaceId === "string" && workspaceId.length > 0 ? { workspaceId } : undefined;
+    }
+
+    /**
+     * Point-in-time summary of the receipt scope. Entity counts cover the whole
+     * Session; the event count narrows to the Turn when `turnId` is supplied.
+     * The budget value is the settled ledger usage for the tenant/root key.
+     */
+    private closureSummary(sessionId: Identifier, turnId?: Identifier): ClosureReceiptSummary {
+        const workflow = this.ports.workflow.snapshot();
+        const counts: Record<WorkflowKind, number> = {
+            session: 0, turn: 0, intent: 0, mission: 0, goal: 0, plan: 0, task: 0, action: 0,
+        };
+        const entities = workflow.entities.filter(entity => entity.sessionId === sessionId);
+        for (const entity of entities) counts[entity.kind] += 1;
+        const scope = new Set<string>();
+        for (const entity of entities) {
+            const inScope = turnId === undefined
+                || (entity.kind === "turn" && entity.id === turnId)
+                || entity.originTurnId === turnId;
+            if (inScope) scope.add(`${entity.kind}:${entity.id}`);
+        }
+        const eventCount = workflow.events.filter(event => scope.has(`${event.entityKind}:${event.entityId}`)).length;
+        const budgetSnapshot = this.ports.budget.snapshot(this.budgetKey);
+        return {
+            sessionId,
+            ...(turnId === undefined ? {} : { turnId }),
+            entityCounts: counts,
+            eventCount,
+            budget: { ...budgetSnapshot.settled },
+            budgetSnapshot,
+        };
+    }
+
+    /**
+     * Creates, digests and persists one closure receipt plus its
+     * `receipt.created` event, reusing the receipt port's own constructors.
+     * Returns the stored receipt when the identity already exists, which is
+     * what makes repeated closes idempotent. The caller supplies the enclosing
+     * store transaction (the close path), so a failure rolls everything back.
+     */
+    private issueClosureReceipt(
+        kind: ClosureReceiptKind,
+        sessionId: Identifier,
+        entityId: Identifier,
+        actor: Identifier,
+    ): ClosureReceipt {
+        const id = this.closureReceiptId(kind, entityId);
+        const existing = this.receiptById(id);
+        if (existing !== undefined) return existing as ClosureReceipt;
+        const turnId = kind === "turn_receipt" ? entityId : undefined;
+        const operationId = kind === "session_receipt" ? `session.close:${entityId}` : `turn.complete:${entityId}`;
+        const summary = this.closureSummary(sessionId, turnId);
+        const workspaceAnchor = this.closureWorkspaceAnchor();
+        try {
+            const invocation = this.ports.receipt.createInvocation({
+                id: `invocation:${operationId}`,
+                context: this.executionContext({
+                    sessionId,
+                    ...(turnId === undefined ? {} : { observedInTurnId: turnId }),
+                    operationId,
+                    attemptId: `${operationId}:attempt:1`,
+                    executionId: operationId,
+                    agentId: actor,
+                    cancellationEpoch: kind === "session_receipt"
+                        ? this.epochOf("session", entityId)
+                        : this.epochOf("turn", entityId),
+                }),
+                toolId: kind === "session_receipt" ? "kernel.session.close" : "kernel.turn.complete",
+                arguments: {
+                    kind,
+                    sessionId,
+                    ...(turnId === undefined ? {} : { turnId }),
+                },
+                createdAt: this.clock(),
+            });
+            const observation = this.ports.receipt.createObservation({
+                id: `${invocation.id}:observation`,
+                invocationId: invocation.id,
+                status: "success",
+                value: summary as unknown as JsonValue,
+                observedAt: this.clock(),
+            });
+            const input = {
+                id,
+                invocation,
+                observation,
+                issuedAt: this.clock(),
+                payloadDigest: this.receiptDigest(invocation, observation),
+                hashAlgorithm: "sha256",
+                kind,
+                sessionId,
+                ...(turnId === undefined ? {} : { turnId }),
+                ...(workspaceAnchor === undefined ? {} : { workspaceAnchor }),
+                summary,
+            } as unknown as ReceiptCoreInput;
+            const receipt = this.ports.receipt.createReceiptCore(input) as ClosureReceipt;
+            this.persistence.saveEntity("receipt", receipt, 1, sessionId);
+            this.persistence.append("receipt.created", receipt.id, {
+                entityKind: "receipt",
+                entityId: receipt.id,
+                data: {
+                    receiptId: receipt.id,
+                    kind,
+                    sessionId,
+                    ...(turnId === undefined ? {} : { turnId }),
+                    summary,
+                    ...(workspaceAnchor === undefined ? {} : { workspaceAnchor }),
+                },
+            });
+            return receipt;
+        } catch (error) {
+            throw new KernelError(
+                "receipt_error",
+                `cannot issue ${kind} for ${kind === "session_receipt" ? "session" : "turn"} ${entityId}: ${messageOf(error)}`,
+                error,
+            );
+        }
+    }
+
+    /**
+     * Issues the Session receipt and one receipt for every closed Turn. Must be
+     * called inside the store transaction that closes the Session so the
+     * receipts and the closure facts commit or roll back together.
+     */
+    private issueClosureReceipts(
+        session: Session,
+        turns: readonly Turn[],
+        actor: Identifier,
+    ): Pick<CloseSessionResult, "sessionReceipt" | "turnReceipts" | "receipts"> {
+        const turnReceipts: ClosureReceipt[] = [];
+        for (const turn of turns) {
+            if (!isWorkflowTerminal(turn)) continue;
+            turnReceipts.push(this.issueClosureReceipt("turn_receipt", session.id, turn.id, actor));
+        }
+        const sessionReceipt = this.issueClosureReceipt("session_receipt", session.id, session.id, actor);
+        return { sessionReceipt, turnReceipts, receipts: [sessionReceipt, ...turnReceipts] };
+    }
+
+    /** Caches committed closure receipts; only called after a transaction succeeds. */
+    private cacheClosureReceipts(result: Pick<CloseSessionResult, "receipts">): void {
+        for (const receipt of result.receipts) this.receiptCache.set(receipt.id, receipt);
+    }
+
     private async verifyIntegrity(receipt: ReceiptCore, verifier: string): Promise<ReceiptIntegrityVerification> {
         const existing = this.integrityForReceipt(receipt.id);
         if (existing !== undefined) return existing;
@@ -1678,8 +1874,15 @@ class KernelImpl implements Kernel {
 
     private closeSession(input: CloseSessionInput): CloseSessionResult {
         const session = this.ports.workflow.get("session", input.sessionId);
+        const actor = this.actorOf(input);
         if (["closed", "archived", "expired", "aborted"].includes(session.state)) {
-            return { session, turns: [], cancelled: [] };
+            // A replay still owes the caller the canonical receipts, but the
+            // closure already committed, so this is a plain idempotent read (or
+            // backfill) rather than a closing transaction.
+            const turns = this.ports.workflow.list("turn", session.id);
+            const result = this.store.transaction(() => this.issueClosureReceipts(session, turns, actor));
+            this.cacheClosureReceipts(result);
+            return { session, turns, cancelled: [], ...result };
         }
         if (input.expectedVersion !== undefined && session.version !== input.expectedVersion) {
             throw new KernelError("version_conflict", `session ${session.id} expected version ${input.expectedVersion}, current ${session.version}`);
@@ -1689,23 +1892,43 @@ class KernelImpl implements Kernel {
         if (attempts.length > 0) {
             throw new KernelError("unsettled_work", `session ${session.id} has ${attempts.length} unsettled attempt(s)`);
         }
-        const actor = this.actorOf(input);
         const abandon = input.abandonOpenWork !== false;
         if (!abandon && this.hasOpenBusinessWork(session.id)) {
             throw new KernelError("unsettled_work", `session ${session.id} still has open business work`);
         }
-        const cancelled = abandon ? [...this.drainBusinessWork(session.id, actor)] : [];
-        this.settleIntents(session.id, actor);
-        const turns = this.finishTurns(session.id, actor);
-        let current = this.ports.workflow.get("session", session.id);
-        if (current.state === "created") {
-            current = this.applyEntity(() => this.ports.services.session.activate(current.id, { expectedVersion: current.version, actor }));
+        // The closure facts and the Session/Turn receipts are one transaction:
+        // any failure rolls the persisted close back instead of leaving a
+        // closed Session without its receipts.
+        let result: CloseSessionResult;
+        try {
+            result = this.store.transaction(() => {
+                const cancelled = abandon ? [...this.drainBusinessWork(session.id, actor)] : [];
+                this.settleIntents(session.id, actor);
+                const turns = this.finishTurns(session.id, actor);
+                let current = this.ports.workflow.get("session", session.id);
+                if (current.state === "created") {
+                    current = this.applyEntity(() => this.ports.services.session.activate(current.id, { expectedVersion: current.version, actor }));
+                }
+                if (current.state !== "closing") {
+                    current = this.applyEntity(() => this.ports.services.session.beginClose(current.id, { expectedVersion: current.version, actor }));
+                }
+                current = this.applyEntity(() => this.ports.services.session.close(current.id, { expectedVersion: current.version, actor }));
+                const receipts = this.issueClosureReceipts(current, turns, actor);
+                return { session: current, turns, cancelled, ...receipts };
+            });
+        } catch (error) {
+            // The store rolled the persisted closure back; rewind the in-memory
+            // writer to the same durable state before surfacing the failure.
+            try {
+                this.restoreWorkflowAfterRollback();
+            } catch {
+                // Preserve the original close failure; the next read still
+                // reports the durable state through the store.
+            }
+            throw error;
         }
-        if (current.state !== "closing") {
-            current = this.applyEntity(() => this.ports.services.session.beginClose(current.id, { expectedVersion: current.version, actor }));
-        }
-        current = this.applyEntity(() => this.ports.services.session.close(current.id, { expectedVersion: current.version, actor }));
-        return { session: current, turns, cancelled };
+        this.cacheClosureReceipts(result);
+        return result;
     }
 }
 

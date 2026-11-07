@@ -32,6 +32,7 @@ export function isAssociationKind(value: unknown): value is AssociationKind {
 export interface AssociationOptions {
     readonly mappedBy?: string;
     readonly targetProperty?: string;
+    readonly joinProperty?: string;
     readonly joinTable?: string;
     readonly joinColumns?: readonly string[];
     readonly inverseJoinColumns?: readonly string[];
@@ -115,6 +116,7 @@ export function normalizeAssociation(value: unknown): Association {
     if (!isEntityKind(candidate.target)) throw new TypeError(`unknown association target: ${String(candidate.target)}`);
     const mappedBy = optionalText(candidate.mappedBy, "association mappedBy");
     const targetProperty = optionalText(candidate.targetProperty, "association targetProperty");
+    const joinProperty = optionalText(candidate.joinProperty, "association joinProperty");
     const joinTable = optionalText(candidate.joinTable, "association joinTable");
     const joinColumns = optionalColumns(candidate.joinColumns, "association joinColumns");
     const inverseJoinColumns = optionalColumns(candidate.inverseJoinColumns, "association inverseJoinColumns");
@@ -154,6 +156,7 @@ export function normalizeAssociation(value: unknown): Association {
         target: candidate.target,
         ...(mappedBy === undefined ? {} : { mappedBy }),
         ...(targetProperty === undefined ? {} : { targetProperty }),
+        ...(joinProperty === undefined ? {} : { joinProperty }),
         ...(joinTable === undefined ? {} : { joinTable }),
         ...(joinColumns === undefined ? {} : { joinColumns }),
         ...(inverseJoinColumns === undefined ? {} : { inverseJoinColumns }),

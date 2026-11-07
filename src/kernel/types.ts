@@ -487,10 +487,50 @@ export interface CloseSessionInput {
     readonly abandonOpenWork?: boolean;
 }
 
+/**
+ * Summary carried by the receipts the kernel synthesizes when a Session or
+ * Turn closes. It is a point-in-time projection of the workflow, not a second
+ * audit log: every number is read from the single writer and the budget ledger.
+ */
+export interface ClosureReceiptSummary {
+    /** Session scope of the receipt. */
+    readonly sessionId: Identifier;
+    /** Turn scope; absent on a Session receipt. */
+    readonly turnId?: Identifier;
+    /** Workflow aggregates in the Session scope, per kind. */
+    readonly entityCounts: Readonly<Record<WorkflowKind, number>>;
+    /**
+     * Workflow audit events in the receipt scope: every event of the Session
+     * for a Session receipt, and the Turn plus the entities it originated for a
+     * Turn receipt.
+     */
+    readonly eventCount: number;
+    /** Settled budget usage for the tenant/root budget key. */
+    readonly budget: BudgetUsage;
+    /** Full ledger view at issue time (settled, reserved and limit). */
+    readonly budgetSnapshot: BudgetSnapshot;
+}
+
+/**
+ * Receipt synthesized by the kernel for a Session or Turn closure. It is a
+ * regular {@link ReceiptCore} (invocation + observation + digest) plus the
+ * closure taxonomy fields and the summary above.
+ */
+export interface ClosureReceipt extends ReceiptCore {
+    readonly kind: "session_receipt" | "turn_receipt";
+    readonly summary: ClosureReceiptSummary;
+}
+
 export interface CloseSessionResult {
     readonly session: Session;
     readonly turns: readonly Turn[];
     readonly cancelled: readonly WorkflowEntity[];
+    /** The Session-level receipt; issued once per Session. */
+    readonly sessionReceipt: ClosureReceipt;
+    /** One receipt per closed Turn, in workflow order; issued once per Turn. */
+    readonly turnReceipts: readonly ClosureReceipt[];
+    /** Session and Turn receipts with the Session receipt first. */
+    readonly receipts: readonly ClosureReceipt[];
 }
 
 /* ------------------------------------------------------------------ */

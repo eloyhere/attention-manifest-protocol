@@ -1,8 +1,9 @@
 export { LcpService } from "./lcp.ts";
 export type { LcpHost } from "./lcp.ts";
+import { createHash } from "node:crypto";
 import { Optional, SynchronousUnorderedMap } from "semantic-typescript";
 import { EvidenceLedger, createInvocation, createObservation, createReceiptCore, verifyBusinessSemantics, verifyReceiptIntegrity } from "../provenance.ts";
-import { digestOf } from "../serialization/index.ts";
+import { safeStringify } from "../serialization/index.ts";
 import type { BusinessVerification, ReceiptCore, ReceiptIntegrityVerification } from "../provenance.ts";
 import type { ExecutionContext, InvocationRecord, ObservationRecord } from "../shared.ts";
 import type { Executor, RunResult, ChildCall } from "../tooling.ts";
@@ -43,9 +44,19 @@ export class MemoryReceiptSink implements ReceiptSink {
     list(): readonly ReceiptCore[] { return this.records.values().toArray(); }
 }
 
-/** Hash scope is exactly the immutable invocation and observation encoded below. */
+/**
+ * Hash scope is exactly the immutable invocation and observation encoded below.
+ *
+ * Version `/2` pins normalization to
+ * `serialization.safeStringify(..., { stableKeys: true })`: the invocation and
+ * observation are serialized with sorted object keys and the resulting JSON
+ * text is hashed with SHA-256. Digests issued under `/1` did not pin this
+ * normalization contract and are therefore incompatible with `/2`; re-issue
+ * them instead of comparing digests across versions.
+ */
 export const executionFactDigest = (invocation: InvocationRecord, observation: ObservationRecord): string => {
-    return digestOf({ invocation, observation });
+    const text = safeStringify({ invocation, observation }, { stableKeys: true });
+    return `sha256:${createHash("sha256").update(text, "utf8").digest("hex")}`;
 };
 
 /**
@@ -80,7 +91,7 @@ export class ExecutionCoordinator {
             const observation = createObservation(child.observation);
             const receipt = createReceiptCore({
                 id: `receipt:${invocation.id}`, invocation, observation,
-                issuedAt: this.clock(), hashAlgorithm: "sha256-json-execution-facts/1",
+                issuedAt: this.clock(), hashAlgorithm: "sha256-json-execution-facts/2",
                 payloadDigest: executionFactDigest(invocation, observation),
             });
             await this.receipts.append(receipt);

@@ -103,6 +103,13 @@ export interface Association {
     readonly mappedBy?: string;
     /** Property on the target that this side points at (@JoinColumn referencedColumn). */
     readonly targetProperty?: string;
+    /**
+     * Payload property on `target` that holds this side's key (the reverse
+     * foreign key a cascade uses to find children). JSON payloads do not have
+     * join columns, so the link is declared by property name; when omitted,
+     * cascade lookup falls back to `<mappedBy>Id` and then `<mappedBy>`.
+     */
+    readonly joinProperty?: string;
     /** Join table for many-to-many associations. */
     readonly joinTable?: string;
     readonly joinColumns?: readonly string[];

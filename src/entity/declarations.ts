@@ -192,7 +192,13 @@ export const SessionEntity: DeclaredEntity = declare({
     kind: "session",
     sessionNullable: false,
     kindNullable: false,
-    associations: [oneToMany("turns", "turn", { mappedBy: "session" })],
+    associations: [
+        oneToMany("turns", "turn", {
+            mappedBy: "session",
+            joinProperty: "sessionId",
+            cascade: cascade("persist", "remove"),
+        }),
+    ],
 });
 
 export const TurnEntity: DeclaredEntity = declare({
@@ -249,7 +255,11 @@ export const PlanEntity: DeclaredEntity = declare({
     kindNullable: false,
     associations: [
         manyToOne("goal", "goal", { targetProperty: "id", optional: false }),
-        oneToMany("tasks", "task", { mappedBy: "plan" }),
+        oneToMany("tasks", "task", {
+            mappedBy: "plan",
+            joinProperty: "planId",
+            cascade: cascade("persist", "remove"),
+        }),
     ],
 });
 
@@ -259,7 +269,11 @@ export const TaskEntity: DeclaredEntity = declare({
     kindNullable: false,
     associations: [
         manyToOne("plan", "plan", { targetProperty: "id", optional: false }),
-        oneToMany("actions", "action", { mappedBy: "task" }),
+        oneToMany("actions", "action", {
+            mappedBy: "task",
+            joinProperty: "taskId",
+            cascade: cascade("persist", "remove"),
+        }),
     ],
 });
 
@@ -355,7 +369,14 @@ export const BudgetLedgerEntity: DeclaredEntity = declare({
     kind: "budget_ledger",
     tenantNullable: false,
     legacyKey: id("budgetKey"),
-    associations: [oneToMany("reservations", "budget_reservation", { mappedBy: "ledger" })],
+    associations: [
+        oneToMany("reservations", "budget_reservation", {
+            mappedBy: "ledger",
+            joinProperty: "budgetKey",
+            cascade: cascade("persist"),
+            orphanRemoval: true,
+        }),
+    ],
 });
 
 export const BudgetReservationEntity: DeclaredEntity = declare({
@@ -421,7 +442,14 @@ export const BehaviorCandidateEntity: DeclaredEntity = declare({
 export const ContextCheckpointEntity: DeclaredEntity = declare({
     kind: "context_checkpoint",
     tenantNullable: false,
-    associations: [oneToMany("cacheEntries", "context_cache_entry", { mappedBy: "checkpoint" })],
+    associations: [
+        oneToMany("cacheEntries", "context_cache_entry", {
+            mappedBy: "checkpoint",
+            joinProperty: "checkpointId",
+            cascade: cascade("persist"),
+            orphanRemoval: true,
+        }),
+    ],
 });
 
 export const ContextCacheEntryEntity: DeclaredEntity = declare({

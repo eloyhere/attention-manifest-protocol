@@ -18,7 +18,24 @@ import { appendEvent as appendRepositoryEvent, createSqliteRepository, readEvent
 import type { Repository } from "../repository/types.ts";
 import { migrate, openSqlite, schemaVersion } from "../sql/index.ts";
 import type { SqlDriver, SqlRow } from "../sql/types.ts";
-import type { EventQuery, SaveOptions, StoreOptions, StoreStats } from "./types.ts";
+import {
+    associationCascades,
+    CascadeError,
+    cascadeDepthOf,
+    entityReferences,
+    joinPropertiesOf,
+    referenceIds,
+    removeCascadeOf,
+    saveCascadeOf,
+} from "./cascade.ts";
+import type {
+    EventQuery,
+    RemoveOptions,
+    RemoveReport,
+    SaveOptions,
+    StoreOptions,
+    StoreStats,
+} from "./types.ts";
 
 /** Default hidden directory under the current working directory. */
 export const DEFAULT_STORE_DIRECTORY = ".attention-manifest-protocol";
@@ -175,6 +192,8 @@ function countRows(driver: SqlDriver, table: "entities" | "events"): number {
  */
 export class Store {
     static open(options: StoreOptions = {}): Store {
+        // Validate cascade policy before a database connection is opened.
+        cascadeDepthOf(options.cascadeDepth);
         const file = storeFileOf(options.path);
         const identityPath = file === ":memory:" ? `${file}#${++memorySequence}` : canonicalFile(file);
         return new Store(file, identityPath, options);
@@ -188,6 +207,7 @@ export class Store {
     private transactionContext: Transaction | undefined;
     private readonly connection: Connection;
     private readonly now: () => string;
+    private readonly cascadeDepth: number;
     private readonly repositories = new Map<EntityKind, Repository<unknown>>();
     private readonly identities = new Set<string>();
     private readonly detachedKeys = new Set<string>();
@@ -203,6 +223,7 @@ export class Store {
         this.identityPath = identityPath;
         if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
         this.now = options.now ?? (() => new Date().toISOString());
+        this.cascadeDepth = cascadeDepthOf(options.cascadeDepth);
         const pooled = poolsByPath.get(identityPath);
         if (pooled !== undefined) {
             this.pool = pooled.pool;
@@ -275,7 +296,32 @@ export class Store {
         return slot.proxy as T;
     }
 
+    /**
+     * Saves one aggregate.
+     *
+     * `cascade` defaults to `"none"`, which keeps the historical single-row
+     * write. `"persist"` also saves the entity objects found on associations
+     * whose declaration includes `persist`; `"all"` follows every association.
+     * The root and every descendant are written in one transaction, so a
+     * failing descendant rolls the root back as well. Cycle (`cascade_cycle`)
+     * and depth (`cascade_depth`) violations raise a {@link CascadeError}.
+     */
     save<T>(kind: EntityKind, entity: T, options: SaveOptions = {}): T {
+        this.assertOpen();
+        const cascade = saveCascadeOf(options.cascade);
+        if (cascade === "none") return this.saveEntity(kind, entity, options);
+        if (!isProxyable(entity)) throw new TypeError("entity must be an object");
+        const snapshot = cloneEntity(entity) as unknown as Readonly<Record<string, unknown>>;
+        const rootKey = entityKey(kind, this.descriptor<T>(kind).keyOf(entity));
+        return this.transaction((transaction) => {
+            const saved = transaction.saveEntity(kind, entity, options);
+            transaction.persistCascade(kind, snapshot, cascade, 0, new Set([rootKey]));
+            return saved;
+        });
+    }
+
+    /** Writes exactly one row; cascade recursion calls this directly inside its transaction. */
+    private saveEntity<T>(kind: EntityKind, entity: T, options: SaveOptions = {}): T {
         this.assertOpen();
         if (!isProxyable(entity)) throw new TypeError("entity must be an object");
         const descriptor = this.descriptor<T>(kind);
@@ -295,10 +341,38 @@ export class Store {
         return slot.proxy as T;
     }
 
-    remove(kind: EntityKind, id: string): boolean {
+    /**
+     * Removes one aggregate.
+     *
+     * `cascade` defaults to `"none"`, which keeps the historical single-row
+     * delete. `"remove"` also deletes children found on associations whose
+     * declaration includes `remove` or `orphanRemoval`; `"all"` follows every
+     * association. The whole cascade is one transaction, and a graph deeper
+     * than `StoreOptions.cascadeDepth` raises `cascade_depth`. Returns whether
+     * the root row was deleted; use {@link removeCascade} to receive a count.
+     */
+    remove(kind: EntityKind, id: string, options: RemoveOptions = {}): boolean {
         this.assertOpen();
-        if (!isOpenable(id)) throw new TypeError("entity id must be a non-empty string");
-        this.descriptor(kind);
+        this.assertRemovalTarget(kind, id);
+        const cascade = removeCascadeOf(options.cascade);
+        if (cascade === "none") return this.removeEntity(kind, id);
+        return this.cascadeRemove(kind, id, cascade).removed > 0;
+    }
+
+    /**
+     * Cascade-aware {@link remove} that reports how many rows were deleted,
+     * root included. With `"none"` the call is equivalent to `remove`.
+     */
+    removeCascade(kind: EntityKind, id: string, options: RemoveOptions = {}): RemoveReport {
+        this.assertOpen();
+        this.assertRemovalTarget(kind, id);
+        const cascade = removeCascadeOf(options.cascade);
+        if (cascade === "none") return { removed: this.removeEntity(kind, id) ? 1 : 0 };
+        return this.cascadeRemove(kind, id, cascade);
+    }
+
+    /** Deletes exactly one row and invalidates its cache and identity. */
+    private removeEntity(kind: EntityKind, id: string): boolean {
         const removed = this.repository(kind).delete(id);
         if (!removed) return false;
         const key = this.slotKey(kind, id);
@@ -314,6 +388,144 @@ export class Store {
         }
         this.identities.delete(key);
         return true;
+    }
+
+    private assertRemovalTarget(kind: EntityKind, id: string): void {
+        if (!isOpenable(id)) throw new TypeError("entity id must be a non-empty string");
+        this.descriptor(kind);
+    }
+
+    private cascadeRemove(kind: EntityKind, id: string, cascade: "remove" | "all"): RemoveReport {
+        return this.transaction((transaction) => {
+            const removed = { count: 0 };
+            transaction.cascadeRemoveNode(kind, id, cascade, 0, new Set<string>(), removed);
+            return { removed: removed.count };
+        });
+    }
+
+    /**
+     * Depth-first removal of one identity and its cascade children. The row is
+     * deleted before its descendants are visited so an exceeded depth limit
+     * leaves provably deleted rows for the enclosing transaction to roll back.
+     */
+    private cascadeRemoveNode(
+        kind: EntityKind,
+        id: string,
+        cascade: "remove" | "all",
+        depth: number,
+        visited: Set<string>,
+        removed: { count: number },
+    ): boolean {
+        const key = entityKey(kind, id);
+        if (visited.has(key)) return false;
+        visited.add(key);
+        if (depth > this.cascadeDepth) {
+            throw new CascadeError("cascade_depth", `cascade depth limit ${this.cascadeDepth} exceeded at ${key}`);
+        }
+        const entity = this.repository<Readonly<Record<string, unknown>>>(kind).get(id);
+        if (entity === undefined) return false;
+        // Child ids are resolved before the parent row disappears.
+        const children = this.cascadeRemovalChildren(kind, id, entity, cascade);
+        const deleted = this.removeEntity(kind, id);
+        if (deleted) removed.count += 1;
+        for (const child of children) {
+            this.cascadeRemoveNode(child.kind, child.id, cascade, depth + 1, visited, removed);
+        }
+        return deleted;
+    }
+
+    /**
+     * Child identities for one removed aggregate. Both sources are consulted:
+     * references embedded in the parent payload (objects or scalar ids) and
+     * child rows whose declared reverse link equals the parent id. The list is
+     * scoped by the parent `sessionId` when the parent payload carries one.
+     */
+    private cascadeRemovalChildren(
+        kind: EntityKind,
+        id: string,
+        entity: Readonly<Record<string, unknown>>,
+        cascade: "remove" | "all",
+    ): readonly { readonly kind: EntityKind; readonly id: string }[] {
+        const children: { kind: EntityKind; id: string }[] = [];
+        const seen = new Set<string>();
+        for (const association of ENTITY_REGISTRY[kind].associations) {
+            if (!associationCascades(association, cascade, "remove")) continue;
+            const target = association.target;
+            const descriptor = this.descriptor<unknown>(target);
+            const add = (childId: string): void => {
+                const childKey = entityKey(target, childId);
+                if (seen.has(childKey)) return;
+                seen.add(childKey);
+                children.push({ kind: target, id: childId });
+            };
+            const referenced = entity[association.property];
+            for (const reference of entityReferences(referenced)) {
+                try {
+                    add(descriptor.keyOf(reference));
+                } catch {
+                    // A payload may embed a non-entity reference; it is not a child.
+                }
+            }
+            for (const referenceId of referenceIds(referenced)) add(referenceId);
+            // A many-to-many join table is not materialised in the row schema;
+            // embedded references above are its only available source.
+            if (association.kind === "many_to_many") continue;
+            const joinProperties = joinPropertiesOf(association);
+            if (joinProperties.length === 0) continue;
+            // Session scoping is the primary lookup. Payloads that do not carry
+            // a sessionId (or carry a different one) are still found by the
+            // declared reverse link through an unscoped pass.
+            const parentSession = typeof entity.sessionId === "string" && entity.sessionId.length > 0
+                ? entity.sessionId
+                : undefined;
+            const candidates: readonly unknown[] = parentSession === undefined
+                ? this.list<unknown>(target)
+                : [...this.list<unknown>(target, { sessionId: parentSession }), ...this.list<unknown>(target)];
+            for (const child of candidates) {
+                const record = child as Readonly<Record<string, unknown>>;
+                if (joinProperties.some(property => record[property] === id)) add(descriptor.keyOf(child));
+            }
+        }
+        return children;
+    }
+
+    /**
+     * Recursive save for one aggregate's cascade children. `path` holds the
+     * identities of the current branch so a payload cycle is rejected instead
+     * of recursing forever; `depth` counts edges below the transaction root.
+     */
+    private persistCascade(
+        kind: EntityKind,
+        entity: Readonly<Record<string, unknown>>,
+        cascade: "persist" | "all",
+        depth: number,
+        path: Set<string>,
+    ): void {
+        if (depth > this.cascadeDepth) {
+            throw new CascadeError("cascade_depth", `cascade depth limit ${this.cascadeDepth} exceeded at ${kind}`);
+        }
+        for (const association of ENTITY_REGISTRY[kind].associations) {
+            if (!associationCascades(association, cascade, "persist")) continue;
+            const childKind = association.target;
+            for (const child of entityReferences(entity[association.property])) {
+                const childId = this.descriptor<unknown>(childKind).keyOf(child);
+                const childKey = entityKey(childKind, childId);
+                if (path.has(childKey)) {
+                    throw new CascadeError("cascade_cycle", `cascade path revisits ${childKey}`);
+                }
+                const childDepth = depth + 1;
+                if (childDepth > this.cascadeDepth) {
+                    throw new CascadeError("cascade_depth", `cascade depth limit ${this.cascadeDepth} exceeded at ${childKey}`);
+                }
+                this.saveEntity(childKind, child, {});
+                path.add(childKey);
+                try {
+                    this.persistCascade(childKind, child, cascade, childDepth, path);
+                } finally {
+                    path.delete(childKey);
+                }
+            }
+        }
     }
 
     list<T>(kind: EntityKind, filter?: EntityFilter): readonly T[] {
@@ -398,7 +610,11 @@ export class Store {
         return slot.proxy as T;
     }
 
-    /** Association declarations of a kind; cascades are declared but not executed. */
+    /**
+     * Association declarations of a kind. The metadata drives the opt-in
+     * cascades of {@link save}/{@link remove}; this method exposes it for
+     * inspection without executing anything.
+     */
     cascadePlan(kind: EntityKind, id: string): readonly Association[] {
         this.assertOpen();
         if (!isOpenable(id)) throw new TypeError("entity id must be a non-empty string");
