@@ -190,3 +190,22 @@ export type VerificationRecord = {
     verifier: string;
     verifiedAt: string;
 };
+
+/** Number of decimal places allowed for derived metrics. */
+export const METRIC_DECIMALS = 2;
+
+/**
+ * Rounds a derived metric — score, confidence, rate, ratio, cost, multiplier or
+ * duration — to at most two decimal places. Integers and integer-valued fields
+ * (versions, offsets, counts, epochs, token totals) must not use this helper.
+ * Internal arithmetic keeps full precision; call this only at the output edge.
+ */
+export function roundMetric(value: number): number {
+    if (!Number.isFinite(value)) throw new TypeError("metric must be a finite number");
+    // Symmetric rounding: Math.round alone rounds negative halves towards +∞,
+    // so -1.005 would become -1 instead of -1.01. EPSILON corrects binary
+    // representation error (1.005 * 100 = 100.49999999999999).
+    const magnitude = Math.round((Math.abs(value) + Number.EPSILON) * 100) / 100;
+    const rounded = value < 0 ? -magnitude : magnitude;
+    return Object.is(rounded, -0) ? 0 : rounded;
+}

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { SerializationError, isSerializationError, useStringify } from "semantic-typescript";
+import { roundMetric } from "../shared.ts";
 import type { DigestOf, SafeParse, SafeStringify, SafeStringifyOptions } from "./types.ts";
 
 /**
@@ -53,6 +54,15 @@ import type { DigestOf, SafeParse, SafeStringify, SafeStringifyOptions } from ".
  *    filter-one-occurrence rule is identical in stable and non-stable mode;
  *    only the first *encountered* occurrence differs when key order changes.
  *
+ * # Numbers (`twoDecimals`)
+ *
+ * Every non-integer finite number is rounded to at most two decimal places
+ * while JSON text is produced. Integers, `NaN`, `Infinity` and `-Infinity` are
+ * left untouched (`NaN`/`Infinity` still serialize as `null`, per JSON).
+ * Rounding happens on a cloned tree, so the caller's value is never mutated.
+ * This is a serialization-only rule: in-memory arithmetic keeps full
+ * precision, and values read back with `safeParse` are already rounded.
+ *
  * Failure policy: any exception raised while serializing, plus a root value
  * that has no JSON text representation (`undefined`, function, symbol), is
  * rethrown as `SerializationError`; callers never receive a partial result.
@@ -99,6 +109,33 @@ function detailOf(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
 }
 
+/**
+ * Clone a value, rounding every non-integer finite number to two decimals.
+ * `memo` keeps reference identity (and therefore cycle filtering) intact.
+ * Objects that own a callable `toJSON` are left to the JSON algorithm.
+ */
+function roundNumbers(value: unknown, memo: WeakMap<object, unknown>): unknown {
+    if (typeof value === "number") {
+        return Number.isFinite(value) && !Number.isInteger(value) ? roundMetric(value) : value;
+    }
+    if (value === null || typeof value !== "object") return value;
+    const cached = memo.get(value);
+    if (cached !== undefined) return cached;
+    if (hasToJSON(value)) return value;
+    if (Array.isArray(value)) {
+        const array: unknown[] = new Array(value.length);
+        memo.set(value, array);
+        for (let index = 0; index < value.length; index += 1) {
+            if (index in value) array[index] = roundNumbers(value[index], memo);
+        }
+        return array;
+    }
+    const clone: Record<string, unknown> = {};
+    memo.set(value, clone);
+    for (const key of Object.keys(value)) clone[key] = roundNumbers(Reflect.get(value, key), memo);
+    return clone;
+}
+
 function serializationError(message: string, cause: unknown): SerializationError {
     if (isSerializationError(cause)) return cause;
     return new SerializationError(`${message}: ${detailOf(cause)}`, { cause });
@@ -116,7 +153,8 @@ export const safeStringify: SafeStringify = Object.freeze((value: unknown, optio
     if (typeof filterShared !== "boolean") throw new TypeError("safeStringify options.filterShared must be a boolean");
     let text: string | undefined;
     try {
-        const target = stableKeys ? cloneWithStableKeys(value, new WeakMap()) : value;
+        const rounded = roundNumbers(value, new WeakMap());
+        const target = stableKeys ? cloneWithStableKeys(rounded, new WeakMap()) : rounded;
         // Both modes use the same library walk: it is the shared-reference
         // filter, so `filterShared: false` keeps the library's behavior and
         // `filterShared: true` records the caller's reliance on it. Keeping a
