@@ -49,7 +49,8 @@ const validateScores = (scores: ProfessionProfileScores, field: string): void =>
     rate(scores.sideEffectRate, `${field}.sideEffectRate`);
     count(scores.sampleSize, `${field}.sampleSize`);
 };
-const validateRequirements = (requirements: ProfessionCertificationRequirements): void => {
+/** Validates declarative certification thresholds without running an evaluation. */
+export const validateCertificationRequirements = (requirements: ProfessionCertificationRequirements): void => {
     if (requirements === null || typeof requirements !== "object") fail("Profession requirements must be an object");
     rate(requirements.minimumTaskSuccessRate, "Profession requirements.minimumTaskSuccessRate");
     count(requirements.minimumSampleSize, "Profession requirements.minimumSampleSize", 1);
@@ -62,6 +63,7 @@ const validateEvaluation = (evaluation: ProfessionEvaluation): void => {
     text(evaluation.evaluator, "Profession evaluation evaluator");
     text(evaluation.evaluatedAt, "Profession evaluation evaluatedAt");
     validateScores(evaluation, "Profession evaluation");
+    if (evaluation.tokenCost !== undefined) nonNegative(evaluation.tokenCost, "Profession evaluation tokenCost");
 };
 
 /** Validates a profile's shape and score ranges; throws without mutating it. */
@@ -75,7 +77,7 @@ export const validateProfessionProfile = (profile: ProfessionProfile): void => {
     if (!Array.isArray(profile.deniedCapabilityIds)) fail("Profession deniedCapabilityIds must be an array");
     for (const capabilityId of profile.deniedCapabilityIds) text(capabilityId, "Profession denied capability id");
     validateScores(profile.scores, "Profession profile scores");
-    validateRequirements(profile.requirements ?? DEFAULT_PROFESSION_REQUIREMENTS);
+    validateCertificationRequirements(profile.requirements ?? DEFAULT_PROFESSION_REQUIREMENTS);
     if (profile.lifecycle !== undefined && !Array.isArray(profile.lifecycle)) fail("Profession profile lifecycle must be an array");
     for (const event of profile.lifecycle ?? []) {
         if (!CERTIFICATION_EVENTS.includes(event.eventType)) fail(`Invalid profession lifecycle event: ${event.eventType}`);

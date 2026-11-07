@@ -3,8 +3,9 @@ import { isFunction, isObject, isString, SynchronousUnorderedMap } from "semanti
 import type {
     ByteTarget, DiffHunk, EditMatch, EditOp, EditOptions, EditPlan, FileConflict, FileDiff, FileLease, FileOperationKind,
     FileOperationReceipt, FileRange, FileRef, FileSnapshot, FileStoragePort, FileValidation, FlushOptions, LineRead,
-    LineTarget, MountOptions, OutlineEntry, OutlineProvider, ReadOptions, RegexTarget, ReloadOptions, ReplaceTarget,
-    StoredBytes, StoredFile, StringTarget, UnmountOptions, WorkspaceMode, WorkspaceScope, WriteTarget,
+    LineTarget, MountOptions, OutlineEntry, OutlineProvider, OutlineTarget, OutlineTargetVerification, ReadOptions,
+    RegexTarget, ReloadOptions, ReplaceTarget, StoredBytes, StoredFile, StringTarget, UnmountOptions, WorkspaceMode,
+    WorkspaceScope, WriteTarget,
 } from "./types.ts";
 import { WorkspaceError } from "../workspace/types.ts";
 import { safeStringify } from "../serialization/index.ts";
@@ -64,6 +65,12 @@ function legacyTarget(range: FileRange): LineTarget | ByteTarget {
     const bounds = "kind" in range ? range : ("byte" in range ? range.byte : range.line);
     return kind === "line" ? { mode: "line", start: bounds.start, end: bounds.end }
         : { mode: "byte", start: bounds.start, end: bounds.end };
+}
+
+/** Attach the outline verification marker to every match of an outline target. */
+function markOutlineMatches(matches: readonly EditMatch[], outline: OutlineTargetVerification | undefined): readonly EditMatch[] {
+    if (outline === undefined) return matches;
+    return Object.freeze(matches.map(match => Object.freeze({ ...match, outline })));
 }
 
 interface LeaseRecord extends FileLease { readonly expiresAtEpoch: number; }
@@ -302,11 +309,13 @@ export class WorkspaceFile {
         if (explicit.mode === "outline" && !this.outlineProvider) {
             throw new WorkspaceError("outline_unavailable", "outline editing requires an outline provider on the mount");
         }
+        // Resolve the node-level version hash before the byte range is trusted.
+        const outline = explicit.mode === "outline" ? this.verifyOutlineTarget(explicit, this.buffer) : undefined;
         const region = resolveRegions(this.buffer, explicit, this.outlineProvider, this.path)[0]!;
         const replacement = structuralReplacement(this.buffer, region, content);
-        return Object.freeze({ mode: explicit.mode, matches: toEditMatches(this.buffer, [region]),
+        return Object.freeze({ mode: explicit.mode, matches: markOutlineMatches(toEditMatches(this.buffer, [region]), outline),
             text: this.buffer.slice(0, region.start) + replacement + this.buffer.slice(region.end),
-            changed: true, bufferVersion: this.bufferVersionValue });
+            changed: true, bufferVersion: this.bufferVersionValue, ...(outline === undefined ? {} : { outline }) });
     }
 
     /**
@@ -328,7 +337,9 @@ export class WorkspaceFile {
         this.requireActive();
         this.requireText();
         this.detectStale();
-        return toEditMatches(this.buffer, resolveRegions(this.buffer, target, this.outlineProvider, this.path));
+        const outline = target.mode === "outline" ? this.verifyOutlineTarget(target, this.buffer) : undefined;
+        return markOutlineMatches(toEditMatches(this.buffer,
+            resolveRegions(this.buffer, target, this.outlineProvider, this.path)), outline);
     }
 
     /** Outline entries of the current buffer, for choosing an `outline` target id. */
@@ -541,6 +552,7 @@ export class WorkspaceFile {
         this.guardEdit(options);
         let scratch = this.buffer;
         const matches: EditMatch[] = [];
+        const outlineMarks: OutlineTargetVerification[] = [];
         for (const [index, edit] of edits.entries()) {
             if (edit.kind === "write") {
                 if (edit.target === undefined) {
@@ -548,11 +560,15 @@ export class WorkspaceFile {
                     continue;
                 }
                 const explicit: WriteTarget = isWriteTarget(edit.target) ? edit.target : legacyTarget(edit.target as FileRange);
+                const outline = explicit.mode === "outline" ? this.verifyOutlineTarget(explicit, scratch) : undefined;
                 const region = resolveRegions(scratch, explicit, this.outlineProvider, this.path)[0]!;
-                matches.push(...toEditMatches(scratch, [region]));
+                if (outline !== undefined) outlineMarks.push(outline);
+                matches.push(...markOutlineMatches(toEditMatches(scratch, [region]), outline));
                 const replacement = structuralReplacement(scratch, region, edit.content);
                 scratch = scratch.slice(0, region.start) + replacement + scratch.slice(region.end);
             } else if (edit.kind === "replace") {
+                const outline = edit.target.mode === "outline" ? this.verifyOutlineTarget(edit.target, scratch) : undefined;
+                if (outline !== undefined) outlineMarks.push(outline);
                 const regions = resolveRegions(scratch, edit.target, this.outlineProvider, this.path);
                 if (edit.target.mode === "string" || edit.target.mode === "regex") {
                     const selected = selectRegions(scratch, regions, edit.target as StringTarget | RegexTarget);
@@ -561,7 +577,7 @@ export class WorkspaceFile {
                     scratch = spliceRegions(scratch, selected, expand);
                 } else {
                     const region = regions[0]!;
-                    matches.push(...toEditMatches(scratch, [region]));
+                    matches.push(...markOutlineMatches(toEditMatches(scratch, [region]), outline));
                     const replacement = structuralReplacement(scratch, region, edit.replacement);
                     scratch = scratch.slice(0, region.start) + replacement + scratch.slice(region.end);
                 }
@@ -570,7 +586,8 @@ export class WorkspaceFile {
             }
         }
         return Object.freeze({ mode: "apply", matches: Object.freeze(matches), text: scratch,
-            changed: scratch !== this.buffer, bufferVersion: this.bufferVersionValue });
+            changed: scratch !== this.buffer, bufferVersion: this.bufferVersionValue,
+            ...(outlineMarks.length === 1 ? { outline: outlineMarks[0]! } : {}) });
     }
 
     flush(options: FlushOptions = {}): FileSnapshot {
@@ -692,7 +709,37 @@ export class WorkspaceFile {
         return this.snapshot();
     }
 
+    /**
+     * Enforce §12.4 node-level positioning safety for an `outline` target.
+     *
+     * A provider entry is bound to the text it was computed against through
+     * `versionHash`. It may only be used while that hash equals the hash of the
+     * content the provider is asked to outline (the current buffer, including
+     * unsaved edits); otherwise the range may point at different text and the
+     * call fails as `version_conflict` before anything is read or written.
+     *
+     * Legacy providers that omit the hash cannot offer that guarantee: the
+     * byte range is still validated by `resolveRegions`, and the returned mark
+     * records the downgrade so the caller can see it.
+     */
+    private verifyOutlineTarget(target: OutlineTarget, content: string): OutlineTargetVerification | undefined {
+        const provider = this.outlineProvider;
+        if (!provider) return undefined; // resolveRegions reports outline_unavailable
+        const entry = provider.entries(this.path, content).find(candidate => candidate.id === target.id);
+        if (!entry) return undefined; // resolveRegions reports not_found
+        if (entry.versionHash === undefined) {
+            return Object.freeze({ id: entry.id, verification: "range", legacy: true });
+        }
+        const currentHash = fileDigest(content);
+        if (hashKey(entry.versionHash).toLowerCase() !== hashKey(currentHash).toLowerCase()) {
+            throw new WorkspaceError("version_conflict",
+                `outline node ${entry.id} was computed against ${entry.versionHash}, but the current buffer is ${currentHash}`);
+        }
+        return Object.freeze({ id: entry.id, versionHash: entry.versionHash, verification: "hash", legacy: false });
+    }
+
     private buildReplacePlan(target: ReplaceTarget, replacement: string): EditPlan {
+        const outline = target.mode === "outline" ? this.verifyOutlineTarget(target, this.buffer) : undefined;
         const regions = resolveRegions(this.buffer, target, this.outlineProvider, this.path);
         if (target.mode === "string" || target.mode === "regex") {
             const selected = selectRegions(this.buffer, regions, target as StringTarget | RegexTarget);
@@ -704,8 +751,9 @@ export class WorkspaceFile {
         const region = regions[0]!;
         const structural = structuralReplacement(this.buffer, region, replacement);
         const text = this.buffer.slice(0, region.start) + structural + this.buffer.slice(region.end);
-        return Object.freeze({ mode: target.mode, matches: toEditMatches(this.buffer, [region]),
-            text, changed: text !== this.buffer, bufferVersion: this.bufferVersionValue });
+        return Object.freeze({ mode: target.mode, matches: markOutlineMatches(toEditMatches(this.buffer, [region]), outline),
+            text, changed: text !== this.buffer, bufferVersion: this.bufferVersionValue,
+            ...(outline === undefined ? {} : { outline }) });
     }
 
     private emitReceipt(kind: FileOperationKind, snapshot: FileSnapshot): void {

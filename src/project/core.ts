@@ -2,11 +2,15 @@ import { createHash } from "node:crypto";
 import { isObject, SynchronousOrderedMap, useFrom } from "semantic-typescript";
 import type { Optional } from "semantic-typescript";
 import { WorkspaceError } from "../workspace/types.ts";
+import { MemoryAnchorRegistry } from "./anchors.ts";
 import {
     describeEnvironment as renderEnvironment, emptyEnvironment, mergeEnvironment, planEnvironment, validateEnvironment,
     type EnvironmentPatch, type EnvironmentPlan, type ProjectEnvironment,
 } from "./environment.ts";
-import type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind, ViewPurpose, ViewValidationOptions } from "./types.ts";
+import type {
+    AnchorRegistry, ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind,
+    ViewPurpose, ViewValidationOptions,
+} from "./types.ts";
 
 const clone = <T>(value: T): T => isObject(value) ? structuredClone(value) as T : value;
 const nowIso = (): string => new Date().toISOString();
@@ -87,7 +91,14 @@ function validateViewContract(view: ProjectView, options: ViewValidationOptions 
     requireSourceVersions(view.sourceVersions);
     if (view.purpose !== undefined) requireViewPurpose(view.purpose);
     if (view.freshness !== undefined) requireFreshness(view.freshness);
-    if (view.anchors !== undefined) requireStringList(view.anchors, "view anchors");
+    if (view.anchors !== undefined) {
+        requireStringList(view.anchors, "view anchors");
+        const seen = new Set<string>();
+        for (const anchor of view.anchors) {
+            if (seen.has(anchor)) throw new WorkspaceError("duplicate", `view anchor ${anchor} is declared more than once`);
+            seen.add(anchor);
+        }
+    }
     if (view.constraints !== undefined) requireStringList(view.constraints, "view constraints");
 
     if (view.anchors !== undefined) {
@@ -129,6 +140,8 @@ export class Project {
     private readonly kindId?: string;
     private readonly extraGuidance: readonly string[];
     private readonly anchorResolver?: (anchor: string) => boolean;
+    private readonly anchorRegistryValue: AnchorRegistry;
+    private anchorEnforcement: boolean;
 
     constructor(options: ProjectOptions) {
         if (!options.tenantId || !options.rootId) throw new WorkspaceError("invalid_project", "tenantId and rootId are required");
@@ -138,6 +151,23 @@ export class Project {
         this.kindId = options.kind;
         this.extraGuidance = Object.freeze([...(options.guidance ?? [])]);
         this.anchorResolver = options.anchorExists;
+        try {
+            const registry = options.anchorRegistry ?? new MemoryAnchorRegistry(options.anchors ?? []);
+            if (options.anchorRegistry !== undefined && options.anchors !== undefined) {
+                // A host-provided registry is filled by replaying the persisted anchors.
+                for (const anchor of options.anchors) options.anchorRegistry.registerAnchor(anchor);
+            }
+            this.anchorRegistryValue = registry;
+        } catch (error) {
+            if (error instanceof WorkspaceError) throw error;
+            throw new WorkspaceError("invalid_project", error instanceof Error ? error.message : String(error));
+        }
+        // An explicitly supplied registry/anchor set enables anchor enforcement
+        // even while it is empty; without one the historical permissive behavior
+        // is preserved until the host registers its first anchor. A legacy
+        // `anchorExists` resolver stays an independent check and does not imply
+        // that the registry has been populated.
+        this.anchorEnforcement = options.anchorRegistry !== undefined || options.anchors !== undefined;
         try {
             this.environmentValue = mergeEnvironment(emptyEnvironment(), options.environment ?? {});
         } catch (error) {
@@ -158,6 +188,35 @@ export class Project {
     /** Project kind this environment was initialized from, when known. */
     get kind(): string | undefined {
         return this.kindId;
+    }
+
+    /**
+     * Anchor registry backing view validation. It is always present: hosts can
+     * register anchors directly, or pass their own registry in the options.
+     */
+    get anchorRegistry(): AnchorRegistry {
+        return this.anchorRegistryValue;
+    }
+
+    /** Register one view anchor; the first explicit registration enables enforcement. */
+    registerAnchor(anchor: string): void {
+        this.anchorRegistryValue.registerAnchor(anchor);
+        this.anchorEnforcement = true;
+    }
+
+    /** Remove one view anchor; returns true when it was registered. */
+    unregisterAnchor(anchor: string): boolean {
+        return this.anchorRegistryValue.unregisterAnchor(anchor);
+    }
+
+    /** True when the anchor is registered for this project. */
+    resolveAnchor(anchor: string): boolean {
+        return this.anchorRegistryValue.resolveAnchor(anchor);
+    }
+
+    /** Registered anchors in stable registration order (frozen copy). */
+    listAnchors(): readonly string[] {
+        return Object.freeze([...this.anchorRegistryValue.listAnchors()]);
     }
 
     /**
@@ -274,15 +333,23 @@ export class Project {
     }
 
     /**
-     * Validate a view against this project's anchor resolver. Callers can pass
-     * an explicit resolver or anchor set when validating detached views.
+     * Validate a view against this project's anchor registry (or legacy host
+     * resolver). Callers can pass an explicit resolver or anchor set when
+     * validating detached views; an explicit `anchorExists` overrides the
+     * project default, while `knownAnchors` is additive.
      */
     validateView(view: ProjectView, options: ViewValidationOptions = {}): void {
-        const anchorExists = options.anchorExists ?? this.anchorResolver;
-        validateViewContract(view, {
-            ...(anchorExists === undefined ? {} : { anchorExists }),
-            ...(options.knownAnchors === undefined ? {} : { knownAnchors: options.knownAnchors }),
-        });
+        const checks: { anchorExists?: (anchor: string) => boolean; knownAnchors?: Iterable<string> } = {};
+        if (options.anchorExists !== undefined) {
+            checks.anchorExists = options.anchorExists;
+        } else if (this.anchorResolver !== undefined || this.anchorEnforcement) {
+            const resolver = this.anchorResolver;
+            checks.anchorExists = (anchor: string) =>
+                (resolver === undefined || resolver(anchor))
+                && (!this.anchorEnforcement || this.anchorRegistryValue.resolveAnchor(anchor));
+        }
+        if (options.knownAnchors !== undefined) checks.knownAnchors = options.knownAnchors;
+        validateViewContract(view, checks);
     }
 
     findView(kind: ViewKind): Optional<ProjectView> {
@@ -334,5 +401,5 @@ export class Project {
     }
 }
 
-export type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind, ViewPurpose, ViewValidationOptions } from "./types.ts";
+export type { AnchorRegistry, ProjectMetadata, ProjectOptions, ProjectRule, ProjectRuleInput, ProjectScope, ProjectView, ViewKind, ViewPurpose, ViewValidationOptions } from "./types.ts";
 export type { WorkspaceError } from "../workspace/types.ts";

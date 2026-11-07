@@ -153,6 +153,138 @@ export type CooperationConflict = {
     readonly arbitration?: ArbitrationRecord;
 };
 
+/** Lock modes from refract §12.7: exclusive / shared / region, with TTL leases. */
+export type IsolationLockMode = "exclusive" | "shared" | "region";
+export type IsolationLockScope = "file" | "region" | "workspace";
+/** Half-open byte range `[start, end)` used by region locks and region merge changes. */
+export type IsolationRegion = { readonly start: number; readonly end: number };
+
+/**
+ * Address of a lockable resource. `agentId` is the requesting holder; `cooperationId`
+ * scopes the namespace so two cooperations never contend by accident.
+ */
+export type IsolationResource = {
+    readonly cooperationId: Identifier;
+    readonly agentId: Identifier;
+    readonly resourceId: string;
+    readonly lockScope?: IsolationLockScope;
+    readonly region?: IsolationRegion;
+};
+
+/**
+ * A held TTL lease. `token`/`fence` are copied from the backing file lock when the
+ * adapter is file-backed; in-memory leases synthesize them for release matching.
+ */
+export type IsolationHandle = {
+    readonly handleId: Identifier;
+    readonly resource: IsolationResource;
+    readonly mode: IsolationLockMode;
+    readonly token: string;
+    readonly fence?: number;
+    readonly acquiredAt: string;
+    readonly expiresAt: string;
+};
+
+/** One replacement relative to a change's `baseContent`. */
+export type IsolationTextEdit = {
+    readonly start: number;
+    readonly end: number;
+    readonly replacement: string;
+};
+
+/** One pending result offered at a cooperation merge point. */
+export type IsolationChange = {
+    readonly changeId: string;
+    readonly cooperationId: Identifier;
+    readonly agentId: Identifier;
+    readonly resourceId: string;
+    readonly region?: IsolationRegion;
+    readonly value?: JsonValue;
+    /** Common pre-change text; all changes for a resource must agree for semantic merge. */
+    readonly baseContent?: string;
+    /** Optional digest of `baseContent`; a mismatch is a merge conflict. */
+    readonly baseHash?: string;
+    /** Non-overlapping text replacements relative to `baseContent`. */
+    readonly edits?: readonly IsolationTextEdit[];
+};
+
+export type IsolationMergeConflictReason =
+    | "duplicate_change"
+    | "resource_conflict"
+    | "region_overlap"
+    | "base_conflict"
+    | "edit_overlap"
+    | "invalid_edit"
+    | "syntax_invalid";
+export type IsolationMergeConflict = {
+    readonly reason: IsolationMergeConflictReason;
+    readonly resourceId: string;
+    readonly changeIds: readonly string[];
+    readonly agents: readonly string[];
+    readonly detail: string;
+};
+
+/** Merged text for one resource, produced only when a semantic base is available. */
+export type IsolationMergedContent = {
+    readonly resourceId: string;
+    readonly content: string;
+    readonly hash: string;
+    readonly bytes: number;
+};
+
+export type IsolationSyntaxFinding = {
+    readonly resourceId: string;
+    readonly valid: boolean;
+    readonly reason?: string;
+};
+
+/** Pluggable syntax check; hosts may inject a real parser/AST validator. */
+export type IsolationSyntaxValidator = (resourceId: string, content: string) => IsolationSyntaxFinding;
+
+/** Domain merge receipt (refract §9.2 `merge_receipt`); no execution context is required. */
+export type IsolationMergeReceipt = {
+    readonly receiptId: Identifier;
+    readonly kind: "merge_receipt";
+    readonly cooperationId: Identifier;
+    readonly mergedChangeIds: readonly string[];
+    readonly conflictCount: number;
+    readonly contents: readonly { readonly resourceId: string; readonly hash: string; readonly bytes: number }[];
+    readonly syntaxChecked: boolean;
+    readonly syntaxValid: boolean;
+    readonly mergedAt: string;
+};
+
+/**
+ * Atomic merge result: when `conflicts` is nonempty nothing is merged, so a merge
+ * point never applies a partial result. `merged` is ordered like the input.
+ * `contents`/`syntax`/`receipt` describe the semantic stage when it ran.
+ */
+export type IsolationMergeResult = {
+    readonly merged: readonly IsolationChange[];
+    readonly conflicts: readonly IsolationMergeConflict[];
+    readonly contents: readonly IsolationMergedContent[];
+    readonly syntax: readonly IsolationSyntaxFinding[];
+    readonly receipt?: IsolationMergeReceipt;
+};
+
+/** Optional wait behaviour for `acquire`; default is fail-fast. */
+export type IsolationAcquireOptions = {
+    readonly waitMilliseconds?: number;
+    readonly sleep?: (milliseconds: number) => void;
+};
+
+/**
+ * Lock + merge port used by `CooperationCoordinator` under
+ * `shared_write_with_lock`. Implementations own TTL expiry and conflict policy;
+ * `merge` runs metadata conflict detection and, when a common base is supplied,
+ * a semantic text merge with optional syntax validation.
+ */
+export interface CooperationIsolationAdapter {
+    acquire(resource: IsolationResource, mode: IsolationLockMode, ttlMilliseconds: number, options?: IsolationAcquireOptions): IsolationHandle;
+    release(handle: IsolationHandle): boolean;
+    merge(changes: readonly IsolationChange[]): IsolationMergeResult;
+}
+
 /** Pure in-memory facts; restoring never reads the clock or starts work. */
 export type CooperationSnapshot = {
     readonly schemaVersion: 1;

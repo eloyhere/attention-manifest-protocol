@@ -15,15 +15,22 @@ import type {
     CooperationCloseOutcome,
     CooperationConflict,
     CooperationConflictType,
+    CooperationIsolationAdapter,
     CooperationMessage,
     CooperationRoleAssignment,
     CooperationSnapshot,
     CreateCooperationInput,
     DelegatedTask,
     DelegationRequest,
+    IsolationChange,
+    IsolationHandle,
+    IsolationMergeResult,
+    IsolationResource,
+    IsolationSyntaxValidator,
     ResultAcceptance,
     ResultSubmission,
 } from "./types.ts";
+import { DEFAULT_ISOLATION_TTL_MILLISECONDS, InMemoryIsolationAdapter, IsolationConflictError } from "./isolation.ts";
 import {
     COOPERATION_INITIAL_STATUSES,
     TERMINAL_CLOSE_OUTCOMES,
@@ -39,6 +46,18 @@ const requireText = (value: unknown, field: string): string => typeof value === 
 const requireArray = (value: unknown, field: string): readonly unknown[] => Array.isArray(value) ? value : fail(`${field} must be an array`);
 const ARBITRATION_OUTCOMES: readonly ArbitrationOutcome[] = ["favor_reporter", "favor_respondent", "split", "no_action", "escalate_to_human", "reassign"];
 const CONFLICT_TYPES: readonly CooperationConflictType[] = ["resource", "result", "intent", "protocol_violation", "budget", "topology"];
+
+/** Optional collaborators for the cooperation kernel. */
+export type CooperationCoordinatorOptions = {
+    /** Lock + merge port; defaults to a per-coordinator in-memory adapter (not cross-process). */
+    readonly isolation?: CooperationIsolationAdapter;
+    /** Lease duration for coordinator-acquired locks; defaults to 30s. */
+    readonly isolationTtlMilliseconds?: number;
+    /** When > 0, coordinator writes wait for a lease and detect wait-for cycles. */
+    readonly isolationWaitMilliseconds?: number;
+    /** Syntax checker used by the default in-memory merge engine. */
+    readonly syntaxValidator?: IsolationSyntaxValidator;
+};
 
 /**
  * In-memory cooperation kernel. Tasks and messages are always owned by a
@@ -56,8 +75,27 @@ export class CooperationCoordinator {
     private readonly bindingAnchors = new SynchronousUnorderedMap<string, Identifier>();
     private readonly conflicts = new SynchronousUnorderedMap<Identifier, CooperationConflict>();
     private readonly arbitrations = new SynchronousUnorderedMap<Identifier, ArbitrationRecord>();
+    private readonly isolationHandles = new Map<string, IsolationHandle>();
+    private readonly isolation: CooperationIsolationAdapter;
+    private readonly isolationTtlMilliseconds: number;
+    private readonly isolationWaitMilliseconds: number;
     private readonly clock: Clock;
-    constructor(clock: Clock = () => new Date().toISOString()) { this.clock = clock; }
+    constructor(clock: Clock = () => new Date().toISOString(), options: CooperationCoordinatorOptions = {}) {
+        this.clock = clock;
+        this.isolation = options.isolation ?? new InMemoryIsolationAdapter({
+            clock: () => {
+                const parsed = Date.parse(this.clock());
+                return Number.isFinite(parsed) ? parsed : Date.now();
+            },
+            ...(options.syntaxValidator === undefined ? {} : { syntaxValidator: options.syntaxValidator }),
+        });
+        const ttl = options.isolationTtlMilliseconds ?? DEFAULT_ISOLATION_TTL_MILLISECONDS;
+        if (!Number.isSafeInteger(ttl) || ttl <= 0) throw new TypeError("isolation TTL must be a positive safe integer");
+        this.isolationTtlMilliseconds = ttl;
+        const wait = options.isolationWaitMilliseconds ?? 0;
+        if (!Number.isFinite(wait) || wait < 0) throw new TypeError("isolation waitMilliseconds must be a finite number >= 0");
+        this.isolationWaitMilliseconds = wait;
+    }
 
     create(input: CreateCooperationInput): Cooperation {
         const id = requireText(input.id, "Cooperation id");
@@ -91,9 +129,13 @@ export class CooperationCoordinator {
         return clone(cooperation);
     }
 
-    /** Closes a cooperation; already-terminal cooperations are returned unchanged. */
+    /**
+     * Closes a cooperation and releases every isolation lease it still holds.
+     * Already-terminal cooperations are returned unchanged (leases are still released).
+     */
     close(cooperationId: Identifier, outcomeOrReason: CooperationCloseOutcome | string = "dissolved", reason?: string): Cooperation {
         const cooperation = this.requireCooperation(cooperationId);
+        this.releaseIsolation(cooperationId);
         if (isTerminalCooperationStatus(cooperation.status)) return clone(cooperation);
         const isOutcome = (TERMINAL_CLOSE_OUTCOMES as readonly string[]).includes(outcomeOrReason);
         const outcome: CooperationCloseOutcome = isOutcome ? outcomeOrReason as CooperationCloseOutcome : "dissolved";
@@ -118,6 +160,7 @@ export class CooperationCoordinator {
         const cooperation = this.resolveDelegationCooperation(request);
         this.assertParticipant(cooperation, request.delegatorAgentId);
         this.assertParticipant(cooperation, request.ownerAgentId);
+        this.acquireIsolation(cooperation, request.delegatorAgentId, "tasks");
         const now = this.clock();
         const task: DelegatedTask = { taskId: request.taskId, ...(request.parentTaskId ? { parentTaskId: request.parentTaskId } : {}), cooperationId: cooperation.id, delegatorAgentId: request.delegatorAgentId, ownerAgentId: request.ownerAgentId, ownerEpoch: 1, fence: `${request.taskId}:1`, effectiveScope, state: "delegated", createdAt: now, updatedAt: now };
         const updated: Cooperation = { ...cooperation, taskIds: [...cooperation.taskIds, task.taskId], version: cooperation.version + 1, updatedAt: now };
@@ -218,6 +261,7 @@ export class CooperationCoordinator {
         const cooperation = this.requireCooperation(task.cooperationId);
         this.assertOpen(cooperation);
         if (message.cooperationId !== undefined && message.cooperationId !== cooperation.id) fail(`Message cooperation does not own task: ${message.messageId}`);
+        this.acquireIsolation(cooperation, message.senderAgentId, "messages");
         const stored: CooperationMessage = { ...clone(message), cooperationId: cooperation.id };
         const updated: Cooperation = { ...cooperation, messageIds: [...cooperation.messageIds, stored.messageId], version: cooperation.version + 1, updatedAt: message.sentAt || this.clock() };
         this.messages.put(stored.messageId, clone(stored));
@@ -229,6 +273,21 @@ export class CooperationCoordinator {
     messagesFor(cooperationId: Identifier): CooperationMessage[] {
         this.requireCooperation(cooperationId);
         return this.messages.values().toArray().filter(message => message.cooperationId === cooperationId).map(clone);
+    }
+
+    /**
+     * Merge point for a cooperation. Conflicting batches return `{ merged: [], conflicts }`;
+     * merging never applies a partial result. Semantic/AST merge is delegated to the host.
+     */
+    merge(cooperationId: Identifier, changes: readonly IsolationChange[]): IsolationMergeResult {
+        const cooperation = this.requireCooperation(cooperationId);
+        this.assertOpen(cooperation);
+        if (!Array.isArray(changes)) fail("Merge changes must be an array");
+        for (const change of changes) {
+            if (change === null || typeof change !== "object") fail("Merge change must be an object");
+            if (change.cooperationId !== cooperation.id) fail(`Merge change does not belong to cooperation: ${String(change.changeId)}`);
+        }
+        return this.isolation.merge(changes);
     }
 
     snapshot(): CooperationSnapshot {
@@ -243,8 +302,8 @@ export class CooperationCoordinator {
         });
     }
     /** Pure restore: validates all references, reads no clock and dispatches no work. */
-    static restore(snapshot: CooperationSnapshot, clock: Clock = () => new Date().toISOString()): CooperationCoordinator {
-        const coordinator = new CooperationCoordinator(clock);
+    static restore(snapshot: CooperationSnapshot, clock: Clock = () => new Date().toISOString(), options: CooperationCoordinatorOptions = {}): CooperationCoordinator {
+        const coordinator = new CooperationCoordinator(clock, options);
         try {
             if (snapshot === null || typeof snapshot !== "object") fail("snapshot must be an object");
             coordinator.loadSnapshot(clone(snapshot));
@@ -322,6 +381,49 @@ export class CooperationCoordinator {
         if (binding.taskId !== undefined) anchors.push({ level: "task", id: binding.taskId });
         if (binding.actionId !== undefined) anchors.push({ level: "action", id: binding.actionId });
         return anchors;
+    }
+    /**
+     * Under `shared_write_with_lock`, each participant's task/message stream is guarded by
+     * its own exclusive lease. Reusing a live lease keeps synchronous writes cheap; an
+     * expired lease is dropped and re-acquired. Other isolation modes never acquire.
+     */
+    private acquireIsolation(cooperation: Cooperation, agentId: Identifier, stream: "tasks" | "messages"): void {
+        if (cooperation.isolation !== "shared_write_with_lock") return;
+        const key = `${cooperation.id}\u0000${agentId}\u0000${stream}`;
+        const existing = this.isolationHandles.get(key);
+        if (existing !== undefined) {
+            if (Date.parse(existing.expiresAt) > Date.parse(this.clock())) return;
+            this.isolationHandles.delete(key);
+            try { this.isolation.release(existing); } catch { /* lease also expires through its TTL */ }
+        }
+        const resource: IsolationResource = {
+            cooperationId: cooperation.id,
+            agentId,
+            resourceId: `${stream}:${cooperation.id}:${agentId}`,
+            ...(cooperation.protocol.sharing.lockScope === undefined ? {} : { lockScope: cooperation.protocol.sharing.lockScope }),
+        };
+        let handle: IsolationHandle;
+        try {
+            handle = this.isolation.acquire(
+                resource,
+                "exclusive",
+                this.isolationTtlMilliseconds,
+                this.isolationWaitMilliseconds > 0 ? { waitMilliseconds: this.isolationWaitMilliseconds } : undefined,
+            );
+        } catch (error) {
+            if (error instanceof IsolationConflictError) throw error;
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new IsolationConflictError(resource, `could not acquire ${resource.resourceId}: ${detail}`, undefined, error);
+        }
+        this.isolationHandles.set(key, handle);
+    }
+    /** Releases every lease held by one cooperation; release errors are non-fatal because leases expire by TTL. */
+    private releaseIsolation(cooperationId: Identifier): void {
+        for (const [key, handle] of [...this.isolationHandles.entries()]) {
+            if (handle.resource.cooperationId !== cooperationId) continue;
+            this.isolationHandles.delete(key);
+            try { this.isolation.release(handle); } catch { /* TTL is the fallback */ }
+        }
     }
     private require(taskId: Identifier): DelegatedTask { const task = this.get(taskId); if (!task) throw new TypeError(`Unknown delegated task: ${taskId}`); return task; }
     private assertOwner(task: DelegatedTask, ownerAgentId: string, ownerEpoch: number, fence: string): void { if (task.ownerAgentId !== ownerAgentId || task.ownerEpoch !== ownerEpoch || task.fence !== fence) throw new TypeError("Stale delegation owner or fence"); }

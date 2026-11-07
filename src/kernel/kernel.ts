@@ -37,17 +37,25 @@ import {
     workflowTransitions,
 } from "../workflow/transitions.ts";
 import { BudgetError, BudgetLedger } from "../budget/ledger.ts";
+import { BudgetTree } from "../budget/tree.ts";
 import { EvidenceLedger } from "../evidence/ledger.ts";
 import * as attentionOperations from "../attention/operations.ts";
 import * as contextCompiler from "../context/compiler.ts";
 import * as receiptCore from "../receipt/core.ts";
 import * as verificationCore from "../verification/core.ts";
 import { Project } from "../project/core.ts";
+import { mergeEnvironment, validateEnvironment } from "../project/environment.ts";
+import type { EnvironmentPatch } from "../project/environment.ts";
 import { Workspace } from "../workspace/core.ts";
+import { WorkspaceError } from "../workspace/types.ts";
 import { InMemoryFileStorage } from "../file/core.ts";
+import type { WorkspaceFile } from "../file/core.ts";
+import type { FileOperationKind, FileOperationReceipt, FileRange, FileRef, FileSnapshot, WorkspaceMode } from "../file/types.ts";
+import { bindProject } from "../persistence/bindings.ts";
+import type { ProjectBinding } from "../persistence/bindings.ts";
 import { Store } from "../service/store.ts";
 import { isEntityKind } from "../entity/key.ts";
-import type { Budget, ExecutionContext, Identifier, JsonValue } from "../shared.ts";
+import type { Budget, BudgetDimension, ExecutionContext, Identifier, JsonValue } from "../shared.ts";
 import type { BudgetReservation } from "../tool/types.ts";
 import type { Evidence, EvidenceSource } from "../evidence/types.ts";
 import type {
@@ -77,20 +85,30 @@ import type {
     AchieveGoalInput,
     AchieveGoalResult,
     BeginTurnInput,
+    BudgetExhaustionDecision,
     CaptureIntentInput,
     CloseSessionInput,
     CloseSessionResult,
+    CloseWorkspaceFileInput,
+    CloseWorkspaceFileResult,
     ClosureReceipt,
     ClosureReceiptSummary,
     CompileTurnContextInput,
     CompileTurnContextResult,
+    ConfigureProjectInput,
+    ConfigureProjectPatch,
+    ConfigureProjectResult,
     ConfirmIntentInput,
+    ConsumeBudgetInput,
+    ConsumeBudgetResult,
     ContextCheckpointRecord,
     CreateGoalInput,
     CreateMissionInput,
     CreatePlanInput,
     CreatePlanResult,
+    DescribeProjectResult,
     Kernel,
+    KernelBudgetOptions,
     KernelExecutionRequest,
     KernelExecutorPort,
     KernelFlow,
@@ -98,9 +116,17 @@ import type {
     KernelOptions,
     KernelOverrides,
     KernelPorts,
+    KernelProjectMetadataInput,
+    KernelProjectOptions,
+    KernelProjectRuleInput,
     KernelServices,
     KernelSnapshot,
     KernelTaskInput,
+    OpenWorkspaceFileInput,
+    OpenedWorkspaceFile,
+    ReadFileInput,
+    ReadFileOptions,
+    ReadFileResult,
     ReadyTasksInput,
     ReadyTasksResult,
     RecordEvidenceInput,
@@ -112,6 +138,9 @@ import type {
     StartSessionInput,
     VerifyBusinessInput,
     VerifyBusinessResult,
+    WriteFileInput,
+    WriteFileOptions,
+    WriteFileResult,
 } from "./types.ts";
 
 type CancellableKind = "mission" | "goal" | "plan" | "task" | "action";
@@ -142,6 +171,7 @@ function translate(error: unknown): KernelError {
     if (error instanceof KernelError) return error;
     if (error instanceof WorkflowError) return new KernelError(error.code, error.message, error);
     if (error instanceof BudgetError) return new KernelError(error.code, error.message, error);
+    if (error instanceof WorkspaceError) return new KernelError(error.code, error.message, error);
     if (error instanceof PolicyDeniedError) return new KernelError("policy_denied", error.message, error);
     if (error instanceof Error) return new KernelError("invalid_input", error.message, error);
     return new KernelError("invalid_input", String(error));
@@ -149,6 +179,58 @@ function translate(error: unknown): KernelError {
 
 function isWorkflowKind(value: string): value is WorkflowKind {
     return (WORKFLOW_KINDS as readonly string[]).includes(value);
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A node limit that never refuses a realistic amount, used when only `turn` is configured. */
+function unlimitedBudget(): Budget {
+    const ceiling = Number.MAX_SAFE_INTEGER;
+    return { tokens: ceiling, milliseconds: ceiling, calls: ceiling, bytes: ceiling, retries: ceiling, concurrency: ceiling };
+}
+
+const FILE_RECEIPT_KIND: Readonly<Record<FileOperationKind, "file_mount_receipt" | "file_flush_receipt" | "file_unmount_receipt">> = Object.freeze({
+    mount: "file_mount_receipt",
+    flush: "file_flush_receipt",
+    unmount: "file_unmount_receipt",
+});
+
+function fileReceiptId(kind: FileOperationKind, ref: FileRef, version: number, hash: string): string {
+    return `receipt:file:${kind}:${ref.tenantId}:${ref.rootId}:${ref.path}:${version}:${hash}`;
+}
+
+function fileEvidenceId(receiptId: string): string {
+    return `evidence:${receiptId}`;
+}
+
+function fileIntegrityId(receiptId: string): string {
+    return `integrity:${receiptId}`;
+}
+
+function fileVerificationId(receiptId: string): string {
+    return `verification:${receiptId}`;
+}
+
+function fileClaim(kind: FileOperationKind, path: string): string {
+    return `${FILE_RECEIPT_KIND[kind]}:${path}`;
+}
+
+/** Recognizes the three accepted `FileRange` spellings. */
+function isFileRange(value: unknown): value is FileRange {
+    if (!isRecord(value)) return false;
+    if (value.kind === "byte" || value.kind === "line") {
+        return typeof value.start === "number" && typeof value.end === "number";
+    }
+    return isRecord(value.byte) || isRecord(value.line);
+}
+
+function isEnvironmentPatchInput(value: unknown): value is Record<string, unknown> {
+    if (!isRecord(value)) return false;
+    if ("environment" in value || "patch" in value || "rules" in value || "metadata" in value
+        || "expectedEnvironmentVersion" in value || "actor" in value) return false;
+    return "variables" in value || "paths" in value || "dependencies" in value;
 }
 
 interface ReceiptCreation {
@@ -174,6 +256,16 @@ type ReceiptCoreInput = Parameters<KernelPorts["receipt"]["createReceiptCore"]>[
 /** The two closure receipt kinds the kernel synthesizes itself. */
 type ClosureReceiptKind = ClosureReceipt["kind"];
 
+/** One recorded file-operation receipt plus the verification/evidence chain it anchors. */
+interface FileOperationRecord {
+    readonly receipt: ReceiptCore;
+    readonly integrity: ReceiptIntegrityVerification;
+    readonly verification: BusinessVerification;
+    readonly evidence: Evidence;
+    /** True when the receipt did not exist before this call. */
+    readonly created: boolean;
+}
+
 interface VerificationRequest {
     readonly criteriaVersion: string;
     readonly verifier?: Identifier;
@@ -198,6 +290,18 @@ class KernelImpl implements Kernel {
     private readonly verificationCache = new Map<string, BusinessVerification>();
     private readonly integrityCache = new Map<string, ReceiptIntegrityVerification>();
     private readonly evidenceCache = new Map<string, Evidence>();
+    private readonly projectOptions: KernelProjectOptions | undefined;
+    private readonly ownsProject: boolean;
+    private readonly budgetConfig: KernelBudgetOptions | undefined;
+    private readonly budgetDecisionList: BudgetExhaustionDecision[] = [];
+    /** Open workspace files, keyed by the workspace-relative path. */
+    private readonly openFiles = new Map<string, WorkspaceFile>();
+    private readonly openFileResults = new Map<string, OpenedWorkspaceFile>();
+    /** Paths mounted read-only through `openWorkspaceFile`; writes stay rejected. */
+    private readonly lockedReadOnlyFiles = new Set<string>();
+    /** Budget-tree action node of each ledger reservation (`operationId` -> node). */
+    private readonly treeActionNodes = new Map<string, Identifier>();
+    private projectBinding!: ProjectBinding;
     private budgetVersion = 0;
     private closed = false;
 
@@ -211,6 +315,9 @@ class KernelImpl implements Kernel {
         this.clock = options.clock ?? options.now ?? (() => new Date().toISOString());
         this.now = options.now ?? this.clock;
         this.budgetKey = `${this.tenantId}:${this.rootId}`;
+        this.projectOptions = options.project;
+        this.ownsProject = overrides.project === undefined;
+        this.budgetConfig = options.budgetTree ?? options.budget;
         this.evaluate = overrides.evaluate ?? (observation => observation.status === "success");
         this.store = Store.open({
             ...(options.storePath === undefined ? {} : { path: options.storePath }),
@@ -231,12 +338,20 @@ class KernelImpl implements Kernel {
             };
             const budget = new BudgetLedger();
             this.restoreBudget(budget, options.budgetLimits);
-            const project = overrides.project ?? new Project({ tenantId: this.tenantId, rootId: this.rootId, clock: this.clock });
+            const project = overrides.project ?? new Project({
+                ...(this.projectOptions ?? {}),
+                tenantId: this.tenantId,
+                rootId: this.rootId,
+                clock: this.clock,
+            });
             const workspace = overrides.workspace ?? new Workspace({
                 tenantId: this.tenantId,
                 rootId: this.rootId,
                 storage: new InMemoryFileStorage(this.clock),
                 clock: this.clock,
+            });
+            const budgetTree = new BudgetTree({
+                onExhausted: (nodeId, dimension) => this.handleBudgetExhausted(nodeId, dimension),
             });
             const policy = overrides.policy ?? new DefaultPolicyEnforcementPoint(request => ({
                 allowed: true,
@@ -256,8 +371,12 @@ class KernelImpl implements Kernel {
                 verification: overrides.verification ?? verificationCore,
                 project,
                 workspace,
+                budgetTree,
                 store: this.store,
             };
+            this.projectBinding = bindProject(this.store, project);
+            this.projectBinding.rehydrate();
+            this.restoreBudgetDecisions();
             this.flow = {
                 startSession: input => this.guard(() => this.startSession(input)),
                 beginTurn: input => this.guard(() => this.beginTurn(input)),
@@ -275,6 +394,14 @@ class KernelImpl implements Kernel {
                 verifyBusiness: input => this.guardAsync(() => this.verifyBusiness(input)),
                 achieveGoal: input => this.guard(() => this.achieveGoal(input)),
                 closeSession: input => this.guard(() => this.closeSession(input)),
+                configureProject: patch => this.guard(() => this.configureProject(patch)),
+                describeProject: () => this.guard(() => this.describeProject()),
+                openWorkspaceFile: (path, mode) => this.guard(() => this.openWorkspaceFile(path, mode)),
+                readFile: (path, options) => this.guard(() => this.readFile(path, options)),
+                writeFile: (path, content, options) => this.guard(() => this.writeFile(path, content, options)),
+                closeWorkspaceFile: path => this.guard(() => this.closeWorkspaceFile(path)),
+                consumeBudget: input => this.guard(() => this.consumeBudget(input)),
+                budgetDecisions: () => Object.freeze([...this.budgetDecisionList]),
             };
         } catch (error) {
             this.store.close();
@@ -293,6 +420,8 @@ class KernelImpl implements Kernel {
                 entities: workflow.entities,
                 counts,
                 budget: this.ports.budget.snapshot(this.budgetKey),
+                budgetTree: this.ports.budgetTree.snapshots(),
+                budgetDecisions: this.budgetDecisionList.length,
                 evidenceCount: this.persistence.list<Evidence>("evidence").length,
                 receiptCount: this.persistence.list<ReceiptCore>("receipt").length,
                 verificationCount: this.persistence.list<BusinessVerification>("verification").length,
@@ -302,9 +431,22 @@ class KernelImpl implements Kernel {
         });
     }
 
+    budgetDecisions(): readonly BudgetExhaustionDecision[] {
+        return Object.freeze([...this.budgetDecisionList]);
+    }
+
     close(): void {
         if (this.closed) return;
         this.closed = true;
+        // Record the unmount receipts of every file the kernel still holds
+        // before the store disappears; a failure here must not block close.
+        for (const path of [...this.openFiles.keys()]) {
+            try {
+                this.closeWorkspaceFileInternal({ path, discardDirty: true });
+            } catch {
+                /* close is best-effort cleanup */
+            }
+        }
         this.store.close();
     }
 
@@ -489,6 +631,7 @@ class KernelImpl implements Kernel {
     }
 
     private releaseBudget(operationId: Identifier): void {
+        this.releaseTreeActionNode(operationId);
         const reservation = this.ports.budget.getReservation(operationId);
         if (reservation === undefined || reservation.state !== "reserved") return;
         this.ports.budget.release(operationId);
@@ -506,6 +649,7 @@ class KernelImpl implements Kernel {
         }
         const settled = this.ports.budget.settle(operationId, usage ?? reservation.amount);
         this.persistBudget("budget.settled", { reservationId: operationId, actual: settled.actual });
+        this.settleTreeActionNode(operationId, settled.actual ?? settled.amount);
         return settled;
     }
 
@@ -515,6 +659,443 @@ class KernelImpl implements Kernel {
             throw new KernelError("invalid_state", `operation ${operationId} has no budget reservation`);
         }
         return reservation;
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Hierarchical budget tree (Session -> Turn -> Action)           */
+    /* -------------------------------------------------------------- */
+
+    private ensureSessionBudgetNode(sessionId: Identifier, limitOverride?: Budget): void {
+        const limit = limitOverride ?? this.budgetConfig?.session;
+        if (limit === undefined) return;
+        if (this.ports.budgetTree.has(sessionId)) return;
+        this.ports.budgetTree.addRoot(sessionId, limit);
+    }
+
+    /**
+     * Allocates this Turn's node from its Session node. A refusal fires the
+     * tree observer (Session -> closing) before the stable `budget_exhausted`
+     * error reaches the caller.
+     */
+    private allocateTurnBudget(sessionId: Identifier, turnId: Identifier, limitOverride?: Budget): void {
+        const limit = limitOverride ?? this.budgetConfig?.turn;
+        if (limit === undefined) return;
+        if (this.ports.budgetTree.has(turnId)) return;
+        if (!this.ports.budgetTree.has(sessionId)) {
+            const session = this.ports.workflow.find("session", sessionId);
+            const sessionLimit = this.budgetConfig?.session ?? (session.isPresent() ? session.get().budget : undefined);
+            this.ports.budgetTree.addRoot(sessionId, sessionLimit ?? unlimitedBudget());
+        }
+        this.ports.budgetTree.allocate(sessionId, turnId, limit);
+    }
+
+    /**
+     * Allocates a per-attempt Action node from the Turn node and reserves the
+     * action budget there. Returns `undefined` when the Turn has no node (the
+     * hierarchical tree is inert for that action).
+     */
+    private allocateActionBudget(input: StartActionInput, attemptId: Identifier): Identifier | undefined {
+        const turnNode = this.actionTurnNode(input);
+        if (turnNode === undefined) return undefined;
+        const amount: Budget = input.budget ?? { calls: 1 };
+        const nodeId = `action:${input.actionId}:${attemptId}`;
+        this.ports.budgetTree.allocate(turnNode, nodeId, amount);
+        try {
+            this.ports.budgetTree.reserve(nodeId, amount);
+        } catch (error) {
+            this.forgetTreeActionNode(nodeId);
+            throw error;
+        }
+        this.treeActionNodes.set(input.operationId, nodeId);
+        return nodeId;
+    }
+
+    /** The Turn node an Action charges: its origin Turn, else the latest live Turn of the Session. */
+    private actionTurnNode(input: StartActionInput): Identifier | undefined {
+        if (input.originTurnId !== undefined && this.ports.budgetTree.has(input.originTurnId)) {
+            return input.originTurnId;
+        }
+        const task = this.ports.workflow.get("task", input.taskId);
+        const turns = this.ports.workflow.list("turn", task.sessionId)
+            .filter(turn => !isWorkflowTerminal(turn) && this.ports.budgetTree.has(turn.id));
+        const latest = turns[turns.length - 1];
+        return latest?.id;
+    }
+
+    private forgetTreeActionNode(nodeId: Identifier): void {
+        try {
+            this.ports.budgetTree.release(nodeId);
+        } catch {
+            /* the reservation may already be released */
+        }
+        try {
+            this.ports.budgetTree.settle(nodeId, {});
+        } catch {
+            /* the node may already be closed */
+        }
+    }
+
+    private releaseTreeActionNode(operationId: Identifier): void {
+        const nodeId = this.treeActionNodes.get(operationId);
+        if (nodeId === undefined) return;
+        this.treeActionNodes.delete(operationId);
+        this.forgetTreeActionNode(nodeId);
+    }
+
+    private settleTreeActionNode(operationId: Identifier, actual: Budget): void {
+        const nodeId = this.treeActionNodes.get(operationId);
+        if (nodeId === undefined) return;
+        this.treeActionNodes.delete(operationId);
+        try {
+            this.ports.budgetTree.settle(nodeId, actual);
+        } catch {
+            /* accounting cleanup must not turn a settled business effect into a failure */
+        }
+    }
+
+    /** `BudgetTree.onExhausted` observer: records the decision and applies the business reaction. */
+    private handleBudgetExhausted(nodeId: Identifier, dimension: BudgetDimension): void {
+        const decision = this.applyBudgetExhaustion(nodeId, dimension);
+        this.budgetDecisionList.push(decision);
+        try {
+            this.persistBudgetDecision(decision);
+        } catch {
+            /* The decision is already exposed; persistence must not replace the budget signal. */
+        }
+    }
+
+    private applyBudgetExhaustion(nodeId: Identifier, dimension: BudgetDimension): BudgetExhaustionDecision {
+        const at = this.clock();
+        const target = this.resolveBudgetTarget(nodeId);
+        if (target.scope === "turn" && target.entityId !== undefined) {
+            const previous = this.ports.workflow.find("turn", target.entityId);
+            if (previous.isEmpty()) {
+                return this.recordedDecision(nodeId, dimension, at, "node", "turn node does not address a Turn");
+            }
+            try {
+                const reaction = this.store.transaction(() => {
+                    let turn = this.ports.workflow.get("turn", target.entityId!);
+                    turn = this.driveTurnToActing(turn);
+                    if (turn.state !== "acting") {
+                        return {
+                            applied: false,
+                            previousState: turn.state,
+                            state: turn.state,
+                            message: `Turn ${turn.id} is ${turn.state}; only an acting Turn can be interrupted`,
+                        };
+                    }
+                    const interrupted = this.applyEntity(() => this.ports.services.turn.interrupt(turn.id, {
+                        expectedVersion: turn.version,
+                        actor: "kernel:budget",
+                        reason: "budget_exhausted",
+                        now: at,
+                    }));
+                    return {
+                        applied: true,
+                        previousState: "acting",
+                        state: interrupted.state,
+                        message: `Turn ${turn.id} interrupted after ${dimension} budget exhaustion`,
+                    };
+                });
+                return {
+                    scope: "turn",
+                    nodeId,
+                    entityId: target.entityId,
+                    dimension,
+                    reason: "budget_exhausted",
+                    action: reaction.applied ? "turn_interrupted" : "recorded",
+                    applied: reaction.applied,
+                    previousState: reaction.previousState,
+                    state: reaction.state,
+                    message: reaction.message,
+                    at,
+                };
+            } catch (error) {
+                return {
+                    scope: "turn",
+                    nodeId,
+                    entityId: target.entityId,
+                    dimension,
+                    reason: "budget_exhausted",
+                    action: "recorded",
+                    applied: false,
+                    message: `Turn budget exhaustion could not interrupt ${target.entityId}: ${messageOf(error)}`,
+                    at,
+                };
+            }
+        }
+        if (target.scope === "session" && target.entityId !== undefined) {
+            const session = this.ports.workflow.find("session", target.entityId);
+            if (session.isEmpty()) {
+                return this.recordedDecision(nodeId, dimension, at, "node", "session node does not address a Session");
+            }
+            if (["closing", "closed", "archived", "expired", "aborted"].includes(session.get().state)) {
+                return {
+                    scope: "session",
+                    nodeId,
+                    entityId: target.entityId,
+                    dimension,
+                    reason: "budget_exhausted",
+                    action: "recorded",
+                    applied: false,
+                    previousState: session.get().state,
+                    state: session.get().state,
+                    message: `Session ${target.entityId} is already ${session.get().state}`,
+                    at,
+                };
+            }
+            try {
+                const reaction = this.store.transaction(() => {
+                    let current = this.ports.workflow.get("session", target.entityId!);
+                    const previousState = current.state;
+                    if (current.state === "created") {
+                        current = this.applyEntity(() => this.ports.services.session.activate(current.id, {
+                            expectedVersion: current.version,
+                            actor: "kernel:budget",
+                        }));
+                    }
+                    if (current.state !== "closing") {
+                        current = this.applyEntity(() => this.ports.services.session.beginClose(current.id, {
+                            expectedVersion: current.version,
+                            actor: "kernel:budget",
+                            reason: "budget_exhausted",
+                        }));
+                    }
+                    return { previousState, state: current.state };
+                });
+                return {
+                    scope: "session",
+                    nodeId,
+                    entityId: target.entityId,
+                    dimension,
+                    reason: "budget_exhausted",
+                    action: "session_closing",
+                    applied: reaction.state === "closing",
+                    previousState: reaction.previousState,
+                    state: reaction.state,
+                    message: `Session ${target.entityId} moved to ${reaction.state} after ${dimension} budget exhaustion`,
+                    at,
+                };
+            } catch (error) {
+                return {
+                    scope: "session",
+                    nodeId,
+                    entityId: target.entityId,
+                    dimension,
+                    reason: "budget_exhausted",
+                    action: "recorded",
+                    applied: false,
+                    message: `Session budget exhaustion could not close ${target.entityId}: ${messageOf(error)}`,
+                    at,
+                };
+            }
+        }
+        return this.recordedDecision(
+            nodeId,
+            dimension,
+            at,
+            "node",
+            `budget node ${nodeId} is not mapped to a Session or Turn; decision recorded without a business reaction`,
+        );
+    }
+
+    private recordedDecision(
+        nodeId: Identifier,
+        dimension: BudgetDimension,
+        at: string,
+        scope: "node",
+        message: string,
+    ): BudgetExhaustionDecision {
+        return {
+            scope,
+            nodeId,
+            dimension,
+            reason: "budget_exhausted",
+            action: "recorded",
+            applied: false,
+            message,
+            at,
+        };
+    }
+
+    /** Resolves a budget node to the Session/Turn it exhausts by walking parent links. */
+    private resolveBudgetTarget(nodeId: Identifier): { readonly scope: "session" | "turn" | "node"; readonly entityId?: Identifier } {
+        let current = nodeId;
+        for (let depth = 0; depth < 8; depth += 1) {
+            const candidate = current.startsWith("action:")
+                ? current.slice("action:".length)
+                : current.startsWith("turn:") ? current.slice("turn:".length)
+                    : current.startsWith("session:") ? current.slice("session:".length)
+                        : current;
+            const turn = this.ports.workflow.find("turn", candidate);
+            if (turn.isPresent()) return { scope: "turn", entityId: turn.get().id };
+            const session = this.ports.workflow.find("session", candidate);
+            if (session.isPresent()) return { scope: "session", entityId: session.get().id };
+            if (!this.ports.budgetTree.has(current)) return { scope: "node" };
+            const snapshot = this.ports.budgetTree.snapshot(current);
+            if (snapshot.parentId === undefined) return { scope: "node" };
+            current = snapshot.parentId;
+        }
+        return { scope: "node" };
+    }
+
+    /** Drives a received/interpreting/resumed Turn to acting so it can be interrupted. */
+    private driveTurnToActing(turn: Turn): Turn {
+        let current = turn;
+        if (current.state === "received") {
+            current = this.applyEntity(() => this.ports.services.turn.transition(current.id, "interpreting", {
+                expectedVersion: current.version,
+                actor: "kernel:budget",
+            }));
+        }
+        if (current.state === "interpreting" || current.state === "resumed") {
+            current = this.applyEntity(() => this.ports.services.turn.act(current.id, {
+                expectedVersion: current.version,
+                actor: "kernel:budget",
+            }));
+        }
+        return current;
+    }
+
+    /** Rehydrates the decision ledger from the durable `budget_ledger` events. */
+    private restoreBudgetDecisions(): void {
+        if (this.budgetDecisionList.length > 0) return;
+        for (const record of this.store.events()) {
+            if (record.entityId !== undefined && record.entityId !== this.budgetKey) continue;
+            const payload = record.payload;
+            if (!isRecord(payload) || !isRecord(payload.data)) continue;
+            const decision = payload.data.decision;
+            if (!isRecord(decision) || decision.reason !== "budget_exhausted") continue;
+            if (typeof decision.nodeId !== "string" || typeof decision.dimension !== "string"
+                || typeof decision.scope !== "string" || typeof decision.action !== "string"
+                || typeof decision.applied !== "boolean" || typeof decision.at !== "string") continue;
+            this.budgetDecisionList.push(decision as unknown as BudgetExhaustionDecision);
+        }
+    }
+
+    private persistBudgetDecision(decision: BudgetExhaustionDecision): void {
+        const snapshot = this.ports.budget.snapshot(this.budgetKey);
+        const reservations = [...this.reservationIds]
+            .map(id => this.ports.budget.getReservation(id))
+            .filter((reservation): reservation is BudgetReservation => reservation !== undefined);
+        const version = this.budgetVersion + 1;
+        const record: BudgetLedgerRecord = {
+            budgetKey: this.budgetKey,
+            tenantId: this.tenantId,
+            version,
+            updatedAt: this.now(),
+            limit: snapshot.limit,
+            settled: snapshot.settled,
+            reserved: snapshot.reserved,
+            reservations,
+        };
+        this.store.transaction(() => {
+            this.persistence.saveEntity("budget_ledger", record, version);
+            this.persistence.append("budget_ledger.decided", this.budgetKey, {
+                entityKind: "budget_ledger",
+                entityId: this.budgetKey,
+                version,
+                data: { decision },
+            });
+        });
+        this.budgetVersion = version;
+    }
+
+    private consumeBudget(input: ConsumeBudgetInput): ConsumeBudgetResult {
+        let rethrow: BudgetError | undefined;
+        const result = this.store.transaction((): ConsumeBudgetResult => {
+            const nodeId = this.resolveBudgetNode(input);
+            if (input.turnId !== undefined && nodeId === input.turnId) {
+                const turn = this.ports.workflow.find("turn", input.turnId);
+                if (turn.isEmpty()) throw new KernelError("not_found", `turn ${input.turnId} does not exist`);
+                const acting = this.driveTurnToActing(turn.get());
+                if (acting.state !== "acting") {
+                    throw new KernelError("invalid_state", `turn ${acting.id} is ${acting.state}; budget cannot be consumed while acting`);
+                }
+            }
+            try {
+                const snapshot = input.mode === "reserve"
+                    ? this.ports.budgetTree.reserve(nodeId, input.usage)
+                    : this.ports.budgetTree.consume(nodeId, input.usage);
+                return {
+                    consumed: true,
+                    nodeId,
+                    usage: input.usage,
+                    snapshot,
+                    remaining: this.ports.budgetTree.remaining(nodeId),
+                };
+            } catch (error) {
+                if (!(error instanceof BudgetError) || error.code !== "budget_exhausted") throw error;
+                const matching = [...this.budgetDecisionList].reverse().filter(item => item.nodeId === nodeId);
+                const decision = matching.find(item => item.applied)
+                    ?? matching[0]
+                    ?? [...this.budgetDecisionList].reverse()[0];
+                if (input.throwOnExhausted === true) rethrow = error;
+                return {
+                    consumed: false,
+                    nodeId,
+                    usage: input.usage,
+                    ...(decision === undefined ? {} : { decision }),
+                    error: { code: "budget_exhausted", message: error.message },
+                };
+            }
+        });
+        if (rethrow !== undefined) throw rethrow;
+        return result;
+    }
+
+    /**
+     * A flat `BudgetLedger` refusal is propagated through the same decision
+     * path when hierarchical budgeting is enabled: the origin Turn is
+     * interrupted, or its Session starts closing.
+     */
+    private propagateLedgerExhaustion(input: StartActionInput, error: BudgetError): void {
+        if (error.code !== "budget_exhausted" && error.code !== "limit_exceeded") return;
+        if (this.budgetConfig === undefined) return;
+        const turnNode = this.actionTurnNode(input);
+        if (turnNode !== undefined) {
+            this.handleBudgetExhausted(turnNode, "calls");
+            return;
+        }
+        const sessionId = this.ports.workflow.get("task", input.taskId).sessionId;
+        this.handleBudgetExhausted(sessionId, "calls");
+    }
+
+    private resolveBudgetNode(input: ConsumeBudgetInput): Identifier {
+        const tree = this.ports.budgetTree;
+        if (input.nodeId !== undefined) {
+            if (tree.has(input.nodeId)) return input.nodeId;
+            if (input.limit !== undefined) {
+                tree.addRoot(input.nodeId, input.limit);
+                return input.nodeId;
+            }
+            throw new KernelError("invalid_input", `budget node ${input.nodeId} does not exist; pass limit to create it`);
+        }
+        if (input.turnId !== undefined) {
+            if (tree.has(input.turnId)) return input.turnId;
+            const turn = this.ports.workflow.find("turn", input.turnId);
+            if (turn.isEmpty()) throw new KernelError("not_found", `turn ${input.turnId} does not exist`);
+            const limit = input.limit ?? this.budgetConfig?.turn ?? turn.get().budget;
+            if (limit === undefined) {
+                throw new KernelError("invalid_input", `turn ${input.turnId} has no budget node; pass limit to create it`);
+            }
+            if (!tree.has(turn.get().sessionId)) {
+                tree.addRoot(turn.get().sessionId, this.budgetConfig?.session ?? unlimitedBudget());
+            }
+            tree.allocate(turn.get().sessionId, input.turnId, limit);
+            return input.turnId;
+        }
+        if (input.sessionId !== undefined) {
+            if (tree.has(input.sessionId)) return input.sessionId;
+            const session = this.ports.workflow.find("session", input.sessionId);
+            const limit = input.limit ?? this.budgetConfig?.session ?? (session.isPresent() ? session.get().budget : undefined);
+            if (limit === undefined) {
+                throw new KernelError("invalid_input", `session ${input.sessionId} has no budget node; pass limit to create it`);
+            }
+            tree.addRoot(input.sessionId, limit);
+            return input.sessionId;
+        }
+        throw new KernelError("invalid_input", "consumeBudget requires nodeId, turnId or sessionId");
     }
 
     /* -------------------------------------------------------------- */
@@ -597,7 +1178,11 @@ class KernelImpl implements Kernel {
 
     private startSession(input: StartSessionInput): Session {
         const existing = this.ports.workflow.find("session", input.sessionId);
-        if (existing.isPresent()) return existing.get();
+        if (existing.isPresent()) {
+            this.ensureSessionBudgetNode(input.sessionId, input.budget);
+            return existing.get();
+        }
+        this.ensureSessionBudgetNode(input.sessionId, input.budget);
         const actor = this.actorOf(input);
         const created = this.applyEntity(() => this.ports.services.session.create({
             id: input.sessionId,
@@ -605,6 +1190,7 @@ class KernelImpl implements Kernel {
             participants: [...(input.participants ?? [])],
             ...(input.sessionType === undefined ? {} : { sessionType: input.sessionType }),
             ...(input.expiresAt === undefined ? {} : { expiresAt: input.expiresAt }),
+            ...(input.budget === undefined ? {} : { budget: input.budget }),
         }, actor));
         if (input.activate === false) return created;
         return this.applyEntity(() => this.ports.services.session.activate(created.id, {
@@ -618,10 +1204,12 @@ class KernelImpl implements Kernel {
         if (existing.isPresent()) return existing.get();
         const actor = this.actorOf(input);
         const sessionId = this.resolveSessionId(input.sessionId);
+        this.allocateTurnBudget(sessionId, input.turnId, input.budget);
         const turn = this.applyEntity(() => this.ports.services.turn.create({
             id: input.turnId,
             sessionId,
             classification: input.classification ?? "new_intent",
+            ...(input.budget === undefined ? {} : { budget: input.budget }),
         }, actor));
         if (input.interpret === false) return turn;
         return this.applyEntity(() => this.ports.services.turn.interpret(turn.id, {
@@ -905,7 +1493,22 @@ class KernelImpl implements Kernel {
             throw new KernelError("duplicate", `attempt ${attemptId} already exists`);
         }
         const executor: KernelExecutorPort | undefined = input.executor ?? this.ports.executor;
-        const reservation = this.reserveBudget(input.operationId, input.budget ?? { calls: 1 });
+        let reservation: BudgetReservation;
+        try {
+            reservation = this.reserveBudget(input.operationId, input.budget ?? { calls: 1 });
+        } catch (error) {
+            if (error instanceof BudgetError) this.propagateLedgerExhaustion(input, error);
+            throw error;
+        }
+        try {
+            // The Action node is allocated from the Turn node. A refusal fires
+            // the tree observer (Turn -> interrupted) and reaches the caller as
+            // the stable `budget_exhausted` error after the reservation is freed.
+            this.allocateActionBudget(input, attemptId);
+        } catch (error) {
+            this.releaseBudget(input.operationId);
+            throw error;
+        }
         if (input.authorize !== undefined) {
             try {
                 await this.authorizeAction(input, task, attemptId, executionId);
@@ -1650,6 +2253,712 @@ class KernelImpl implements Kernel {
             });
         });
         return { compiled, checkpoint, attention: objects };
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Project orchestration                                          */
+    /* -------------------------------------------------------------- */
+
+    private describeProject(): DescribeProjectResult {
+        const project = this.ports.project;
+        const plan = project.environmentPlan();
+        return {
+            tenantId: this.tenantId,
+            rootId: this.rootId,
+            ...(project.kind === undefined ? {} : { kind: project.kind }),
+            environment: project.environment,
+            variables: project.environment.variables,
+            paths: project.environment.paths,
+            dependencies: project.environment.dependencies,
+            environmentVersion: project.environmentVersion,
+            plan,
+            description: project.describeEnvironment(),
+            rules: project.listRules(),
+            metadata: project.listMetadata(),
+            views: project.listViews(),
+            ready: plan.ready,
+        };
+    }
+
+    /**
+     * Applies environment/rule/metadata edits through the `Project` API and
+     * mirrors them into `project_environment` / `project_rule` (and metadata)
+     * inside one store transaction. Unchanged input is an idempotent no-op.
+     */
+    private configureProject(patch: ConfigureProjectPatch): ConfigureProjectResult {
+        const raw: unknown = patch;
+        const directEnvironment = isEnvironmentPatchInput(raw);
+        const input: ConfigureProjectInput = directEnvironment ? { environment: raw as EnvironmentPatch } : patch as ConfigureProjectInput;
+        const environmentPatch = directEnvironment
+            ? raw as EnvironmentPatch
+            : input.environment ?? input.patch ?? this.topLevelEnvironmentPatch(raw);
+        const project = this.ports.project;
+        const expectedEnvironmentVersion = input.expectedEnvironmentVersion ?? input.expectedVersion;
+
+        if (expectedEnvironmentVersion !== undefined
+            && expectedEnvironmentVersion !== project.environmentVersion) {
+            throw new KernelError(
+                "version_conflict",
+                `project environment expected version ${expectedEnvironmentVersion}, current ${project.environmentVersion}`,
+            );
+        }
+
+        if (environmentPatch !== undefined) {
+            try {
+                validateEnvironment(mergeEnvironment(project.environment, environmentPatch));
+            } catch (error) {
+                throw new KernelError("invalid_project", `invalid project environment patch: ${messageOf(error)}`, error);
+            }
+        }
+
+        const changedRules: KernelProjectRuleInput[] = [];
+        const seenRules = new Set<string>();
+        for (const rule of input.rules ?? []) {
+            if (typeof rule?.id !== "string" || rule.id.trim() === "" || typeof rule.text !== "string" || rule.text === "") {
+                throw new KernelError("invalid_input", "project rules require a non-empty id and text");
+            }
+            if (seenRules.has(rule.id)) throw new KernelError("invalid_input", `duplicate project rule ${rule.id}`);
+            seenRules.add(rule.id);
+            const existing = project.getRule(rule.id);
+            if (rule.expectedVersion !== undefined) {
+                if (existing === undefined || existing.version !== rule.expectedVersion) {
+                    throw new KernelError(
+                        "version_conflict",
+                        `project rule ${rule.id} expected version ${rule.expectedVersion}, current ${existing?.version ?? "missing"}`,
+                    );
+                }
+            }
+            if (existing === undefined || existing.text !== rule.text || existing.source !== rule.source) {
+                changedRules.push(rule);
+            }
+        }
+
+        const changedMetadata: KernelProjectMetadataInput[] = [];
+        const seenMetadata = new Set<string>();
+        for (const entry of input.metadata ?? []) {
+            if (typeof entry?.path !== "string" || entry.path.trim() === "") {
+                throw new KernelError("invalid_input", "project metadata requires a non-empty path");
+            }
+            if (seenMetadata.has(entry.path)) throw new KernelError("invalid_input", `duplicate project metadata ${entry.path}`);
+            seenMetadata.add(entry.path);
+            const existing = project.getMetadata(entry.path);
+            if (entry.expectedVersion !== undefined) {
+                if (existing === undefined || existing.version !== entry.expectedVersion) {
+                    throw new KernelError(
+                        "version_conflict",
+                        `project metadata ${entry.path} expected version ${entry.expectedVersion}, current ${existing?.version ?? "missing"}`,
+                    );
+                }
+            }
+            const tags = [...(entry.tags ?? [])];
+            const ruleIds = [...(entry.ruleIds ?? [])];
+            const unchanged = existing !== undefined
+                && existing.kind === entry.kind
+                && stableJson(existing.tags) === stableJson(tags)
+                && stableJson(existing.ruleIds) === stableJson(ruleIds);
+            if (!unchanged) changedMetadata.push(entry);
+        }
+
+        const nextEnvironment = environmentPatch === undefined
+            ? undefined
+            : mergeEnvironment(project.environment, environmentPatch);
+        const environmentChanged = nextEnvironment !== undefined
+            && stableJson(nextEnvironment) !== stableJson(project.environment);
+
+        if (changedRules.length === 0 && changedMetadata.length === 0 && !environmentChanged) {
+            const described = this.describeProject();
+            return {
+                ...described,
+                applied: false,
+                environmentChanged: false,
+                rulesChanged: [],
+                metadataChanged: [],
+                events: [],
+            };
+        }
+
+        const before = this.store.events().length;
+        try {
+            this.store.transaction(() => {
+                for (const rule of changedRules) {
+                    this.projectBinding.putRule({
+                        id: rule.id,
+                        tenantId: this.tenantId,
+                        rootId: this.rootId,
+                        text: rule.text,
+                        ...(rule.source === undefined ? {} : { source: rule.source }),
+                        ...(rule.expectedVersion === undefined ? {} : { expectedVersion: rule.expectedVersion }),
+                    });
+                }
+                for (const entry of changedMetadata) {
+                    this.projectBinding.putMetadata({
+                        path: entry.path,
+                        tenantId: this.tenantId,
+                        rootId: this.rootId,
+                        ...(entry.kind === undefined ? {} : { kind: entry.kind }),
+                        tags: [...(entry.tags ?? [])],
+                        ruleIds: [...(entry.ruleIds ?? [])],
+                        ...(entry.expectedVersion === undefined ? {} : { expectedVersion: entry.expectedVersion }),
+                    });
+                }
+                if (environmentChanged && environmentPatch !== undefined) {
+                    this.projectBinding.configureEnvironment(environmentPatch, {
+                        ...(expectedEnvironmentVersion === undefined
+                            ? {}
+                            : { expectedVersion: expectedEnvironmentVersion }),
+                    });
+                }
+            });
+        } catch (error) {
+            this.restoreProjectAfterRollback();
+            throw error;
+        }
+        const events = this.store.events().slice(before).map(event => event.kind);
+        const described = this.describeProject();
+        return {
+            ...described,
+            applied: true,
+            environmentChanged,
+            rulesChanged: changedRules.map(rule => rule.id),
+            metadataChanged: changedMetadata.map(entry => entry.path),
+            events,
+        };
+    }
+
+    /** Extracts environment keys from a configuration object that also carries rules. */
+    private topLevelEnvironmentPatch(value: unknown): EnvironmentPatch | undefined {
+        if (!isRecord(value)) return undefined;
+        const { variables, paths, dependencies } = value;
+        if (variables === undefined && paths === undefined && dependencies === undefined) return undefined;
+        return {
+            ...(variables === undefined ? {} : { variables: variables as Readonly<Record<string, string>> }),
+            ...(paths === undefined ? {} : { paths: paths as readonly string[] }),
+            ...(dependencies === undefined ? {} : { dependencies: dependencies as EnvironmentPatch["dependencies"] }),
+        };
+    }
+
+    /**
+     * Rewinds the in-memory Project to the durable rows after a failed
+     * transaction. The kernel-owned Project is rebuilt from its construction
+     * options and rehydrated; a host-supplied instance is rehydrated in place.
+     */
+    private restoreProjectAfterRollback(): void {
+        try {
+            if (!this.ownsProject) {
+                this.projectBinding.rehydrate();
+                return;
+            }
+            const project = new Project({
+                ...(this.projectOptions ?? {}),
+                tenantId: this.tenantId,
+                rootId: this.rootId,
+                clock: this.clock,
+            });
+            const binding = bindProject(this.store, project);
+            binding.rehydrate();
+            this.ports = { ...this.ports, project };
+            this.projectBinding = binding;
+        } catch {
+            /* Preserve the original operation failure; the next read still sees the store. */
+        }
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Workspace file orchestration                                   */
+    /* -------------------------------------------------------------- */
+
+    private openWorkspaceFile(pathOrInput: Identifier | OpenWorkspaceFileInput, mode?: WorkspaceMode): OpenedWorkspaceFile {
+        const input: OpenWorkspaceFileInput = typeof pathOrInput === "string"
+            ? { path: pathOrInput, ...(mode === undefined ? {} : { mode }) }
+            : pathOrInput;
+        const requested = input.mode ?? "read-only";
+        return this.store.transaction(() => {
+            const mounted = this.mountWorkspaceFile(input.path, requested, true, input.sessionId, input.turnId);
+            return mounted.result;
+        });
+    }
+
+    private readFile(pathOrInput: Identifier | ReadFileInput, options: ReadFileOptions | FileRange = {}): ReadFileResult {
+        const input: ReadFileInput = typeof pathOrInput !== "string"
+            ? pathOrInput
+            : isFileRange(options)
+                ? { path: pathOrInput, range: options }
+                : { path: pathOrInput, ...(options as ReadFileOptions) };
+        const mounted = this.store.transaction(() => this.mountWorkspaceFile(
+            input.path,
+            input.mode ?? "read-only",
+            false,
+            input.sessionId,
+            input.turnId,
+        ));
+        const file = mounted.file;
+        const content = file.read(input.range, input.allowStale === true ? { allowStale: true } : {});
+        const snapshot = file.snapshot();
+        return {
+            ...snapshot,
+            content,
+            text: content,
+            snapshot,
+            opened: mounted.opened,
+            ...(mounted.mountReceipt === undefined ? {} : { mountReceipt: mounted.mountReceipt }),
+        };
+    }
+
+    private writeFile(
+        pathOrInput: Identifier | WriteFileInput,
+        contentOrOptions?: string | WriteFileOptions,
+        options: WriteFileOptions = {},
+    ): WriteFileResult {
+        const input = this.normalizeWriteInput(pathOrInput, contentOrOptions, options);
+        if (input.mode === "read-only") {
+            throw new KernelError("read_only", `writeFile cannot write ${input.path} in read-only mode`);
+        }
+        const mounted = this.mountWorkspaceFile(input.path, "writable", false, input.sessionId, input.turnId);
+        const file = mounted.file;
+        const sessionId = input.sessionId;
+        const turnId = input.turnId;
+        try {
+            return this.store.transaction(() => {
+                const before = file.snapshot();
+                const editOptions = {
+                    ...(input.expectedBufferVersion === undefined ? {} : { expectedBufferVersion: input.expectedBufferVersion }),
+                    ...(input.expectedBaseHash === undefined ? {} : { expectedBaseHash: input.expectedBaseHash }),
+                };
+                file.write(input.content, input.target, editOptions);
+                const flushed = file.flush(input.idempotencyKey === undefined ? {} : { idempotencyKey: input.idempotencyKey });
+                const receipt = this.fileOperationReceipt("flush", input.path, flushed);
+                const record = this.recordFileOperation("flush", receipt, sessionId, turnId);
+                const receipts = mounted.mountReceipt === undefined
+                    ? [receipt]
+                    : [mounted.mountReceipt, receipt];
+                const changed = before.baseHash !== flushed.baseHash || before.bufferVersion !== flushed.bufferVersion;
+                return {
+                    ...flushed,
+                    content: input.content,
+                    snapshot: flushed,
+                    receipt,
+                    receipts,
+                    receiptRecord: record.receipt,
+                    receiptKind: FILE_RECEIPT_KIND.flush,
+                    evidence: record.evidence,
+                    verification: record.verification,
+                    integrity: record.integrity,
+                    idempotent: !record.created,
+                    changed,
+                };
+            });
+        } catch (error) {
+            if (file.dirty) {
+                try {
+                    file.reload({ discardDirty: true });
+                } catch {
+                    /* the durable base may already have moved */
+                }
+            }
+            throw error;
+        }
+    }
+
+    private closeWorkspaceFile(pathOrInput: Identifier | CloseWorkspaceFileInput): CloseWorkspaceFileResult {
+        const input: CloseWorkspaceFileInput = typeof pathOrInput === "string" ? { path: pathOrInput } : pathOrInput;
+        return this.closeWorkspaceFileInternal(input);
+    }
+
+    private closeWorkspaceFileInternal(input: CloseWorkspaceFileInput): CloseWorkspaceFileResult {
+        const file = this.openFiles.get(input.path);
+        if (file === undefined) return { path: input.path, closed: false };
+        const snapshot = file.snapshot();
+        let receipt: FileOperationReceipt | undefined;
+        let record: FileOperationRecord | undefined;
+        try {
+            this.store.transaction(() => {
+                file.unmount({ discardDirty: input.discardDirty === true });
+                receipt = this.fileOperationReceipt("unmount", input.path, snapshot);
+                record = this.recordFileOperation("unmount", receipt, input.sessionId, input.turnId);
+            });
+        } catch (error) {
+            // The file itself may already be unmounted even when its receipt
+            // could not be committed; drop the stale handle so a retry remounts.
+            if (file.state === "unmounted") {
+                this.openFiles.delete(input.path);
+                this.openFileResults.delete(input.path);
+                this.lockedReadOnlyFiles.delete(input.path);
+            }
+            throw error;
+        }
+        this.openFiles.delete(input.path);
+        this.openFileResults.delete(input.path);
+        this.lockedReadOnlyFiles.delete(input.path);
+        return {
+            path: input.path,
+            closed: true,
+            snapshot,
+            ...(receipt === undefined ? {} : { receipt }),
+            ...(record === undefined
+                ? {}
+                : {
+                    receiptRecord: record.receipt,
+                    receiptKind: FILE_RECEIPT_KIND.unmount,
+                    evidence: record.evidence,
+                }),
+        };
+    }
+
+    private normalizeWriteInput(
+        pathOrInput: Identifier | WriteFileInput,
+        contentOrOptions: string | WriteFileOptions | undefined,
+        options: WriteFileOptions,
+    ): WriteFileInput {
+        if (typeof pathOrInput !== "string") return pathOrInput;
+        if (typeof contentOrOptions === "string") {
+            return { path: pathOrInput, content: contentOrOptions, ...options };
+        }
+        if (isRecord(contentOrOptions) && typeof contentOrOptions.content === "string") {
+            return { ...contentOrOptions, path: pathOrInput, ...options } as WriteFileInput;
+        }
+        return { path: pathOrInput, content: "", ...options };
+    }
+
+    /**
+     * Mounts and activates a file. Existing handles are reused; a read-only
+     * auto-mount may be upgraded for a write, an explicitly opened read-only
+     * file may not. A mount receipt is recorded exactly once per mount.
+     */
+    private mountWorkspaceFile(
+        path: Identifier,
+        mode: WorkspaceMode,
+        explicit: boolean,
+        sessionId?: Identifier,
+        turnId?: Identifier,
+    ): { readonly file: WorkspaceFile; readonly result: OpenedWorkspaceFile; readonly opened: boolean; readonly mountReceipt?: FileOperationReceipt } {
+        if (mode === "writable" && this.lockedReadOnlyFiles.has(path)) {
+            throw new KernelError("read_only", `file ${path} was opened read-only and cannot be written`);
+        }
+        const existing = this.openFiles.get(path);
+        if (existing !== undefined) {
+            if (mode === "writable" && existing.mode !== "writable") {
+                this.unmountForUpgrade(path, existing);
+            } else {
+                const result = this.openFileResults.get(path);
+                if (result !== undefined) {
+                    if (explicit && mode === "read-only") this.lockedReadOnlyFiles.add(path);
+                    const snapshot = existing.snapshot();
+                    return {
+                        file: existing,
+                        result: {
+                            ...result,
+                            ...snapshot,
+                            snapshot,
+                            mode: mode === "read-only" ? "read-only" : snapshot.mode,
+                            idempotent: true,
+                        },
+                        opened: false,
+                    };
+                }
+            }
+        }
+        // Validate the path through the workspace before touching storage.
+        this.ports.workspace.file(path, { mode });
+        if (mode === "writable") this.ensureWritableSource(path);
+        const file = this.ports.workspace.file(path, { mode });
+        try {
+            file.mount();
+            file.activate();
+        } catch (error) {
+            try {
+                if (file.state !== "unmounted") file.unmount({ discardDirty: true });
+            } catch {
+                /* preserve the mount failure */
+            }
+            throw error;
+        }
+        const snapshot = file.snapshot();
+        const receipt = this.fileOperationReceipt("mount", path, snapshot);
+        let record: FileOperationRecord;
+        try {
+            record = this.store.transaction(() => this.recordFileOperation("mount", receipt, sessionId, turnId));
+        } catch (error) {
+            try {
+                file.unmount({ discardDirty: true });
+            } catch {
+                /* preserve the receipt failure */
+            }
+            throw error;
+        }
+        const result: OpenedWorkspaceFile = {
+            ...snapshot,
+            snapshot,
+            file,
+            handle: file,
+            receipt,
+            receiptRecord: record.receipt,
+            receiptKind: FILE_RECEIPT_KIND.mount,
+            evidence: record.evidence,
+            idempotent: false,
+        };
+        this.openFiles.set(path, file);
+        this.openFileResults.set(path, result);
+        if (explicit && mode === "read-only") this.lockedReadOnlyFiles.add(path);
+        else if (mode === "writable") this.lockedReadOnlyFiles.delete(path);
+        return { file, result, opened: true, mountReceipt: receipt };
+    }
+
+    /** Re-mounts a non-locked read-only handle as writable, recording the unmount. */
+    private unmountForUpgrade(path: Identifier, file: WorkspaceFile): void {
+        if (file.dirty) throw new KernelError("dirty", `file ${path} has uncommitted changes`);
+        const snapshot = file.snapshot();
+        try {
+            this.store.transaction(() => {
+                file.unmount();
+                const receipt = this.fileOperationReceipt("unmount", path, snapshot);
+                this.recordFileOperation("unmount", receipt, undefined, undefined);
+            });
+        } catch (error) {
+            if (file.state === "unmounted") {
+                this.openFiles.delete(path);
+                this.openFileResults.delete(path);
+                this.lockedReadOnlyFiles.delete(path);
+            }
+            throw error;
+        }
+        this.openFiles.delete(path);
+        this.openFileResults.delete(path);
+        this.lockedReadOnlyFiles.delete(path);
+    }
+
+    /** Host-side creation hook used only when a writable open targets a missing file. */
+    private ensureWritableSource(path: Identifier): void {
+        const ref: FileRef = { tenantId: this.tenantId, rootId: this.rootId, path };
+        try {
+            if (this.ports.workspace.storage.read(ref) !== undefined) return;
+        } catch (error) {
+            if (error instanceof WorkspaceError && error.code === "binary_file") return;
+        }
+        const storage = this.ports.workspace.storage as unknown as {
+            put?: (value: FileRef, content: string) => unknown;
+        };
+        if (typeof storage.put === "function") storage.put(ref, "");
+    }
+
+    private fileOperationReceipt(kind: FileOperationKind, path: Identifier, snapshot: FileSnapshot): FileOperationReceipt {
+        const workspace = this.ports.workspace;
+        return Object.freeze({
+            tenantId: workspace.tenantId,
+            rootId: workspace.rootId,
+            path,
+            kind,
+            version: snapshot.version,
+            hash: snapshot.baseHash,
+            at: this.clock(),
+            workspaceAnchor: Object.freeze({ tenantId: workspace.tenantId, rootId: workspace.rootId }),
+        });
+    }
+
+    /**
+     * Records one `FileOperationReceipt` as a full receipt/verification/
+     * evidence chain. The deterministic identity (`kind + path + version +
+     * hash`) makes a replay return the existing chain instead of duplicating it.
+     */
+    private recordFileOperation(
+        kind: FileOperationKind,
+        operation: FileOperationReceipt,
+        sessionId?: Identifier,
+        turnId?: Identifier,
+    ): FileOperationRecord {
+        const ref: FileRef = { tenantId: this.tenantId, rootId: this.rootId, path: operation.path };
+        const receiptId = fileReceiptId(kind, ref, operation.version, operation.hash);
+        const claim = fileClaim(kind, operation.path);
+        const criteriaVersion = "kernel/file/1";
+        const existing = this.receiptById(receiptId);
+        const contextSession = sessionId ?? this.currentSessionId();
+        let created = false;
+        let receipt: ReceiptCore;
+        if (existing === undefined) {
+            const invocationId = `invocation:${receiptId}`;
+            const invocation = this.ports.receipt.createInvocation({
+                id: invocationId,
+                context: this.executionContext({
+                    sessionId: contextSession,
+                    ...(turnId === undefined ? {} : { observedInTurnId: turnId }),
+                    operationId: receiptId,
+                    attemptId: `${receiptId}:attempt:1`,
+                    executionId: receiptId,
+                    cancellationEpoch: 0,
+                    agentId: "kernel:file",
+                }),
+                toolId: `kernel.file.${kind}`,
+                arguments: {
+                    path: operation.path,
+                    mode: kind,
+                    version: operation.version,
+                    hash: operation.hash,
+                } as unknown as JsonValue,
+                createdAt: this.clock(),
+            });
+            const observation = this.ports.receipt.createObservation({
+                id: `${invocationId}:observation`,
+                invocationId,
+                status: "success",
+                value: {
+                    path: operation.path,
+                    kind,
+                    version: operation.version,
+                    hash: operation.hash,
+                    workspace: operation.workspaceAnchor,
+                } as unknown as JsonValue,
+                observedAt: this.clock(),
+            });
+            receipt = this.ports.receipt.createReceiptCore({
+                id: receiptId,
+                invocation,
+                observation,
+                issuedAt: this.clock(),
+                payloadDigest: this.receiptDigest(invocation, observation),
+                hashAlgorithm: "sha256",
+                kind: FILE_RECEIPT_KIND[kind],
+                sessionId: contextSession,
+                ...(turnId === undefined ? {} : { turnId }),
+                workspaceAnchor: {
+                    workspaceId: this.ports.workspace.rootId,
+                    affectedFiles: [operation.path],
+                    ...(operation.hash === "" ? {} : { changeHash: operation.hash }),
+                },
+            });
+            created = true;
+        } else {
+            receipt = existing;
+        }
+
+        let integrity = this.integrityForReceipt(receipt.id);
+        let integrityCreated = false;
+        if (integrity === undefined) {
+            integrity = Object.freeze({
+                id: fileIntegrityId(receipt.id),
+                receiptId: receipt.id,
+                status: "integrity_verified" as const,
+                digestValid: true,
+                signatureValid: "not_checked" as const,
+                verifier: "kernel:file",
+                verifiedAt: this.clock(),
+                reasons: Object.freeze([] as string[]),
+            });
+            integrityCreated = true;
+        }
+        let verification = this.verificationById(fileVerificationId(receipt.id));
+        let verificationCreated = false;
+        if (verification === undefined) {
+            verification = Object.freeze({
+                id: fileVerificationId(receipt.id),
+                observationId: receipt.observation.id,
+                receiptId: receipt.id,
+                status: "semantic_verified" as const,
+                claims: Object.freeze([claim]),
+                criteriaVersion,
+                verifier: "kernel:file",
+                verifiedAt: this.clock(),
+            });
+            verificationCreated = true;
+        }
+        const evidenceId = fileEvidenceId(receipt.id);
+        let evidence = this.evidenceById(evidenceId);
+        const evidenceCreated = evidence === undefined;
+        if (created || integrityCreated || verificationCreated || evidenceCreated) {
+            this.store.transaction(() => {
+                if (created) {
+                    this.persistence.saveEntity("receipt", receipt, 1, receipt.sessionId);
+                    this.persistence.append("receipt.issued", receipt.id, {
+                        entityKind: "receipt",
+                        entityId: receipt.id,
+                        data: {
+                            receiptId: receipt.id,
+                            kind: receipt.kind,
+                            fileKind: kind,
+                            path: operation.path,
+                            version: operation.version,
+                            hash: operation.hash,
+                        },
+                    });
+                }
+                if (integrityCreated) {
+                    this.persistence.saveEntity("receipt_integrity", integrity, 1, receipt.sessionId);
+                    this.persistence.append("receipt.integrity_verified", integrity.id, {
+                        entityKind: "receipt_integrity",
+                        entityId: integrity.id,
+                        data: { receiptId: receipt.id, status: integrity.status },
+                    });
+                }
+                if (verificationCreated) {
+                    this.persistence.saveEntity("verification", verification, 1, receipt.sessionId);
+                    this.persistence.append("verification.business", verification.id, {
+                        entityKind: "verification",
+                        entityId: verification.id,
+                        data: {
+                            verificationId: verification.id,
+                            receiptId: receipt.id,
+                            status: verification.status,
+                            criteriaVersion,
+                        },
+                    });
+                }
+                if (evidenceCreated) {
+                    try {
+                        evidence = this.ports.evidence.add({
+                            id: evidenceId,
+                            tenantId: this.tenantId,
+                            claim,
+                            polarity: "supports",
+                            receipt,
+                            integrity,
+                            verification,
+                            criteriaVersion,
+                            environmentVersion: "kernel/1",
+                            createdAt: this.clock(),
+                            source: {
+                                type: "operation_history",
+                                reliability: 1,
+                                origin: "original",
+                                reproducible: true,
+                                independenceKey: receipt.id,
+                            },
+                            level: "action",
+                            ...((sessionId ?? receipt.sessionId) === undefined ? {} : { sessionId: sessionId ?? receipt.sessionId }),
+                            ...((turnId ?? receipt.turnId) === undefined ? {} : { turnId: turnId ?? receipt.turnId }),
+                        });
+                    } catch (error) {
+                        throw new KernelError("evidence_error", `cannot record ${kind} receipt ${receipt.id}: ${messageOf(error)}`, error);
+                    }
+                    this.persistence.saveEntity("evidence", evidence, 1, evidence.sessionId);
+                    this.persistence.append("evidence.added", evidence.id, {
+                        entityKind: "evidence",
+                        entityId: evidence.id,
+                        data: {
+                            evidenceId: evidence.id,
+                            receiptId: evidence.receiptId,
+                            verificationId: evidence.verificationId,
+                            claim: evidence.claim,
+                            level: evidence.level,
+                        },
+                    });
+                }
+            });
+        }
+        if (evidence === undefined) {
+            // The receipt existed but its evidence chain was removed; surface the
+            // inconsistency instead of returning an incomplete record.
+            throw new KernelError("evidence_error", `file receipt ${receipt.id} has no evidence chain`);
+        }
+        this.receiptCache.set(receipt.id, receipt);
+        this.integrityCache.set(integrity.id, integrity);
+        this.verificationCache.set(verification.id, verification);
+        this.evidenceCache.set(evidence.id, evidence);
+        return { receipt, integrity, verification, evidence, created };
+    }
+
+    /** A real active/idle Session when one exists, otherwise a workspace-scoped identity. */
+    private currentSessionId(): Identifier {
+        const sessions = this.ports.workflow.list("session").filter(session => session.state === "active" || session.state === "idle");
+        const latest = sessions[sessions.length - 1];
+        return latest?.id ?? `workspace:${this.rootId}`;
     }
 
     /* -------------------------------------------------------------- */

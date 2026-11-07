@@ -26,7 +26,10 @@ function optionalString(value: SqlValue): string | undefined {
 }
 
 function serializePayload(payload: unknown): string {
-    return safeStringify(payload);
+    // Persisted payloads must be acyclic and de-duplicated by contract; the
+    // explicit `filterShared` flag registers that lossy dependency rather than
+    // relying on the serializer's incidental library behavior.
+    return safeStringify(payload, { filterShared: true });
 }
 
 function parsePayload(value: SqlValue): unknown {

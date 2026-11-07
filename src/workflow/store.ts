@@ -14,6 +14,28 @@ const requireGuard = (condition: boolean, message: string): void => {
     if (!condition) throw new WorkflowError("guard_rejected", message);
 };
 
+/** Command input for `WorkflowStore.cancelCascade`. */
+export interface CancelCascadeOptions {
+    readonly actor: Identifier;
+    readonly reason?: string;
+}
+/** One entity observed at a terminal state and therefore not retransitioned. */
+export interface CancelCascadeTarget {
+    readonly kind: WorkflowKind;
+    readonly id: Identifier;
+    readonly state: string;
+}
+/** Facts recorded by one Intent → Action cancellation propagation. */
+export interface CancelCascadeResult {
+    readonly intentId: Identifier;
+    readonly cancellationEpoch: number;
+    /** True when the Intent (or its Mission) was already settled; nothing changed. */
+    readonly repeated: boolean;
+    readonly updated: readonly WorkflowEntity[];
+    /** Terminal entities left untouched, proving cancellation is not replayed. */
+    readonly terminal: readonly CancelCascadeTarget[];
+}
+
 /** Single synchronous writer. Returned snapshots cannot mutate stored facts.
  * This kernel performs no IO and does not grant permissions or reserve budgets;
  * the host must perform PDP/ledger checks before invoking its command port.
@@ -128,6 +150,63 @@ export class WorkflowStore {
             }
         }
         return this.get(kind, id);
+    }
+
+    /**
+     * Cancellation propagation from Intent down the business chain (refract §4.9):
+     * Intent is superseded, then Mission → Goal → Plan → Task → Action are fenced
+     * with one new `cancellationEpoch`. Cancellable states move to
+     * `cancel_requested`; other unresolved states keep their state but receive the
+     * epoch fence. Graph-terminal entities are never retransitioned, so a repeated
+     * call after the Intent is superseded is a no-op that reports `repeated: true`.
+     */
+    cancelCascade(intentId: Identifier, options: CancelCascadeOptions): CancelCascadeResult {
+        requireGuard(Boolean(options?.actor), "Actor is required");
+        const intent = this.get("intent", intentId);
+        const mission = this.list("mission").find(candidate => candidate.intentId === intentId);
+        if (intent.state === "superseded" || (mission !== undefined && isWorkflowTerminal(mission))) {
+            return Object.freeze({
+                intentId,
+                cancellationEpoch: intent.cancellationEpoch,
+                repeated: true,
+                updated: Object.freeze([]),
+                terminal: Object.freeze(mission === undefined ? [] : [{ kind: mission.kind, id: mission.id, state: mission.state }]),
+            });
+        }
+        const epoch = ++this.epoch;
+        const updated: WorkflowEntity[] = [];
+        const terminal: CancelCascadeTarget[] = [];
+        const supersede = () => {
+            requireGuard((workflowTransitions.intent[intent.state] ?? []).includes("superseded"), `Intent ${intent.state} cannot be superseded`);
+            updated.push(this.update(intent, "superseded", options.actor, "cancel.intent_superseded", options.reason, { cancellationEpoch: epoch }));
+        };
+        supersede();
+        if (mission !== undefined) {
+            const goals = this.list("goal").filter(goal => goal.missionId === mission.id);
+            const plans = goals.flatMap(goal => this.list("plan").filter(plan => plan.goalId === goal.id));
+            const tasks = plans.flatMap(plan => this.list("task").filter(task => task.planId === plan.id));
+            const actions = tasks.flatMap(task => this.list("action").filter(action => action.taskId === task.id));
+            for (const entity of [mission, ...goals, ...plans, ...tasks, ...actions]) {
+                if (isWorkflowTerminal(entity)) {
+                    terminal.push(Object.freeze({ kind: entity.kind, id: entity.id, state: entity.state }));
+                    continue;
+                }
+                const edges = workflowTransitions[entity.kind][entity.state] ?? [];
+                if (edges.includes("cancel_requested")) {
+                    updated.push(this.update(entity, "cancel_requested", options.actor, "cancel.requested", options.reason, { cancellationEpoch: epoch }));
+                } else {
+                    // Running/retrying/paused work that has no cancellation edge is fenced but not mislabeled.
+                    updated.push(this.update(entity, entity.state, options.actor, "cancel.fenced", options.reason, { cancellationEpoch: epoch }));
+                }
+            }
+        }
+        return Object.freeze({
+            intentId,
+            cancellationEpoch: epoch,
+            repeated: false,
+            updated: Object.freeze(updated),
+            terminal: Object.freeze(terminal),
+        });
     }
 
     /** Commit gate: call again at the external adapter's final side-effect boundary. */

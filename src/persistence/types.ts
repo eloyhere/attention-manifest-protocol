@@ -109,7 +109,13 @@ export interface RestoreReport {
      * Facts that could not be restored faithfully: entity keys (`kind:id`) with
      * corrupt/incomplete rows or missing parents, attempt keys (`attempt:<id>`)
      * that an action references but whose `action_attempt` row is missing, and
-     * event keys (`event:<sequence>`) with malformed workflow payloads.
+     * event keys with malformed workflow payloads (`event:<sequence>`).
+     *
+     * An event whose audit metadata had to fall back is reported as
+     * `event:<sequence>:legacy_actor` (no persisted actor),
+     * `event:<sequence>:legacy_epoch` (no persisted cancellation epoch) or
+     * `event:<sequence>:epoch_mismatch` (a stored epoch that disagreed with the
+     * entity/chain and was reconciled), never silently.
      */
     readonly skipped: readonly string[];
     /** Number of workflow events restored into the snapshot. */

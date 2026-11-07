@@ -143,6 +143,31 @@ export interface FlushOptions {
 /** One resolved region, in document coordinates. */
 export interface EditMatch extends Range {
     readonly text: string;
+    /**
+     * Verification of the outline node, present only when the match came from
+     * an `outline` target. A legacy provider entry without a version hash is
+     * downgraded to `verification: "range"` and marked `legacy: true`.
+     */
+    readonly outline?: OutlineTargetVerification;
+}
+
+/**
+ * How an `outline` target's node version was checked before its range was used.
+ *
+ * `hash` means the provider entry carried a `versionHash` that matched the
+ * current buffer; a mismatch is rejected as `version_conflict` and this value is
+ * never produced. `range` means the entry is from a legacy provider without a
+ * hash, so only the byte range was validated. The marker lets a host see that
+ * the stronger node-level check did not run.
+ */
+export interface OutlineTargetVerification {
+    /** Outline node id the target addressed. */
+    readonly id: string;
+    /** Version hash carried by the provider entry; absent on legacy entries. */
+    readonly versionHash?: string;
+    readonly verification: "hash" | "range";
+    /** True exactly when the entry carried no version hash. */
+    readonly legacy: boolean;
 }
 
 /** Dry-run result: the text that `write`/`replace` would produce and the regions it targets. */
@@ -153,6 +178,8 @@ export interface EditPlan {
     readonly text: string;
     readonly changed: boolean;
     readonly bufferVersion: number;
+    /** Outline verification when the plan addressed exactly one outline target. */
+    readonly outline?: OutlineTargetVerification;
 }
 
 /**

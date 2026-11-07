@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export * from "./anchors.ts";
 export * from "./core.ts";
 export * from "./outline.ts";
 export * from "./mindmap.ts";

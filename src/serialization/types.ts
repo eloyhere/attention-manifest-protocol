@@ -18,6 +18,18 @@ export interface SafeStringifyOptions {
      * The exact ordering rule is documented in `json.ts`.
      */
     readonly stableKeys?: boolean;
+    /**
+     * Explicit opt-in to the library's shared-reference filter.
+     *
+     * `false` (the default) preserves the library's current behavior: one
+     * shared `WeakSet` walks the value, so a repeated object is dropped at its
+     * second occurrence. `true` records that the caller *relies* on that
+     * filtering guarantee — persistence uses it because a stored payload must
+     * be acyclic and de-duplicated, not because the encoding differs. Both
+     * modes are defined by the same library walk and therefore produce the
+     * same text today; see `json.ts` for the full semantics.
+     */
+    readonly filterShared?: boolean;
 }
 
 /** Frozen function shape of `safeStringify`. */

@@ -44,3 +44,7 @@ export * as serialization from "./serialization/index.ts";
 export * as persistence from "./persistence/index.ts";
 export * as kernel from "./kernel/index.ts";
 export * as feedback from "./feedback/index.ts";
+export * as learn from "./learn/index.ts";
+export * as cognition from "./cognition/index.ts";
+export * as fusion from "./fusion/index.ts";
+export * as sediment from "./sediment/index.ts";

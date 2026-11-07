@@ -2,3 +2,4 @@
 export type * from "./types.ts";
 export { attentionPriority, compileContext } from "./compiler.ts";
 export * from "./lifecycle.ts";
+export * from "./scheduled.ts";

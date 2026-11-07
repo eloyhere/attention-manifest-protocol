@@ -47,6 +47,24 @@ function validateWorkspaceAnchor(value: unknown): void {
     if (value.affectedSymbols !== undefined) validateStringArray("workspaceAnchor.affectedSymbols", value.affectedSymbols);
 }
 
+function validateObservationMetrics(value: unknown): void {
+    if (!isRecord(value)) throw new TypeError("Observation metrics must be an object");
+    for (const field of ["durationMs", "tokens"] as const) {
+        const amount = value[field];
+        if (amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) {
+            throw new TypeError(`Observation metrics ${field} must be a finite nonnegative number`);
+        }
+    }
+    if (value.resources === undefined) return;
+    if (!isRecord(value.resources)) throw new TypeError("Observation metrics resources must be an object");
+    for (const [resource, amount] of Object.entries(value.resources)) {
+        if (resource.trim().length === 0) throw new TypeError("Observation metrics resource names must be non-empty strings");
+        if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+            throw new TypeError(`Observation metrics resource ${resource} must be a finite nonnegative number`);
+        }
+    }
+}
+
 function validateExecutorVersion(field: string, value: unknown): void {
     if (!isRecord(value)) throw new TypeError(`Receipt ${field} must be an object`);
     if (!isNonEmptyString(value.id)) throw new TypeError(`Receipt ${field} requires a non-empty id`);
@@ -72,6 +90,7 @@ function validateReceiptExtensions(input: ReceiptInput): void {
     validateOptionalIdentifier("agentId", input.agentId);
     validateOptionalIdentifier("sessionId", input.sessionId);
     validateOptionalIdentifier("turnId", input.turnId);
+    validateOptionalIdentifier("capabilityId", input.capabilityId);
     if (input.workspaceAnchor !== undefined) validateWorkspaceAnchor(input.workspaceAnchor);
     if (input.executor !== undefined) validateExecutor(input.executor);
     if (input.evidenceIds !== undefined) validateStringArray("evidenceIds", input.evidenceIds);
@@ -89,6 +108,7 @@ export function createObservation(input: Observation): Observation {
     if (!validTimestamp(input.observedAt)) throw new TypeError("Observation observedAt must be an ISO-compatible timestamp");
     if (input.status === "success" && input.error !== undefined) throw new TypeError("Successful observation cannot contain an error");
     if (input.status === "failure" && !input.error) throw new TypeError("Failure observation must include an error");
+    if (input.metrics !== undefined) validateObservationMetrics(input.metrics);
     return immutableSnapshot(input as unknown as JsonValue) as unknown as Observation;
 }
 
@@ -98,6 +118,7 @@ export function createReceiptCore(input: ReceiptInput): ReceiptCore {
     if (!context.tenantId || !context.principalId || !context.agentId || !context.sessionId || !context.operationId || !context.attemptId || !context.executionId) throw new TypeError("Receipt execution identity is incomplete");
     if (input.observation.invocationId !== input.invocation.id) throw new TypeError("Receipt observation must reference its invocation");
     if (!validTimestamp(input.issuedAt)) throw new TypeError("Receipt issuedAt must be an ISO-compatible timestamp");
+    if (input.observation.metrics !== undefined) validateObservationMetrics(input.observation.metrics);
     validateReceiptExtensions(input);
     const lifecycle = input.lifecycle ?? "issued";
     return immutableSnapshot({ ...input, lifecycle } as unknown as JsonValue) as unknown as ReceiptCore;

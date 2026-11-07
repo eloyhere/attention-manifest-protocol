@@ -18,7 +18,10 @@ type EventRow = SqlRow & {
 };
 
 function serializePayload(payload: unknown): string {
-    return safeStringify(payload);
+    // Event payloads share the repository's persistence contract: a stored row
+    // must be acyclic and de-duplicated, so the shared-reference filter is
+    // requested explicitly.
+    return safeStringify(payload, { filterShared: true });
 }
 
 function parsePayload(value: SqlValue): unknown {

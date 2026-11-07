@@ -1,4 +1,4 @@
-import type { Identifier } from "../shared.ts";
+import type { Identifier, JsonValue } from "../shared.ts";
 
 export type Profession = {
     readonly id: Identifier;
@@ -31,6 +31,41 @@ export type ProfessionCertificationRequirements = {
     readonly maximumSideEffectRate: number;
     readonly maximumAverageTokens?: number;
 };
+/**
+ * One case in a profession evaluation set. The executor is injected; this layer
+ * never runs models, shadow sandboxes or network calls itself.
+ */
+export type ProfessionEvaluationCase = {
+    readonly caseId: Identifier;
+    readonly taskId?: Identifier;
+    readonly input?: JsonValue;
+};
+
+/** Shadow execution result for one evaluation case. */
+export type ProfessionShadowOutcome = {
+    readonly success: boolean;
+    readonly tokenCost: number;
+    readonly sideEffects?: number;
+    readonly output?: JsonValue;
+};
+
+export type ProfessionShadowExecutor = (testCase: ProfessionEvaluationCase) => ProfessionShadowOutcome | Promise<ProfessionShadowOutcome>;
+
+/**
+ * One observed task run used by `evaluateTraces`. Metrics are derived from these
+ * facts; an evaluation is never fabricated from a declared score.
+ */
+export type ProfessionTrace = {
+    readonly traceId: Identifier;
+    readonly taskId?: Identifier;
+    readonly success: boolean;
+    /** Measured token cost of this run, averaged into `averageTokens` and summed into `tokenCost`. */
+    readonly tokenCost: number;
+    /** Number of observable side effects for this run; omitted means zero. */
+    readonly sideEffects?: number;
+    readonly observedAt?: string;
+};
+
 /** One evaluation run; `sampleSize` counts independent task outcomes. */
 export type ProfessionEvaluation = {
     readonly evaluationId: Identifier;
@@ -38,6 +73,8 @@ export type ProfessionEvaluation = {
     readonly averageTokens: number;
     readonly sideEffectRate: number;
     readonly sampleSize: number;
+    /** Total token cost across the aggregated traces; absent on externally supplied evaluations. */
+    readonly tokenCost?: number;
     readonly evaluator: Identifier;
     readonly evaluatedAt: string;
 };

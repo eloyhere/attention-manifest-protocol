@@ -9,6 +9,20 @@ export interface Invocation {
     readonly idempotencyKey?: string;
 }
 
+/**
+ * Measured outcome costs attached to an observation (refract.md §9.1).
+ * Every value is optional: a receipt captured without telemetry still
+ * aggregates, and omitted costs count as zero samples rather than zero cost.
+ */
+export interface ObservationMetrics {
+    /** Wall-clock execution time in milliseconds. */
+    readonly durationMs?: number;
+    /** Token cost of the observed execution. */
+    readonly tokens?: number;
+    /** Named resource consumptions, for example `{ calls: 3, bytes: 4096 }`. */
+    readonly resources?: Readonly<Record<string, number>>;
+}
+
 export interface Observation {
     readonly id: Identifier;
     readonly invocationId: Identifier;
@@ -19,6 +33,8 @@ export interface Observation {
     readonly digest?: string;
     readonly externalEffectId?: Identifier;
     readonly artifactVersions?: readonly string[];
+    /** Measured duration, token and resource costs used by receipt aggregation. */
+    readonly metrics?: ObservationMetrics;
 }
 
 /** Receipt kinds from the receipt taxonomy (refract.md §9.2). */
@@ -97,6 +113,8 @@ export interface ReceiptCore {
     readonly agentId?: Identifier;
     readonly sessionId?: Identifier;
     readonly turnId?: Identifier;
+    /** Primary capability the action exercised; used by capability evaluation. */
+    readonly capabilityId?: Identifier;
     /** Workspace snapshot and change coordinates for rollback. */
     readonly workspaceAnchor?: WorkspaceAnchor;
     readonly executor?: ExecutorProfile;

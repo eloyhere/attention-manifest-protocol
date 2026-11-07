@@ -5,7 +5,7 @@ import type { DigestOf, SafeParse, SafeStringify, SafeStringifyOptions } from ".
 /**
  * Safe JSON serialization built on `semantic-typescript`'s `useStringify`.
  *
- * # Circular and shared references
+ * # Circular and shared references (`filterShared`)
  *
  * `useStringify` walks the value with one shared `WeakSet` and returns
  * `undefined` for every object it has already seen. `JSON.stringify` therefore
@@ -14,6 +14,21 @@ import type { DigestOf, SafeParse, SafeStringify, SafeStringifyOptions } from ".
  * library semantics unchanged: circular properties are filtered, never
  * replaced by a marker, and a shared object appears only at its first
  * occurrence. Values are never mutated.
+ *
+ * `safeStringify(value, { filterShared: true })` registers that lossy
+ * filtering as an explicit caller contract. `false` (the default) preserves
+ * whatever the pinned library does, which today is the same filtering; both
+ * modes intentionally share the one library walk, so the explicit mode can
+ * never silently diverge from the default. Persistence passes `true` because a
+ * stored payload must be acyclic and de-duplicated by contract rather than by
+ * an incidental library implementation detail.
+ *
+ * # Arrays and non-representable values
+ *
+ * Arrays keep index order. A hole (a missing index) stays a hole in the
+ * cloned tree and `JSON.stringify` renders it as `null`; `undefined`,
+ * functions and symbols are omitted from objects and become `null` inside
+ * arrays. `BigInt` throws and is reported as `SerializationError`.
  *
  * # Stable key order (`stableKeys: true`)
  *
@@ -97,9 +112,16 @@ export const safeStringify: SafeStringify = Object.freeze((value: unknown, optio
     if (options === null || typeof options !== "object") throw new TypeError("safeStringify options must be an object");
     const stableKeys = options.stableKeys ?? false;
     if (typeof stableKeys !== "boolean") throw new TypeError("safeStringify options.stableKeys must be a boolean");
+    const filterShared = options.filterShared ?? false;
+    if (typeof filterShared !== "boolean") throw new TypeError("safeStringify options.filterShared must be a boolean");
     let text: string | undefined;
     try {
         const target = stableKeys ? cloneWithStableKeys(value, new WeakMap()) : value;
+        // Both modes use the same library walk: it is the shared-reference
+        // filter, so `filterShared: false` keeps the library's behavior and
+        // `filterShared: true` records the caller's reliance on it. Keeping a
+        // single call site guarantees the explicit mode cannot drift from the
+        // default encoding.
         text = useStringify(target as object);
     } catch (error) {
         throw serializationError("JSON serialization failed", error);
@@ -130,6 +152,8 @@ export const safeParse: SafeParse = Object.freeze(<T = unknown>(text: string): T
  * filtered by the library semantics described above.
  */
 export const digestOf: DigestOf = Object.freeze((value: unknown): string => {
-    const text = safeStringify(value, { stableKeys: true });
+    // Canonical digests rely on the shared-reference filter: a digest must not
+    // depend on how often the same object happens to be reachable.
+    const text = safeStringify(value, { stableKeys: true, filterShared: true });
     return `sha256:${createHash("sha256").update(text, "utf8").digest("hex")}`;
 });

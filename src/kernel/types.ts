@@ -8,9 +8,10 @@
  * machine-readable failure codes.
  */
 
-import type { Budget, BudgetUsage, ExecutionContext, Identifier, JsonValue } from "../shared.ts";
+import type { Budget, BudgetDimension, BudgetUsage, ExecutionContext, Identifier, JsonValue } from "../shared.ts";
 import type { Store } from "../service/store.ts";
 import type { StoreStats } from "../service/types.ts";
+import type { BudgetNodeSnapshot, BudgetTree } from "../budget/tree.ts";
 import type { WorkflowStore } from "../workflow/store.ts";
 import type {
     Acceptance,
@@ -55,6 +56,11 @@ import type {
 import type { BusinessVerification, SemanticEvaluator } from "../verification/types.ts";
 import type { Project } from "../project/core.ts";
 import type { Workspace } from "../workspace/core.ts";
+import type { WorkspaceErrorCode } from "../workspace/types.ts";
+import type { EnvironmentDependency, EnvironmentPatch, EnvironmentPlan, ProjectEnvironment } from "../project/environment.ts";
+import type { ProjectMetadata, ProjectOptions, ProjectRule, ProjectView } from "../project/types.ts";
+import type { FileOperationReceipt, FileRange, FileSnapshot, WorkspaceMode, WriteTarget } from "../file/types.ts";
+import type { WorkspaceFile } from "../file/core.ts";
 
 /* ------------------------------------------------------------------ */
 /* Options and ports                                                   */
@@ -70,8 +76,34 @@ export interface KernelOptions {
     readonly clock?: () => string;
     /** Concrete ledger limits for the tenant/root budget key; omitted means unlimited. */
     readonly budgetLimits?: Budget;
+    /**
+     * Project construction options for the kernel-owned `Project` (kind, initial
+     * environment, guidance, anchor resolver). Ignored when `KernelOverrides.project`
+     * supplies an instance.
+     */
+    readonly project?: KernelProjectOptions;
+    /**
+     * Hierarchical budget limits enforced through {@link KernelPorts.budgetTree}.
+     * A Session node is created from `session`; every Turn node is allocated from
+     * that Session node with `turn`. Omitted means the tree is inert until a
+     * caller explicitly adds nodes or passes `limit` to `consumeBudget`.
+     */
+    readonly budgetTree?: KernelBudgetOptions;
+    /** Alias of {@link budgetTree}; both are honoured, `budgetTree` wins. */
+    readonly budget?: KernelBudgetOptions;
     /** Store clock for row `updated_at` / event `recorded_at`; defaults to `clock`. */
     readonly now?: () => string;
+}
+
+/** Project construction options the kernel forwards to `new Project(...)`. */
+export type KernelProjectOptions = Omit<ProjectOptions, "tenantId" | "rootId" | "clock">;
+
+/** Hierarchical budget limits for the Session -> Turn -> Action tree. */
+export interface KernelBudgetOptions {
+    /** Limit of each Session budget node. */
+    readonly session?: Budget;
+    /** Amount allocated from the Session node to each Turn node. */
+    readonly turn?: Budget;
 }
 
 /** Typed command ports over the single {@link WorkflowStore} writer. */
@@ -137,6 +169,8 @@ export interface KernelPorts {
     readonly verification: VerificationOperations;
     readonly project: Project;
     readonly workspace: Workspace;
+    /** Hierarchical Session -> Turn -> Action budget accounting. */
+    readonly budgetTree: BudgetTree;
     readonly store: Store;
 }
 
@@ -160,6 +194,7 @@ export interface KernelOverrides {
 export type KernelErrorCode =
     | WorkflowErrorCode
     | BudgetErrorCode
+    | WorkspaceErrorCode
     | "kernel_closed"
     | "invalid_input"
     | "invalid_state"
@@ -192,6 +227,8 @@ export interface StartSessionInput {
     readonly participants?: readonly Identifier[];
     readonly sessionType?: SessionType;
     readonly expiresAt?: string;
+    /** Session budget allocation; also seeds the Session's budget-tree node. */
+    readonly budget?: Budget;
     readonly actor?: Identifier;
     /** Defaults to true: create then activate so work can be admitted. */
     readonly activate?: boolean;
@@ -202,6 +239,8 @@ export interface BeginTurnInput {
     /** Defaults to the only active/idle session. */
     readonly sessionId?: Identifier;
     readonly classification?: InputClassification;
+    /** Turn budget allocation; also seeds the Turn's budget-tree node. */
+    readonly budget?: Budget;
     readonly actor?: Identifier;
     /** Defaults to true: `received -> interpreting` so Intent capture is legal. */
     readonly interpret?: boolean;
@@ -269,6 +308,274 @@ export interface ReadyTasksResult {
     readonly plan: Plan;
     readonly tasks: readonly Task[];
     readonly ready: readonly Task[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Project orchestration                                              */
+/* ------------------------------------------------------------------ */
+
+/** One Project rule the kernel creates or updates through `Project.putRule`. */
+export interface KernelProjectRuleInput {
+    readonly id: Identifier;
+    readonly text: string;
+    readonly source?: string;
+    readonly expectedVersion?: number;
+    /** Accepted for compatibility with `ProjectRuleInput`; the kernel supplies its own scope. */
+    readonly tenantId?: Identifier;
+    readonly rootId?: Identifier;
+    /** Ignored; accepted so a full `ProjectRule` can be passed back to the kernel. */
+    readonly version?: number;
+    readonly hash?: string;
+    readonly updatedAt?: string;
+}
+
+/** One Project metadata entry the kernel creates or updates. */
+export interface KernelProjectMetadataInput {
+    readonly path: string;
+    readonly kind?: string;
+    readonly tags?: readonly string[];
+    readonly ruleIds?: readonly Identifier[];
+    readonly expectedVersion?: number;
+    /** Accepted for compatibility with `ProjectMetadata`; the kernel supplies its own scope. */
+    readonly tenantId?: Identifier;
+    readonly rootId?: Identifier;
+    /** Ignored; accepted so a full `ProjectMetadata` can be passed back to the kernel. */
+    readonly version?: number;
+    readonly updatedAt?: string;
+}
+
+/**
+ * Project configuration accepted by `configureProject`.
+ *
+ * A bare {@link EnvironmentPatch} (`variables`/`paths`/`dependencies` keys) is
+ * also accepted and applied as `environment`; the object form additionally
+ * carries rules and metadata. Every write is persisted as `project_rule` /
+ * `project_environment` and is atomic with the rest of the call.
+ */
+export interface ConfigureProjectInput {
+    /** Environment overlay applied to the current Project environment. */
+    readonly environment?: EnvironmentPatch;
+    /** Alias of `environment` for callers that pass a wrapped patch. */
+    readonly patch?: EnvironmentPatch;
+    /** Flattened environment variables accepted alongside `rules`/`metadata`. */
+    readonly variables?: Readonly<Record<string, string>>;
+    readonly paths?: readonly string[];
+    readonly dependencies?: readonly EnvironmentDependency[];
+    /** Rules to create or update, in declaration order. */
+    readonly rules?: readonly KernelProjectRuleInput[];
+    /** Project metadata entries to create or update. */
+    readonly metadata?: readonly KernelProjectMetadataInput[];
+    /** Optimistic guard for the Project environment revision. */
+    readonly expectedEnvironmentVersion?: number;
+    /** Alias of `expectedEnvironmentVersion`. */
+    readonly expectedVersion?: number;
+    readonly actor?: Identifier;
+}
+
+/** Either the compact environment patch or the full configuration input. */
+export type ConfigureProjectPatch = EnvironmentPatch | ConfigureProjectInput;
+
+/** Point-in-time Project projection returned by `describeProject`. */
+export interface DescribeProjectResult {
+    readonly tenantId: Identifier;
+    readonly rootId: Identifier;
+    readonly kind?: string;
+    readonly environment: ProjectEnvironment;
+    /** Flattened aliases of `environment` for compact callers. */
+    readonly variables: Readonly<Record<string, string>>;
+    readonly paths: readonly string[];
+    readonly dependencies: readonly EnvironmentDependency[];
+    readonly environmentVersion: number;
+    readonly plan: EnvironmentPlan;
+    /** Deterministic agent-facing Markdown brief (`Project.describeEnvironment()`). */
+    readonly description: string;
+    readonly rules: readonly ProjectRule[];
+    readonly metadata: readonly ProjectMetadata[];
+    readonly views: readonly ProjectView[];
+    readonly ready: boolean;
+}
+
+/** Result of one `configureProject` call. */
+export interface ConfigureProjectResult extends DescribeProjectResult {
+    /** False when every requested change was already present (idempotent replay). */
+    readonly applied: boolean;
+    readonly environmentChanged: boolean;
+    /** Rule ids that were actually written. */
+    readonly rulesChanged: readonly Identifier[];
+    /** Metadata paths that were actually written. */
+    readonly metadataChanged: readonly Identifier[];
+    /** Store event kinds appended by this call, in order (empty on a no-op). */
+    readonly events: readonly string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Workspace file orchestration                                       */
+/* ------------------------------------------------------------------ */
+
+export interface OpenWorkspaceFileInput {
+    readonly path: Identifier;
+    readonly mode?: WorkspaceMode;
+    readonly sessionId?: Identifier;
+    readonly turnId?: Identifier;
+    readonly actor?: Identifier;
+}
+
+/**
+ * An opened and active `WorkspaceFile`. The result carries the snapshot fields
+ * directly (so `result.hash`/`result.version`/`result.state` work) plus the
+ * mount receipt that was recorded as evidence.
+ */
+export interface OpenedWorkspaceFile extends FileSnapshot {
+    readonly snapshot: FileSnapshot;
+    readonly file: WorkspaceFile;
+    /** Alias of `file` for hosts that call the opened object a handle. */
+    readonly handle: WorkspaceFile;
+    readonly receipt: FileOperationReceipt;
+    readonly receiptRecord: ReceiptCore;
+    /** Receipt taxonomy member (`file_mount_receipt` here). */
+    readonly receiptKind: ReceiptKind;
+    readonly evidence: Evidence;
+    readonly idempotent: boolean;
+}
+
+export interface ReadFileOptions {
+    readonly range?: FileRange;
+    readonly allowStale?: boolean;
+    /** Defaults to read-only when the kernel has to open the file. */
+    readonly mode?: WorkspaceMode;
+    readonly sessionId?: Identifier;
+    readonly turnId?: Identifier;
+}
+
+export interface ReadFileInput extends ReadFileOptions {
+    readonly path: Identifier;
+}
+
+/** File content plus the resulting (or still cached) snapshot. */
+export interface ReadFileResult extends FileSnapshot {
+    readonly content: string;
+    /** Alias of `content`. */
+    readonly text: string;
+    readonly snapshot: FileSnapshot;
+    /** True when the kernel had to mount the file for this read. */
+    readonly opened: boolean;
+    readonly mountReceipt?: FileOperationReceipt;
+}
+
+export interface WriteFileOptions {
+    /** Content accepted when options are passed as the second argument. */
+    readonly content?: string;
+    /** Whole-buffer write when omitted; otherwise a targeted line/byte/outline edit. */
+    readonly target?: FileRange | WriteTarget;
+    /** Mode used only when the kernel has to open the file; defaults to writable. */
+    readonly mode?: WorkspaceMode;
+    readonly idempotencyKey?: string;
+    /** Optimistic buffer guard forwarded to `WorkspaceFile.write`. */
+    readonly expectedBufferVersion?: number;
+    /** Optimistic committed-base guard forwarded to `WorkspaceFile.write`. */
+    readonly expectedBaseHash?: string;
+    readonly sessionId?: Identifier;
+    readonly turnId?: Identifier;
+}
+
+export interface WriteFileInput extends WriteFileOptions {
+    readonly path: Identifier;
+    readonly content: string;
+}
+
+/** Result of one `writeFile` step: the committed snapshot plus its evidence chain. */
+export interface WriteFileResult extends FileSnapshot {
+    readonly content: string;
+    readonly snapshot: FileSnapshot;
+    /** The `flush` receipt (the durable commit this step performed). */
+    readonly receipt: FileOperationReceipt;
+    /** Mount (when the kernel opened the file) plus flush receipts, in order. */
+    readonly receipts: readonly FileOperationReceipt[];
+    readonly receiptRecord: ReceiptCore;
+    /** Receipt taxonomy member (`file_flush_receipt` here). */
+    readonly receiptKind: ReceiptKind;
+    readonly evidence: Evidence;
+    readonly verification: BusinessVerification;
+    readonly integrity: ReceiptIntegrityVerification;
+    /** True when an identical receipt already existed and nothing new was written. */
+    readonly idempotent: boolean;
+    /** True when the committed hash version moved. */
+    readonly changed: boolean;
+}
+
+export interface CloseWorkspaceFileInput {
+    readonly path: Identifier;
+    readonly discardDirty?: boolean;
+    readonly sessionId?: Identifier;
+    readonly turnId?: Identifier;
+}
+
+export interface CloseWorkspaceFileResult {
+    readonly path: Identifier;
+    readonly closed: boolean;
+    readonly snapshot?: FileSnapshot;
+    readonly receipt?: FileOperationReceipt;
+    readonly receiptRecord?: ReceiptCore;
+    readonly receiptKind?: ReceiptKind;
+    readonly evidence?: Evidence;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hierarchical budget enforcement                                    */
+/* ------------------------------------------------------------------ */
+
+export type BudgetExhaustionScope = "session" | "turn" | "action" | "node";
+
+/** Stable decision recorded when a `BudgetTree` node has no remaining budget. */
+export interface BudgetExhaustionDecision {
+    readonly scope: BudgetExhaustionScope;
+    /** Budget-tree node that raised the signal. */
+    readonly nodeId: Identifier;
+    /** Workflow entity that was addressed (when the node maps to one). */
+    readonly entityId?: Identifier;
+    readonly dimension: BudgetDimension;
+    readonly reason: "budget_exhausted";
+    /**
+     * Business reaction the kernel applied: interrupt an acting Turn, move a
+     * Session to `closing`, or only record the decision when the entity is in a
+     * state with no legal edge.
+     */
+    readonly action: "turn_interrupted" | "session_closing" | "recorded";
+    readonly applied: boolean;
+    readonly previousState?: string;
+    readonly state?: string;
+    readonly message: string;
+    readonly at: string;
+}
+
+export interface ConsumeBudgetInput {
+    readonly usage: Budget;
+    /** Explicit tree node. It is created as a root when `limit` is supplied. */
+    readonly nodeId?: Identifier;
+    /** Turn node; the Turn is driven to `acting` before consumption. */
+    readonly turnId?: Identifier;
+    /** Session node. */
+    readonly sessionId?: Identifier;
+    /** `reserve` keeps the amount provisional; the default `consume` is final. */
+    readonly mode?: "consume" | "reserve";
+    /** Limit used when this call has to create the node. */
+    readonly limit?: Budget;
+    readonly actor?: Identifier;
+    /** Re-throw `budget_exhausted` after the decision was recorded. */
+    readonly throwOnExhausted?: boolean;
+}
+
+export interface ConsumeBudgetResult {
+    readonly consumed: boolean;
+    readonly nodeId: Identifier;
+    readonly usage: Budget;
+    /** Present when the tree refused the amount. */
+    readonly error?: { readonly code: "budget_exhausted"; readonly message: string };
+    /** The decision produced by the `onExhausted` observer for this refusal. */
+    readonly decision?: BudgetExhaustionDecision;
+    /** Node snapshot after a successful consumption/reservation. */
+    readonly snapshot?: BudgetNodeSnapshot;
+    readonly remaining?: BudgetUsage;
 }
 
 /** Optional policy request for `startAction`; the default PEP allows all. */
@@ -544,6 +851,9 @@ export interface KernelSnapshot {
     readonly entities: readonly WorkflowEntity[];
     readonly counts: Readonly<Record<WorkflowKind, number>>;
     readonly budget: BudgetSnapshot;
+    /** Hierarchical Session -> Turn -> Action nodes, roots first. */
+    readonly budgetTree: readonly BudgetNodeSnapshot[];
+    readonly budgetDecisions: number;
     readonly evidenceCount: number;
     readonly receiptCount: number;
     readonly verificationCount: number;
@@ -569,6 +879,28 @@ export interface KernelFlow {
     verifyBusiness(input: VerifyBusinessInput): Promise<VerifyBusinessResult>;
     achieveGoal(input: AchieveGoalInput): AchieveGoalResult;
     closeSession(input: CloseSessionInput): CloseSessionResult;
+
+    /* Project ------------------------------------------------------- */
+    /** Applies an environment patch plus rule/metadata edits atomically. */
+    configureProject(patch: ConfigureProjectPatch): ConfigureProjectResult;
+    /** Reads the current Project environment, plan, brief, rules, metadata and views. */
+    describeProject(): DescribeProjectResult;
+
+    /* Workspace files ----------------------------------------------- */
+    /** Mounts and activates a workspace file and records its mount receipt. */
+    openWorkspaceFile(path: Identifier | OpenWorkspaceFileInput, mode?: WorkspaceMode): OpenedWorkspaceFile;
+    /** Reads a file, opening it read-only when it is not already open. */
+    readFile(path: Identifier | ReadFileInput, options?: ReadFileOptions | FileRange): ReadFileResult;
+    /** Writes and flushes a file, recording the flush receipt as evidence. */
+    writeFile(path: Identifier | WriteFileInput, content?: string | WriteFileOptions, options?: WriteFileOptions): WriteFileResult;
+    /** Unmounts an open file and records the unmount receipt. */
+    closeWorkspaceFile(path: Identifier | CloseWorkspaceFileInput): CloseWorkspaceFileResult;
+
+    /* Hierarchical budget ------------------------------------------- */
+    /** Consumes/reserves a budget-tree node and propagates exhaustion. */
+    consumeBudget(input: ConsumeBudgetInput): ConsumeBudgetResult;
+    /** Decisions recorded by the tree's `onExhausted` observer, oldest first. */
+    budgetDecisions(): readonly BudgetExhaustionDecision[];
 }
 
 /** Composed kernel instance. */
@@ -577,6 +909,8 @@ export interface Kernel {
     readonly flow: KernelFlow;
     readonly store: Store;
     snapshot(): KernelSnapshot;
+    /** Decisions recorded by the budget tree's `onExhausted` observer, oldest first. */
+    budgetDecisions(): readonly BudgetExhaustionDecision[];
     close(): void;
 }
 

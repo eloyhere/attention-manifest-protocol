@@ -50,12 +50,34 @@ export interface ProjectView {
     readonly updatedAt: string;
     /** Consumption intent of the projection; omitted for legacy callers. */
     readonly purpose?: ViewPurpose;
-    /** Stable object references the projection is anchored to. */
+    /** Stable object references the projection is anchored to; they are checked against the project anchor registry. */
     readonly anchors?: readonly string[];
     /** Deterministic constraints the host enforces; they never enter model context. */
     readonly constraints?: readonly string[];
     /** Freshness of the projection from 0 (stale) to 1 (fresh). */
     readonly freshness?: number;
+}
+
+/**
+ * Host-side registry of view anchors.
+ *
+ * Views are projections and must never invent their own truth: an anchor names
+ * an object the host has registered for this project. Hosts persist the anchor
+ * list and, after a restart, replay `registerAnchor` for every remembered entry
+ * before putting views again. Registering the same anchor twice is rejected so
+ * a replay can never silently mask a corrupt or duplicated persisted list.
+ *
+ * Implementations are synchronous because view validation is synchronous.
+ */
+export interface AnchorRegistry {
+    /** Add one anchor. Throws `duplicate` when it is already registered. */
+    registerAnchor(anchor: string): void;
+    /** Remove one anchor; returns true when it was registered. */
+    unregisterAnchor(anchor: string): boolean;
+    /** True when the anchor is registered. */
+    resolveAnchor(anchor: string): boolean;
+    /** Registered anchors in stable registration order (frozen). */
+    listAnchors(): readonly string[];
 }
 
 export interface ProjectOptions extends ProjectScope {
@@ -67,7 +89,18 @@ export interface ProjectOptions extends ProjectScope {
     /** Extra agent-facing configuration instructions shown in the environment brief. */
     readonly guidance?: readonly string[];
     /**
-     * Host-side resolver for view anchors. When provided, `putView` and
+     * Host-side registry for view anchors. When provided, `putView` and
+     * `Project.validateView` use it as the default anchor check and reject an
+     * anchor that is not registered.
+     */
+    readonly anchorRegistry?: AnchorRegistry;
+    /**
+     * Initial anchors for host replay after a restart. Equivalent to calling
+     * `registerAnchor` for each value in order; duplicates are rejected.
+     */
+    readonly anchors?: Iterable<string>;
+    /**
+     * Legacy host-side resolver for view anchors. When provided, `putView` and
      * `Project.validateView` reject anchors that do not name an existing object.
      */
     readonly anchorExists?: (anchor: string) => boolean;

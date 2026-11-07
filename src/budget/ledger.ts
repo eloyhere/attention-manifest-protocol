@@ -1,5 +1,11 @@
-import { EmptyBudgetUsage, addBudgetUsage, exceedsBudget, normalizeBudgetUsage } from "../shared.ts";
-import type { Budget, BudgetUsage, Identifier } from "../shared.ts";
+import {
+    BUDGET_DIMENSIONS,
+    EmptyBudgetUsage,
+    addBudgetUsage,
+    exceedsBudget,
+    normalizeBudget,
+} from "../shared.ts";
+import type { Budget, BudgetUsage, CompleteBudgetUsage, Identifier } from "../shared.ts";
 import { SynchronousOrderedMap, SynchronousOrderedSet } from "semantic-typescript";
 import type { BudgetReservation, BudgetSnapshot } from "../tool/types.ts";
 
@@ -26,14 +32,10 @@ export class BudgetError extends Error {
     }
 }
 
+/** Normalize any accepted budget shape to all six dimensions, reporting domain errors. */
 function normalize(amount: Budget): BudgetUsage {
     try {
-        for (const [key, value] of Object.entries(amount)) {
-            if (!Number.isSafeInteger(value) || value < 0) {
-                throw new BudgetError("invalid_amount", `Budget dimension ${key} must be a nonnegative safe integer.`);
-            }
-        }
-        return normalizeBudgetUsage(amount);
+        return normalizeBudget(amount);
     } catch (error) {
         if (error instanceof BudgetError) throw error;
         throw new BudgetError("invalid_amount", error instanceof Error ? error.message : String(error));
@@ -48,13 +50,10 @@ function freezeDeep<T>(value: T): T {
 }
 
 function withinReservation(actual: BudgetUsage, reserved: BudgetUsage): boolean {
-    return actual.tokens <= reserved.tokens
-        && actual.milliseconds <= reserved.milliseconds
-        && actual.calls <= reserved.calls
-        && actual.bytes <= reserved.bytes;
+    return BUDGET_DIMENSIONS.every(dimension => (actual[dimension] ?? 0) <= (reserved[dimension] ?? 0));
 }
 
-function total(left: BudgetUsage, right: BudgetUsage): BudgetUsage {
+function total(left: BudgetUsage, right: BudgetUsage): CompleteBudgetUsage {
     return addBudgetUsage(left, right);
 }
 
@@ -62,13 +61,19 @@ function cloneReservation(reservation: BudgetReservation): BudgetReservation {
     return freezeDeep(structuredClone(reservation));
 }
 
-function difference(next: BudgetUsage, previous: BudgetUsage): BudgetUsage {
-    return {
-        tokens: next.tokens - previous.tokens,
-        milliseconds: next.milliseconds - previous.milliseconds,
-        calls: next.calls - previous.calls,
-        bytes: next.bytes - previous.bytes,
+function difference(next: BudgetUsage, previous: BudgetUsage): CompleteBudgetUsage {
+    const result: CompleteBudgetUsage = {
+        tokens: 0,
+        milliseconds: 0,
+        calls: 0,
+        bytes: 0,
+        retries: 0,
+        concurrency: 0,
     };
+    for (const dimension of BUDGET_DIMENSIONS) {
+        result[dimension] = (next[dimension] ?? 0) - (previous[dimension] ?? 0);
+    }
+    return result;
 }
 
 export class BudgetLedger {
@@ -78,13 +83,17 @@ export class BudgetLedger {
     private readonly openByKey = new SynchronousOrderedSet<Identifier>();
 
     configure(key: Identifier, limit: Budget): void {
-        normalize(limit);
+        // An empty object keeps the documented "omitted limit = unlimited"
+        // semantics; otherwise normalize once to a complete six-dimensional
+        // value so the same validation/overflow rules apply to every dimension.
+        const unlimited = Object.keys(limit).length === 0;
+        const normalized = unlimited ? undefined : normalize(limit);
         const prior = this.snapshot(key);
         const projected = total(prior.settled, prior.reserved);
-        if (exceedsBudget(projected, limit)) {
+        if (normalized !== undefined && exceedsBudget(projected, normalized)) {
             throw new BudgetError("limit_exceeded", "New limit is below already consumed or reserved budget.");
         }
-        this.limits.put(key, Object.freeze({ ...limit }));
+        this.limits.put(key, unlimited ? Object.freeze({}) : Object.freeze({ ...normalized }));
     }
 
     snapshot(key: Identifier): BudgetSnapshot {
@@ -112,7 +121,7 @@ export class BudgetLedger {
         if (!this.limits.containsKey(key)) throw new BudgetError("budget_not_configured", `Budget key ${key} is not configured.`);
         const normalized = normalize(amount);
         const current = this.snapshot(key);
-        let projected: BudgetUsage;
+        let projected: CompleteBudgetUsage;
         try {
             projected = total(total(current.settled, current.reserved), normalized);
         } catch {
