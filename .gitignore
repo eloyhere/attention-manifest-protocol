@@ -33,3 +33,6 @@ lib
 
 # local persistence store
 .attention-manifest-protocol/
+
+# local harness coordination state
+.deepseek-coordination/
