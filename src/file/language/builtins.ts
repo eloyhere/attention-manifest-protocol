@@ -1,6 +1,7 @@
 import { LanguageRegistry } from "./registry.ts";
 import type { LanguageDefinition } from "./types.ts";
 import { definition as markdown } from "./markdown.ts";
+import { definition as log } from "./log.ts";
 import { definition as text } from "./text.ts";
 import { definition as tex } from "./tex.ts";
 import { definition as javascript } from "./javascript.ts";
@@ -38,7 +39,7 @@ export function createDefaultLanguageRegistry(): LanguageRegistry {
     return new LanguageRegistry({ definitions: builtinLanguages });
 }
 export const builtinLanguages: readonly LanguageDefinition[] = Object.freeze([
-    markdown, text, tex, javascript, typescript, c, cpp, java, python, csharp, mysql, oracle, sqlserver,
+    markdown, log, text, tex, javascript, typescript, c, cpp, java, python, csharp, mysql, oracle, sqlserver,
     word, excel, powerPoint, access, publisher, max3d, solidworks, photoshop, cad,
     html, vue, css, scss, sass, swift, go, xml, json, compress,
 ].map(value => Object.freeze({ ...value, extensions: Object.freeze([...value.extensions]), mimeTypes: Object.freeze([...value.mimeTypes]) })));
